@@ -4,12 +4,12 @@
     "slug": "LaundryApp",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/icono-App.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/logo-laundry-lav.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#143F73"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -19,13 +19,15 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/icono-App.png",
+        "backgroundColor": "#143F73"
       }
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "bundler": "metro",
+      "favicon": "./assets/icono-App.png"
     },
+    "scheme": "laundryapp",
     "plugins": [
       [
         "@rnmapbox/maps",
@@ -33,7 +35,15 @@
           "RNMapboxMapsImpl": "mapbox",
           "RNMAPBOX_MAPS_DOWNLOAD_TOKEN": "pk.eyJ1IjoiYW5nZWxndWFuYTAwMSIsImEiOiJjbW5vdDlwMXkwaDhmMnJvcGRhY2lwcHA5In0.sVB6piHwj7TB5ja7HR1hZA"
         }
-      ]
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Permite acceso a tus fotos para subir documentos.",
+          "cameraPermission": "Permite acceso a la camara para tomar selfie de verificacion."
+        }
+      ],
+      "expo-router"
     ]
   }
 }

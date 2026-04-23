@@ -1,22 +1,47 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, ScrollView, Alert, Image,
+  StyleSheet, ScrollView, Alert, Image, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { useNavigation } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
+import { useAuthStore } from '../../store/useAuthStore';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { BRAND_ASSETS, BRAND_COLORS } from '../../theme/brand';
 
 export default function RegisterScreen() {
-  const navigation = useNavigation<any>();
+  const router = useRouter();
+  const { setUser } = useAuthStore();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [cedulaPhoto, setCedulaPhoto] = useState<string | null>(null);
   const [selfiePhoto, setSelfiePhoto] = useState<string | null>(null);
 
+  const ensureLibraryPermission = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permiso requerido', 'Debes permitir acceso a fotos para subir tu cédula.');
+      return false;
+    }
+    return true;
+  };
+
+  const ensureCameraPermission = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permiso requerido', 'Debes permitir acceso a la cámara para tomar la selfie.');
+      return false;
+    }
+    return true;
+  };
+
   const pickImage = async (type: 'cedula' | 'selfie') => {
+    const hasPermission = await ensureLibraryPermission();
+    if (!hasPermission) return;
+
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       quality: 0.7,
     });
     if (!result.canceled) {
@@ -26,8 +51,12 @@ export default function RegisterScreen() {
   };
 
   const takeSelfie = async () => {
+    const hasPermission = await ensureCameraPermission();
+    if (!hasPermission) return;
+
     const result = await ImagePicker.launchCameraAsync({
       cameraType: ImagePicker.CameraType.front,
+      mediaTypes: ['images'],
       quality: 0.7,
     });
     if (!result.canceled) setSelfiePhoto(result.assets[0].uri);
@@ -40,13 +69,37 @@ export default function RegisterScreen() {
     }
     // TODO: llamar a authService.register({ name, email, password, cedulaPhoto, selfiePhoto })
     // La cuenta queda en estado 'pending' hasta aprobación del admin
-    Alert.alert('Registro enviado', 'Tu cuenta está pendiente de aprobación.');
-    navigation.replace('Login');
+    setUser(
+      {
+        id: Date.now().toString(),
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        role: 'client',
+        status: 'pending',
+        cedula_photo: cedulaPhoto,
+        selfie_photo: selfiePhoto,
+      },
+      'mock-pending-token'
+    );
+    Alert.alert('Registro enviado', 'Tu cuenta quedó pendiente de aprobación.');
+    router.replace('/');
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Crear cuenta</Text>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <SafeAreaView style={styles.flex} edges={['top']}>
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <ScrollView
+            contentContainerStyle={styles.container}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+          >
+            <Image source={BRAND_ASSETS.logoName} style={styles.logo} />
+            <Text style={styles.title}>Crear cuenta</Text>
+            <Text style={styles.subtitle}>Completa tus datos para activar tu cuenta</Text>
 
       <TextInput style={styles.input} placeholder="Nombre completo" value={name} onChangeText={setName} />
       <TextInput style={styles.input} placeholder="Correo" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
@@ -70,21 +123,27 @@ export default function RegisterScreen() {
       </TouchableOpacity>
       {selfiePhoto && <Image source={{ uri: selfiePhoto }} style={styles.preview} />}
 
-      <TouchableOpacity style={styles.button} onPress={handleRegister}>
-        <Text style={styles.buttonText}>Registrarme</Text>
-      </TouchableOpacity>
-    </ScrollView>
+            <TouchableOpacity style={styles.button} onPress={handleRegister}>
+              <Text style={styles.buttonText}>Registrarme</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </TouchableWithoutFeedback>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 24, backgroundColor: '#fff' },
-  title: { fontSize: 28, fontWeight: '700', marginBottom: 24, color: '#3B82F6' },
+  flex: { flex: 1 },
+  container: { padding: 20, backgroundColor: '#fff', paddingBottom: 30 },
+  logo: { width: 200, height: 70, resizeMode: 'contain', alignSelf: 'center', marginBottom: 8 },
+  title: { fontSize: 28, fontWeight: '700', marginBottom: 4, color: BRAND_COLORS.primary, textAlign: 'center' },
+  subtitle: { fontSize: 13, color: '#6B7280', marginBottom: 18, textAlign: 'center' },
   input: { borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 16 },
   label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 },
-  photoButton: { backgroundColor: '#EFF6FF', borderRadius: 8, padding: 14, alignItems: 'center', marginBottom: 12, borderWidth: 1, borderColor: '#BFDBFE' },
-  photoButtonText: { color: '#3B82F6', fontWeight: '600' },
+  photoButton: { backgroundColor: BRAND_COLORS.primarySoft, borderRadius: 10, padding: 14, alignItems: 'center', marginBottom: 12, borderWidth: 1, borderColor: BRAND_COLORS.border },
+  photoButtonText: { color: BRAND_COLORS.primary, fontWeight: '600' },
   preview: { width: '100%', height: 160, borderRadius: 8, marginBottom: 16, resizeMode: 'cover' },
-  button: { backgroundColor: '#3B82F6', borderRadius: 8, padding: 14, alignItems: 'center', marginTop: 8 },
+  button: { backgroundColor: BRAND_COLORS.primary, borderRadius: 10, padding: 15, alignItems: 'center', marginTop: 8 },
   buttonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
 });
