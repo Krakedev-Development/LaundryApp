@@ -1,21 +1,16 @@
 import React from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, FlatList, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import OrderCard from '../../../components/orders/OrderCard';
 import { MOCK_ORDERS } from '../../../data/mockData';
+import AppHeader from '../../../components/layout/AppHeader';
 
 export default function ClientOrders() {
   const router = useRouter();
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.back}>‹ Volver</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Mis pedidos</Text>
-        <View style={{ width: 60 }} />
-      </View>
+      <AppHeader title="Mis pedidos" />
       <FlatList
         data={MOCK_ORDERS}
         keyExtractor={(item) => item.id}

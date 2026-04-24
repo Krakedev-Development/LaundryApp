@@ -3,8 +3,7 @@ import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import ChatInterface from '../../components/chat/ChatInterface';
 import { MOCK_MESSAGES, MOCK_ORDERS, ChatMessage } from '../../data/mockData';
-import { BRAND_COLORS } from '../../theme/brand';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import AppHeader from '../../components/layout/AppHeader';
 
 export default function DriverChat() {
   const router = useRouter();
@@ -26,12 +25,8 @@ export default function DriverChat() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.back}>‹ Volver</Text>
-        </TouchableOpacity>
-      </View>
+    <View style={styles.container}>
+      <AppHeader title="Chat con cliente" subtitle={order.id} onBack={() => router.back()} />
       <ChatInterface
         messages={messages}
         currentUserId="d1"
@@ -40,15 +35,23 @@ export default function DriverChat() {
         quickActions={quickStatuses}
         onQuickAction={handleSend}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   header: {
-    paddingHorizontal: 16, paddingBottom: 8,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 12,
     backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#E5E7EB',
   },
-  back: { fontSize: 17, color: BRAND_COLORS.primary },
+  backBtn: {
+    width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: '#E5E7EB',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  headerCenter: { flex: 1, alignItems: 'center' },
+  headerSpacer: { width: 36, height: 36 },
+  title: { fontSize: 18, fontWeight: '700', color: '#111827' },
+  subtitle: { fontSize: 12, color: '#6B7280', marginTop: 2, fontWeight: '600' },
 });

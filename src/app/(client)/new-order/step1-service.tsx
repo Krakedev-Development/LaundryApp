@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MOCK_SERVICES, ServicePackage } from '../../../data/mockData';
 import { useOrderStore } from '../../../store/useOrderStore';
+import AppHeader from '../../../components/layout/AppHeader';
 
 const SERVICE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   wash_fold: 'water-outline',
@@ -26,14 +27,7 @@ export default function Step1Service() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#111827" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Tipo de servicio</Text>
-        <Text style={styles.step}>1 / 5</Text>
-      </View>
+      <AppHeader title="Tipo de servicio" rightText="1 / 5" onBack={() => router.back()} />
 
       {/* Progress */}
       <View style={styles.progressBar}>
@@ -68,8 +62,8 @@ export default function Step1Service() {
               </View>
               <Text style={styles.serviceDesc}>{service.description}</Text>
               <Text style={styles.servicePrice}>
-                {service.pricePerPound
-                  ? `$${service.pricePerPound.toFixed(2)} / libra`
+                {service.pricePerGarment
+                  ? `$${service.pricePerGarment.toFixed(2)} / prenda`
                   : `$${service.fixedPrice?.toFixed(2)} fijo`}
               </Text>
             </View>

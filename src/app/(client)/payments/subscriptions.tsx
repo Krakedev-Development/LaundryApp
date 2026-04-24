@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SUBSCRIPTION_PLANS, MOCK_PAYMENT_METHODS, SubscriptionPlan } from '../../../data/mockData';
 import { BRAND_COLORS } from '../../../theme/brand';
+import AppHeader from '../../../components/layout/AppHeader';
 
 export default function SubscriptionsScreen() {
   const router = useRouter();
@@ -29,13 +30,7 @@ export default function SubscriptionsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#111827" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Membresías</Text>
-        <View style={{ width: 32 }} />
-      </View>
+      <AppHeader title="Membresias" onBack={() => router.back()} />
 
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.subtitle}>Recogidas semanales fijas con descuento</Text>
@@ -88,7 +83,7 @@ export default function SubscriptionsScreen() {
                 </View>
                 <View style={styles.summaryChip}>
                   <Ionicons name="scale-outline" size={14} color="#374151" />
-                  <Text style={styles.summaryChipText}>{plan.poundsPerPickup} lbs c/u</Text>
+                  <Text style={styles.summaryChipText}>{plan.garmentsPerPickup} prendas c/u</Text>
                 </View>
               </View>
 

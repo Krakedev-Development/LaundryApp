@@ -1,35 +1,41 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { MOCK_ORDERS } from '../../data/mockData';
+import { MOCK_ORDERS, OrderStatus } from '../../data/mockData';
 import { BRAND_COLORS } from '../../theme/brand';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useOrderStatusStore } from '../../store/useOrderStatusStore';
+import AppHeader from '../../components/layout/AppHeader';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
+  pending: 'picked_up',
+  picked_up: 'in_process',
+  in_process: 'delivering',
+  delivering: 'delivered',
+};
 
 export default function DriverOrderDetail() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const order = MOCK_ORDERS.find((o) => o.id === id) ?? MOCK_ORDERS[0];
-  const [status, setStatus] = useState(order.status);
+  const status = useOrderStatusStore((s) => s.overrides[order.id] ?? order.status);
+  const setStatus = useOrderStatusStore((s) => s.setStatus);
+  const nextAllowedStatus = NEXT_STATUS[status];
   const garments = Array.isArray((order as any).garments) && (order as any).garments.length > 0
     ? ((order as any).garments as string[])
-    : [`Servicio: ${order.serviceType.replace('_', ' ')}`, `${order.pounds} lbs estimadas`];
+    : [`Servicio: ${order.serviceType.replace('_', ' ')}`, `${order.garmentCount} prendas estimadas`];
 
   const pickupDate = new Date(order.pickupTime);
-  const deliveryDate = new Date(order.deliveryTime);
+  const hasDeliveryDate = Boolean(order.deliveryTime);
+  const deliveryDate = hasDeliveryDate ? new Date(order.deliveryTime) : null;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <ScrollView contentContainerStyle={styles.content}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.back}>‹ Volver</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Detalle del pedido</Text>
-        <View style={{ width: 60 }} />
-      </View>
+    <View style={styles.container}>
+      <AppHeader title="Detalle del pedido" subtitle={order.id} onBack={() => router.back()} />
 
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom + 24, 40) }]}>
       {/* ID y estado */}
       <View style={styles.card}>
         <Text style={styles.orderId}>{order.id}</Text>
@@ -57,7 +63,9 @@ export default function DriverOrderDetail() {
           Recogida: {pickupDate.toLocaleDateString('es')} {pickupDate.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
         </Text>
         <Text style={styles.cardSub}>
-          Entrega: {deliveryDate.toLocaleDateString('es')} {deliveryDate.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
+          Entrega: {deliveryDate
+            ? `${deliveryDate.toLocaleDateString('es')} ${deliveryDate.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}`
+            : 'Fecha de entrega aun no asignada'}
         </Text>
       </View>
 
@@ -75,19 +83,40 @@ export default function DriverOrderDetail() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Estado operativo</Text>
         <View style={styles.statusActions}>
-          <TouchableOpacity style={styles.statusBtn} onPress={() => setStatus('picked_up')}>
+          <TouchableOpacity
+            style={[styles.statusBtn, styles.statusBtnGrid, nextAllowedStatus !== 'picked_up' && styles.statusBtnDisabled]}
+            onPress={() => setStatus(order.id, 'picked_up' as OrderStatus)}
+            disabled={nextAllowedStatus !== 'picked_up'}
+          >
             <Text style={styles.statusBtnText}>Marcar recogido</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.statusBtn} onPress={() => setStatus('in_process')}>
+          <TouchableOpacity
+            style={[styles.statusBtn, styles.statusBtnGrid, nextAllowedStatus !== 'in_process' && styles.statusBtnDisabled]}
+            onPress={() => setStatus(order.id, 'in_process' as OrderStatus)}
+            disabled={nextAllowedStatus !== 'in_process'}
+          >
             <Text style={styles.statusBtnText}>Entregado en matriz</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.statusBtn} onPress={() => setStatus('delivering')}>
+          <TouchableOpacity
+            style={[styles.statusBtn, styles.statusBtnGrid, nextAllowedStatus !== 'delivering' && styles.statusBtnDisabled]}
+            onPress={() => setStatus(order.id, 'delivering' as OrderStatus)}
+            disabled={nextAllowedStatus !== 'delivering'}
+          >
             <Text style={styles.statusBtnText}>Salir a entregar</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.statusBtn} onPress={() => setStatus('delivered')}>
+          <TouchableOpacity
+            style={[styles.statusBtn, styles.statusBtnGrid, nextAllowedStatus !== 'delivered' && styles.statusBtnDisabled]}
+            onPress={() => setStatus(order.id, 'delivered' as OrderStatus)}
+            disabled={nextAllowedStatus !== 'delivered'}
+          >
             <Text style={styles.statusBtnText}>Marcar entregado</Text>
           </TouchableOpacity>
         </View>
+        <Text style={styles.statusHint}>
+          {nextAllowedStatus
+            ? `Siguiente paso: ${nextAllowedStatus.replace('_', ' ')}`
+            : 'Pedido completado. No hay más cambios de estado.'}
+        </Text>
       </View>
 
       {/* Prendas */}
@@ -122,20 +151,26 @@ export default function DriverOrderDetail() {
         </View>
       </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: BRAND_COLORS.background },
-  content: { paddingBottom: 52 },
+  content: { paddingTop: 16, paddingBottom: 52 },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: 16, backgroundColor: '#fff',
-    borderBottomWidth: 1, borderBottomColor: '#E5E7EB', marginBottom: 16,
+    paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#fff',
+    borderBottomWidth: 1, borderBottomColor: '#E5E7EB',
   },
-  back: { fontSize: 17, color: BRAND_COLORS.primary, width: 60 },
+  backBtn: {
+    width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: '#E5E7EB',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  headerCenter: { flex: 1, alignItems: 'center' },
+  headerSpacer: { width: 36, height: 36 },
   title: { fontSize: 18, fontWeight: '700', color: '#111827' },
+  subtitle: { fontSize: 12, color: '#6B7280', marginTop: 2, fontWeight: '600' },
   card: {
     backgroundColor: '#fff', borderRadius: 12, padding: 16,
     marginHorizontal: 16, marginBottom: 12,
@@ -158,8 +193,11 @@ const styles = StyleSheet.create({
   },
   secondaryBtnText: { color: BRAND_COLORS.primary, fontWeight: '700', fontSize: 16 },
   btnContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  statusActions: { gap: 8 },
-  statusBtn: { borderWidth: 1.2, borderColor: BRAND_COLORS.border, borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
-  statusBtnText: { color: BRAND_COLORS.primary, fontWeight: '600', fontSize: 13 },
+  statusActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  statusBtn: { borderWidth: 1.2, borderColor: BRAND_COLORS.border, borderRadius: 8, paddingVertical: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
+  statusBtnGrid: { width: '48%', minHeight: 68, paddingHorizontal: 8 },
+  statusBtnDisabled: { opacity: 0.45 },
+  statusBtnText: { color: BRAND_COLORS.primary, fontWeight: '600', fontSize: 13, textAlign: 'center' },
+  statusHint: { fontSize: 12, color: '#6B7280', marginTop: 8 },
   auditText: { fontSize: 12, color: '#9CA3AF', marginTop: 6 },
 });

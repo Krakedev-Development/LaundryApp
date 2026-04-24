@@ -100,7 +100,7 @@ export default function RewardsModal({ visible, onClose }: RewardsModalProps) {
             <View style={styles.howSection}>
               <Text style={styles.howTitle}>Cómo ganar puntos</Text>
               {[
-                { icon: 'water-outline' as const, text: 'Cada pedido suma 10 pts por libra' },
+                { icon: 'water-outline' as const, text: 'Cada pedido suma 10 pts por prenda' },
                 { icon: 'download-outline' as const, text: 'Descarga la app: +50 pts' },
                 { icon: 'people-outline' as const, text: 'Refiere un amigo: +100 pts' },
                 { icon: 'calendar-outline' as const, text: 'Pedido semanal: +20 pts extra' },

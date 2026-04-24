@@ -5,12 +5,14 @@ import { Ionicons } from '@expo/vector-icons';
 import MapViewCustom, { StopMarker } from '../../components/map/MapViewCustom';
 import { MOCK_ORDERS, MOCK_DRIVER } from '../../data/mockData';
 import { BRAND_COLORS } from '../../theme/brand';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import AppHeader from '../../components/layout/AppHeader';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MATRIZ = { latitude: -0.2295, longitude: -78.5243 };
 
 export default function DriverMap() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const order = MOCK_ORDERS.find((o) => o.id === id) ?? MOCK_ORDERS[0];
   const dest = order.client.coordinates;
@@ -31,14 +33,8 @@ export default function DriverMap() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#111827" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Ruta al cliente</Text>
-        <View style={{ width: 32 }} />
-      </View>
+    <View style={styles.container}>
+      <AppHeader title="Ruta en mapa" subtitle={order.id} onBack={() => router.back()} />
 
       <MapViewCustom
         center={center}
@@ -49,7 +45,7 @@ export default function DriverMap() {
         style={styles.map}
       />
 
-      <View style={styles.infoCard}>
+      <View style={[styles.infoCard, { paddingBottom: Math.max(insets.bottom, 14) }]}>
         <View style={styles.infoLeft}>
           <Ionicons name="location" size={18} color={BRAND_COLORS.primary} />
           <View>
@@ -64,7 +60,7 @@ export default function DriverMap() {
           <Ionicons name="chatbubble-outline" size={18} color={BRAND_COLORS.primary} />
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -72,11 +68,17 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: 16, backgroundColor: '#fff',
+    paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#fff',
     borderBottomWidth: 1, borderBottomColor: '#E5E7EB',
   },
-  backBtn: { padding: 4 },
+  backBtn: {
+    width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: '#E5E7EB',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  headerCenter: { flex: 1, alignItems: 'center' },
+  headerSpacer: { width: 36, height: 36 },
   title: { fontSize: 18, fontWeight: '700', color: '#111827' },
+  subtitle: { fontSize: 12, color: '#6B7280', marginTop: 2, fontWeight: '600' },
   map: { flex: 1 },
   infoCard: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

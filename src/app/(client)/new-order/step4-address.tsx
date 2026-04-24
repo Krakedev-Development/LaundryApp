@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useOrderStore } from '../../../store/useOrderStore';
 import { MOCK_CLIENT } from '../../../data/mockData';
+import AppHeader from '../../../components/layout/AppHeader';
 
 const SAVED_ADDRESSES = [
   { id: '1', label: 'Casa', address: MOCK_CLIENT.address, icon: 'home-outline' as const },
@@ -33,13 +34,7 @@ export default function Step4Address() {
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color="#111827" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Dirección</Text>
-          <Text style={styles.step}>4 / 5</Text>
-        </View>
+        <AppHeader title="Direccion" rightText="4 / 5" onBack={() => router.back()} />
 
         <View style={styles.progressBar}>
           <View style={[styles.progressFill, { width: '80%' }]} />

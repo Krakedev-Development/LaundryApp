@@ -2,8 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { GARMENT_WEIGHTS, useOrderStore, WASH_PRICES } from '../../../store/useOrderStore';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useOrderStore, WASH_PRICES } from '../../../store/useOrderStore';
+import AppHeader from '../../../components/layout/AppHeader';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const EXTRAS = [
   { id: 'Doblado especial', label: 'Doblado especial', desc: 'Doblado cuidadoso tipo boutique', price: '+$2.00', icon: 'layers-outline' as const, color: '#3B82F6' },
@@ -15,6 +16,7 @@ const EXTRAS = [
 
 export default function Step2Extras() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { extras, setExtras, garments } = useOrderStore();
   const [selected, setSelected] = useState<string[]>(extras);
 
@@ -30,9 +32,8 @@ export default function Step2Extras() {
   const totalItems = garments.reduce((s, g) => s + g.quantity, 0);
   const subtotalPreview = useMemo(() => {
     let total = garments.reduce((sum, g) => {
-      const weight = GARMENT_WEIGHTS[g.type] ?? 0.3;
-      const price = WASH_PRICES[g.washType] ?? 1.25;
-      return sum + g.quantity * weight * price * 2.2;
+      const price = WASH_PRICES[g.washType] ?? 1.6;
+      return sum + g.quantity * price;
     }, 0);
 
     if (selected.includes('Doblado especial')) total += 2;
@@ -45,14 +46,8 @@ export default function Step2Extras() {
   }, [garments, selected]);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#111827" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Servicios extra</Text>
-        <Text style={styles.step}>2 / 5</Text>
-      </View>
+    <View style={styles.container}>
+      <AppHeader title="Servicios extra" rightText="2 / 5" onBack={() => router.back()} />
       <View style={styles.progressBar}><View style={[styles.progressFill, { width: '40%' }]} /></View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -98,7 +93,7 @@ export default function Step2Extras() {
         </View>
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
         <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>Subtotal estimado</Text>
           <Text style={styles.totalAmount}>${subtotalPreview.toFixed(2)}</Text>
@@ -108,7 +103,7 @@ export default function Step2Extras() {
           <Ionicons name="arrow-forward" size={18} color="#fff" />
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

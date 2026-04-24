@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView,
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { BRAND_COLORS } from '../../../theme/brand';
+import AppHeader from '../../../components/layout/AppHeader';
 
 function formatCardNumber(val: string) {
   return val.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
@@ -34,13 +35,7 @@ export default function AddCardScreen() {
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color="#111827" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Agregar tarjeta</Text>
-          <View style={{ width: 32 }} />
-        </View>
+        <AppHeader title="Agregar tarjeta" onBack={() => router.back()} />
 
         <ScrollView
           contentContainerStyle={styles.content}

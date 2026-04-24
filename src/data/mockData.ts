@@ -30,7 +30,7 @@ export interface Order {
   driver: Driver;
   status: OrderStatus;
   serviceType: 'wash' | 'wash_fold' | 'dry_clean' | 'iron';
-  pounds: number;
+  garmentCount: number;
   price: number;
   pickupTime: string;
   deliveryTime: string;
@@ -59,9 +59,9 @@ export interface ServicePackage {
   id: string;
   name: string;
   description: string;
-  pricePerPound?: number;
+  pricePerGarment?: number;
   fixedPrice?: number;
-  minPounds?: number;
+  minGarments?: number;
   popular?: boolean;
 }
 
@@ -89,7 +89,7 @@ export const MOCK_DRIVER: Driver = {
 export const MOCK_PROMOTIONS: Promotion[] = [
   {
     id: 'p1',
-    title: '15 libras por $12',
+    title: '15 prendas por $12',
     description: 'Lavado y doblado. Oferta limitada esta semana.',
     discount: 20,
     type: 'package',
@@ -119,29 +119,29 @@ export const MOCK_SERVICES: ServicePackage[] = [
   {
     id: 'wash_fold',
     name: 'Lavado y Doblado',
-    description: 'Lavado, secado y doblado por libra',
-    pricePerPound: 1.25,
-    minPounds: 10,
+    description: 'Lavado, secado y doblado por prenda',
+    pricePerGarment: 1.1,
+    minGarments: 10,
     popular: true,
   },
   {
     id: 'dry_clean',
     name: 'Lavado en Seco',
     description: 'Prendas delicadas y trajes',
-    pricePerPound: 3.50,
-    minPounds: 1,
+    pricePerGarment: 2.9,
+    minGarments: 1,
   },
   {
     id: 'iron',
     name: 'Solo Planchado',
     description: 'Planchado profesional por prenda',
-    fixedPrice: 1.50,
+    fixedPrice: 1.3,
   },
   {
     id: 'shirts',
     name: 'Paquete Camisas',
     description: '5 camisas planchadas',
-    fixedPrice: 6.00,
+    fixedPrice: 5.0,
     popular: false,
   },
 ];
@@ -153,10 +153,10 @@ export const MOCK_ORDERS: Order[] = [
     driver: MOCK_DRIVER,
     status: 'delivering',
     serviceType: 'wash_fold',
-    pounds: 15,
-    price: 18.75,
+    garmentCount: 15,
+    price: 16.5,
     pickupTime: '2026-04-22T09:00:00',
-    deliveryTime: '2026-04-23T17:00:00',
+    deliveryTime: '',
     address: 'Av. Amazonas N23-45, Quito',
   },
   {
@@ -165,8 +165,8 @@ export const MOCK_ORDERS: Order[] = [
     driver: MOCK_DRIVER,
     status: 'delivered',
     serviceType: 'dry_clean',
-    pounds: 3,
-    price: 10.50,
+    garmentCount: 3,
+    price: 8.7,
     pickupTime: '2026-04-20T10:00:00',
     deliveryTime: '2026-04-21T17:00:00',
     address: 'Av. Amazonas N23-45, Quito',
@@ -178,8 +178,8 @@ export const MOCK_ORDERS: Order[] = [
     driver: MOCK_DRIVER,
     status: 'delivered',
     serviceType: 'wash_fold',
-    pounds: 12,
-    price: 15.00,
+    garmentCount: 12,
+    price: 13.2,
     pickupTime: '2026-04-18T08:00:00',
     deliveryTime: '2026-04-19T17:00:00',
     address: 'Av. Amazonas N23-45, Quito',
@@ -216,7 +216,7 @@ export interface SubscriptionPlan {
   price: number;
   period: 'monthly';
   pickupsPerWeek: number;
-  poundsPerPickup: number;
+  garmentsPerPickup: number;
   features: string[];
   color: string;
   popular?: boolean;
@@ -234,8 +234,8 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     price: 19.99,
     period: 'monthly',
     pickupsPerWeek: 1,
-    poundsPerPickup: 10,
-    features: ['1 recogida por semana', 'Hasta 10 libras', 'Lavado y doblado', 'Entrega a domicilio'],
+    garmentsPerPickup: 10,
+    features: ['1 recogida por semana', 'Hasta 10 prendas', 'Lavado y doblado', 'Entrega a domicilio'],
     color: '#6B7280',
   },
   {
@@ -244,8 +244,8 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     price: 34.99,
     period: 'monthly',
     pickupsPerWeek: 2,
-    poundsPerPickup: 15,
-    features: ['2 recogidas por semana', 'Hasta 15 libras c/u', 'Lavado y doblado', 'Entrega a domicilio', '5% descuento extra'],
+    garmentsPerPickup: 15,
+    features: ['2 recogidas por semana', 'Hasta 15 prendas c/u', 'Lavado y doblado', 'Entrega a domicilio', '5% descuento extra'],
     color: '#143F73',
     popular: true,
   },
@@ -255,8 +255,8 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     price: 54.99,
     period: 'monthly',
     pickupsPerWeek: 3,
-    poundsPerPickup: 20,
-    features: ['3 recogidas por semana', 'Hasta 20 libras c/u', 'Lavado, doblado y planchado', 'Entrega prioritaria', '10% descuento extra', 'Soporte prioritario'],
+    garmentsPerPickup: 20,
+    features: ['3 recogidas por semana', 'Hasta 20 prendas c/u', 'Lavado, doblado y planchado', 'Entrega prioritaria', '10% descuento extra', 'Soporte prioritario'],
     color: '#7C3AED',
   },
 ];

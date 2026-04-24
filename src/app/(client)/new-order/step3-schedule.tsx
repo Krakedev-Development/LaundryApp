@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useOrderStore } from '../../../store/useOrderStore';
 import { TIME_SLOTS } from '../../../data/mockData';
+import AppHeader from '../../../components/layout/AppHeader';
 
 // Genera los próximos 42 días para el calendario
 function buildCalendar(year: number, month: number) {
@@ -61,13 +62,7 @@ export default function Step3Schedule() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#111827" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Horarios</Text>
-        <Text style={styles.step}>3 / 5</Text>
-      </View>
+      <AppHeader title="Horarios" rightText="3 / 5" onBack={() => router.back()} />
       <View style={styles.progressBar}>
         <View style={[styles.progressFill, { width: '60%' }]} />
       </View>

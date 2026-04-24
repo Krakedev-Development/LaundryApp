@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Order, OrderStatus } from '../../data/mockData';
 import { BRAND_COLORS } from '../../theme/brand';
+import { useOrderStatusStore } from '../../store/useOrderStatusStore';
 
 const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: string }> = {
   pending:    { label: 'Pendiente',  color: '#D97706', bg: '#FEF3C7' },
@@ -26,7 +27,8 @@ interface OrderCardProps {
 }
 
 const OrderCard: React.FC<OrderCardProps> = ({ order, onPress }) => {
-  const status = STATUS_CONFIG[order.status];
+  const resolvedStatus = useOrderStatusStore((s) => s.overrides[order.id] ?? order.status);
+  const status = STATUS_CONFIG[resolvedStatus];
   const pickupDate = new Date(order.pickupTime);
 
   return (
@@ -59,7 +61,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onPress }) => {
         </View>
         <View style={styles.row}>
           <Ionicons name="scale-outline" size={12} color="#9CA3AF" />
-          <Text style={styles.pounds}>{order.pounds} lbs · ${order.price.toFixed(2)}</Text>
+          <Text style={styles.garments}>{order.garmentCount} prendas · ${order.price.toFixed(2)}</Text>
         </View>
       </View>
 
@@ -92,7 +94,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: 8, marginTop: 6,
   },
   time: { fontSize: 12, color: '#6B7280' },
-  pounds: { fontSize: 12, color: '#6B7280' },
+  garments: { fontSize: 12, color: '#6B7280' },
   issueBox: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: '#FEF3C7', borderRadius: 6, padding: 6, marginTop: 8,

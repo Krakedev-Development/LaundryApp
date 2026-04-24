@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   Modal, TextInput, Alert, FlatList, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard,
@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import { MAPBOX_ACCESS_TOKEN } from '../../config/mapbox';
+import AppHeader from '../../components/layout/AppHeader';
 
 interface SavedAddress {
   id: string;
@@ -24,18 +25,8 @@ const INITIAL_ADDRESSES: SavedAddress[] = [
 
 const QUITO_CENTER = { lat: -0.2295, lng: -78.5243 };
 
-export default function AddressesScreen() {
-  const router = useRouter();
-  const webViewRef = useRef<WebView>(null);
-  const [addresses, setAddresses] = useState<SavedAddress[]>(INITIAL_ADDRESSES);
-  const [showMap, setShowMap] = useState(false);
-  const [pickedCoords, setPickedCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [pickedAddress, setPickedAddress] = useState('');
-  const [labelInput, setLabelInput] = useState('');
-  const [mapReady, setMapReady] = useState(false);
-
-  // HTML del mapa picker
-  const mapHtml = `
+function buildMapHtml(centerLat: number, centerLng: number, zoom: number) {
+  return `
 <!DOCTYPE html><html>
 <head>
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
@@ -58,8 +49,8 @@ export default function AddressesScreen() {
   const map=new mapboxgl.Map({
     container:'map',
     style:'mapbox://styles/mapbox/streets-v12',
-    center:[${QUITO_CENTER.lng},${QUITO_CENTER.lat}],
-    zoom:14,
+    center:[${centerLng},${centerLat}],
+    zoom:${zoom},
     attributionControl:false
   });
   map.addControl(new mapboxgl.NavigationControl({showCompass:false}),'top-right');
@@ -90,6 +81,59 @@ export default function AddressesScreen() {
   });
 </script>
 </body></html>`;
+}
+
+export default function AddressesScreen() {
+  const router = useRouter();
+  const [addresses, setAddresses] = useState<SavedAddress[]>(INITIAL_ADDRESSES);
+  const [showMap, setShowMap] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [mapInitialCenter, setMapInitialCenter] = useState(QUITO_CENTER);
+  const [mapZoom, setMapZoom] = useState(14);
+  const [pickedCoords, setPickedCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [pickedAddress, setPickedAddress] = useState('');
+  const [labelInput, setLabelInput] = useState('');
+  const [mapReady, setMapReady] = useState(false);
+
+  const mapHtml = useMemo(
+    () => buildMapHtml(mapInitialCenter.lat, mapInitialCenter.lng, mapZoom),
+    [mapInitialCenter.lat, mapInitialCenter.lng, mapZoom],
+  );
+
+  const webViewKey = `${editingId ?? 'new'}-${mapInitialCenter.lat}-${mapInitialCenter.lng}-${mapZoom}`;
+
+  const closeMapModal = () => {
+    setShowMap(false);
+    setMapReady(false);
+    setEditingId(null);
+    setPickedCoords(null);
+    setPickedAddress('');
+    setLabelInput('');
+    setMapInitialCenter(QUITO_CENTER);
+    setMapZoom(14);
+  };
+
+  const openAddAddress = () => {
+    setEditingId(null);
+    setMapInitialCenter(QUITO_CENTER);
+    setMapZoom(14);
+    setPickedCoords(null);
+    setPickedAddress('');
+    setLabelInput('');
+    setMapReady(false);
+    setShowMap(true);
+  };
+
+  const openEditLocation = (item: SavedAddress) => {
+    setEditingId(item.id);
+    setMapInitialCenter({ lat: item.latitude, lng: item.longitude });
+    setMapZoom(16);
+    setPickedCoords({ lat: item.latitude, lng: item.longitude });
+    setPickedAddress(item.address);
+    setLabelInput(item.label);
+    setMapReady(false);
+    setShowMap(true);
+  };
 
   const handleMapMessage = (event: any) => {
     try {
@@ -104,49 +148,55 @@ export default function AddressesScreen() {
 
   const handleSaveAddress = () => {
     if (!pickedCoords || !labelInput.trim()) {
-      Alert.alert('Completa los campos', 'Ingresa un nombre para esta dirección');
+      Alert.alert('Completa los campos', 'Ingresa un nombre para esta dirección y selecciona un punto en el mapa.');
       return;
     }
-    const newAddr: SavedAddress = {
-      id: Date.now().toString(),
-      label: labelInput.trim(),
-      address: pickedAddress,
-      latitude: pickedCoords.lat,
-      longitude: pickedCoords.lng,
-      isDefault: addresses.length === 0,
-    };
-    setAddresses(prev => [...prev, newAddr]);
-    setShowMap(false);
-    setPickedCoords(null);
-    setPickedAddress('');
-    setLabelInput('');
-    setMapReady(false);
+    if (editingId) {
+      setAddresses((prev) =>
+        prev.map((a) =>
+          a.id === editingId
+            ? {
+                ...a,
+                label: labelInput.trim(),
+                address: pickedAddress || a.address,
+                latitude: pickedCoords.lat,
+                longitude: pickedCoords.lng,
+              }
+            : a,
+        ),
+      );
+    } else {
+      const newAddr: SavedAddress = {
+        id: Date.now().toString(),
+        label: labelInput.trim(),
+        address: pickedAddress,
+        latitude: pickedCoords.lat,
+        longitude: pickedCoords.lng,
+        isDefault: addresses.length === 0,
+      };
+      setAddresses((prev) => [...prev, newAddr]);
+    }
+    closeMapModal();
   };
 
   const handleDelete = (id: string) => {
     Alert.alert('Eliminar dirección', '¿Estás seguro?', [
       { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: () => setAddresses(a => a.filter(x => x.id !== id)) },
+      { text: 'Eliminar', style: 'destructive', onPress: () => setAddresses((a) => a.filter((x) => x.id !== id)) },
     ]);
   };
 
   const handleSetDefault = (id: string) => {
-    setAddresses(a => a.map(x => ({ ...x, isDefault: x.id === id })));
+    setAddresses((a) => a.map((x) => ({ ...x, isDefault: x.id === id })));
   };
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#111827" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Mis direcciones</Text>
-        <View style={{ width: 32 }} />
-      </View>
+      <AppHeader title="Mis direcciones" onBack={() => router.back()} />
 
       <FlatList
         data={addresses}
-        keyExtractor={item => item.id}
+        keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
@@ -177,6 +227,9 @@ export default function AddressesScreen() {
               <Text style={styles.addrText} numberOfLines={2}>{item.address}</Text>
             </View>
             <View style={styles.addrActions}>
+              <TouchableOpacity onPress={() => openEditLocation(item)} style={styles.addrBtn} accessibilityLabel="Editar ubicación">
+                <Ionicons name="map-outline" size={18} color="#2563EB" />
+              </TouchableOpacity>
               {!item.isDefault && (
                 <TouchableOpacity onPress={() => handleSetDefault(item.id)} style={styles.addrBtn}>
                   <Ionicons name="star-outline" size={18} color="#F59E0B" />
@@ -189,74 +242,71 @@ export default function AddressesScreen() {
           </View>
         )}
         ListFooterComponent={
-          <TouchableOpacity style={styles.addBtn} onPress={() => setShowMap(true)}>
+          <TouchableOpacity style={styles.addBtn} onPress={openAddAddress}>
             <Ionicons name="add-circle-outline" size={20} color="#3B82F6" />
             <Text style={styles.addBtnText}>Agregar dirección</Text>
           </TouchableOpacity>
         }
       />
 
-      {/* Modal mapa picker */}
       <Modal visible={showMap} animationType="slide">
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <KeyboardAvoidingView
             style={styles.mapModal}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           >
-          <View style={styles.mapHeader}>
-            <TouchableOpacity onPress={() => { setShowMap(false); setMapReady(false); }} style={styles.backBtn}>
-              <Ionicons name="close" size={22} color="#111827" />
-            </TouchableOpacity>
-            <Text style={styles.title}>Seleccionar ubicación</Text>
-            <View style={{ width: 32 }} />
-          </View>
-
-          {/* Mapa */}
-          <View style={styles.mapContainer}>
-            <WebView
-              ref={webViewRef}
-              source={{ html: mapHtml }}
-              style={styles.webview}
-              javaScriptEnabled
-              domStorageEnabled
-              mixedContentMode="always"
-              originWhitelist={['*']}
-              onMessage={handleMapMessage}
-            />
-          </View>
-
-          {/* Panel inferior */}
-          <View style={styles.mapPanel}>
-            <View style={styles.pickedAddressRow}>
-              <Ionicons name="location" size={18} color="#3B82F6" />
-              <Text style={styles.pickedAddressText} numberOfLines={2}>
-                {pickedAddress || 'Mueve el mapa para seleccionar'}
-              </Text>
+            <View style={styles.mapHeader}>
+              <TouchableOpacity onPress={closeMapModal} style={styles.backBtn}>
+                <Ionicons name="close" size={22} color="#111827" />
+              </TouchableOpacity>
+              <Text style={styles.title}>{editingId ? 'Editar ubicación' : 'Seleccionar ubicación'}</Text>
+              <View style={{ width: 32 }} />
             </View>
 
-            <Text style={styles.fieldLabel}>Nombre de esta dirección</Text>
-            <View style={styles.labelInputBox}>
-              <Ionicons name="bookmark-outline" size={16} color="#9CA3AF" />
-              <TextInput
-                style={styles.labelInput}
-                placeholder="Ej: Casa, Trabajo, Gym..."
-                value={labelInput}
-                onChangeText={setLabelInput}
-                placeholderTextColor="#9CA3AF"
-                returnKeyType="done"
-                onSubmitEditing={handleSaveAddress}
+            <View style={styles.mapContainer}>
+              <WebView
+                key={webViewKey}
+                source={{ html: mapHtml }}
+                style={styles.webview}
+                javaScriptEnabled
+                domStorageEnabled
+                mixedContentMode="always"
+                originWhitelist={['*']}
+                onMessage={handleMapMessage}
               />
             </View>
 
-            <TouchableOpacity
-              style={[styles.saveBtn, (!pickedCoords || !labelInput.trim()) && styles.saveBtnDisabled]}
-              onPress={handleSaveAddress}
-              disabled={!pickedCoords || !labelInput.trim()}
-            >
-              <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
-              <Text style={styles.saveBtnText}>Guardar dirección</Text>
-            </TouchableOpacity>
-          </View>
+            <View style={styles.mapPanel}>
+              <View style={styles.pickedAddressRow}>
+                <Ionicons name="location" size={18} color="#3B82F6" />
+                <Text style={styles.pickedAddressText} numberOfLines={2}>
+                  {pickedAddress || (mapReady ? 'Mueve el mapa para ajustar el pin' : 'Cargando mapa…')}
+                </Text>
+              </View>
+
+              <Text style={styles.fieldLabel}>Nombre de esta dirección</Text>
+              <View style={styles.labelInputBox}>
+                <Ionicons name="bookmark-outline" size={16} color="#9CA3AF" />
+                <TextInput
+                  style={styles.labelInput}
+                  placeholder="Ej: Casa, Trabajo, Gym..."
+                  value={labelInput}
+                  onChangeText={setLabelInput}
+                  placeholderTextColor="#9CA3AF"
+                  returnKeyType="done"
+                  onSubmitEditing={handleSaveAddress}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[styles.saveBtn, (!pickedCoords || !labelInput.trim()) && styles.saveBtnDisabled]}
+                onPress={handleSaveAddress}
+                disabled={!pickedCoords || !labelInput.trim()}
+              >
+                <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
+                <Text style={styles.saveBtnText}>{editingId ? 'Guardar cambios' : 'Guardar dirección'}</Text>
+              </TouchableOpacity>
+            </View>
           </KeyboardAvoidingView>
         </TouchableWithoutFeedback>
       </Modal>
@@ -286,7 +336,6 @@ const styles = StyleSheet.create({
   addrBtn: { padding: 6 },
   addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: '#3B82F6', borderRadius: 12, padding: 14, borderStyle: 'dashed' },
   addBtnText: { color: '#3B82F6', fontWeight: '600', fontSize: 15 },
-  // Modal mapa
   mapModal: { flex: 1, backgroundColor: '#fff' },
   mapHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, paddingTop: 52, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
   mapContainer: { flex: 1 },

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, TextInput, Alert } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../../store/useAuthStore';
@@ -20,8 +20,8 @@ const MENU_SECTIONS = [
     items: [
       { icon: 'location-outline' as const, label: 'Mis direcciones', route: '/(client)/addresses', color: '#F59E0B' },
       { icon: 'notifications-outline' as const, label: 'Notificaciones', route: '/(client)/notifications', color: '#EF4444' },
-      { icon: 'lock-closed-outline' as const, label: 'Cambiar contraseña', route: null, color: '#6B7280' },
-      { icon: 'help-circle-outline' as const, label: 'Ayuda y soporte', route: null, color: '#6B7280' },
+      { icon: 'lock-closed-outline' as const, label: 'Cambiar contraseña', route: '/(client)/change-password', color: '#6B7280' },
+      { icon: 'help-circle-outline' as const, label: 'Ayuda y soporte', route: '/(client)/help-support', color: '#6B7280' },
     ],
   },
 ];
@@ -31,21 +31,11 @@ export default function ClientProfile() {
   const { user, logout } = useAuthStore();
   const displayName = user?.name?.trim() || 'Cliente';
   const displayEmail = user?.email?.trim() || 'sin-correo@laundryapp.app';
-  const delivered = MOCK_ORDERS.filter((o) => o.status === 'delivered').length;
   const active = MOCK_ORDERS.filter((o) => o.status !== 'delivered').length;
-  const [billingName, setBillingName] = useState(displayName);
-  const [billingId, setBillingId] = useState('');
-  const [billingEmail, setBillingEmail] = useState(displayEmail);
-  const [billingPhone, setBillingPhone] = useState('');
-  const [billingAddress, setBillingAddress] = useState('');
 
   const handleLogout = () => {
     logout();
     router.replace('/(auth)/login');
-  };
-
-  const handleSaveBilling = () => {
-    Alert.alert('Datos guardados', 'Tus datos de facturación fueron actualizados.');
   };
 
   return (
@@ -145,24 +135,17 @@ export default function ClientProfile() {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Facturación</Text>
-        <View style={styles.sectionCardForm}>
-          <Text style={styles.formLabel}>Nombre / Razón social</Text>
-          <TextInput style={styles.input} value={billingName} onChangeText={setBillingName} placeholder="Nombre para factura" placeholderTextColor="#9CA3AF" />
-
-          <Text style={styles.formLabel}>CI o RUC</Text>
-          <TextInput style={styles.input} value={billingId} onChangeText={setBillingId} placeholder="Ej: 1712345678 / 1790012345001" placeholderTextColor="#9CA3AF" />
-
-          <Text style={styles.formLabel}>Correo</Text>
-          <TextInput style={styles.input} value={billingEmail} onChangeText={setBillingEmail} keyboardType="email-address" autoCapitalize="none" placeholder="correo@dominio.com" placeholderTextColor="#9CA3AF" />
-
-          <Text style={styles.formLabel}>Teléfono</Text>
-          <TextInput style={styles.input} value={billingPhone} onChangeText={setBillingPhone} keyboardType="phone-pad" placeholder="0991234567" placeholderTextColor="#9CA3AF" />
-
-          <Text style={styles.formLabel}>Dirección</Text>
-          <TextInput style={[styles.input, styles.inputMultiline]} value={billingAddress} onChangeText={setBillingAddress} placeholder="Dirección fiscal" placeholderTextColor="#9CA3AF" multiline />
-
-          <TouchableOpacity style={styles.saveBtn} onPress={handleSaveBilling}>
-            <Text style={styles.saveBtnText}>Guardar datos de facturación</Text>
+        <View style={styles.sectionCard}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => router.push('/(client)/billing')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.menuIconBox, { backgroundColor: '#15803D15' }]}>
+              <Ionicons name="receipt-outline" size={18} color="#15803D" />
+            </View>
+            <Text style={styles.menuLabel}>Datos para factura</Text>
+            <Ionicons name="chevron-forward" size={16} color="#D1D5DB" />
           </TouchableOpacity>
         </View>
       </View>
@@ -201,8 +184,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: BRAND_COLORS.background },
   content: { paddingBottom: 32 },
   avatarSection: { alignItems: 'center', paddingTop: 56, paddingBottom: 20, backgroundColor: '#fff' },
-  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: BRAND_COLORS.primarySoft, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
-  avatarLogo: { width: 52, height: 52, resizeMode: 'contain' },
+  avatar: { width: 96, height: 96, borderRadius: 48, backgroundColor: BRAND_COLORS.primarySoft, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+  avatarLogo: { width: 72, height: 72, resizeMode: 'contain' },
   name: { fontSize: 20, fontWeight: '700', color: '#111827', marginBottom: 2 },
   email: { fontSize: 13, color: '#6B7280', marginBottom: 8 },
   roleBadge: { backgroundColor: BRAND_COLORS.primarySoft, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4 },
@@ -223,12 +206,6 @@ const styles = StyleSheet.create({
   section: { marginHorizontal: 16, marginTop: 16 },
   sectionTitle: { fontSize: 13, fontWeight: '700', color: '#9CA3AF', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
   sectionCard: { backgroundColor: '#fff', borderRadius: 12, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, elevation: 1 },
-  sectionCardForm: { backgroundColor: '#fff', borderRadius: 12, padding: 14, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, elevation: 1 },
-  formLabel: { fontSize: 12, fontWeight: '600', color: '#6B7280', marginBottom: 6, marginTop: 8 },
-  input: { borderWidth: 1.2, borderColor: BRAND_COLORS.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: '#111827', backgroundColor: '#fff' },
-  inputMultiline: { minHeight: 70, textAlignVertical: 'top' },
-  saveBtn: { backgroundColor: BRAND_COLORS.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 12 },
-  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   menuItem: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
   menuItemBorder: { borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
   menuIconBox: { width: 36, height: 36, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },

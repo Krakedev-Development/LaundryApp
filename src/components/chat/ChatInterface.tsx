@@ -1,9 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  FlatList, StyleSheet, KeyboardAvoidingView, Platform,
-  TouchableWithoutFeedback, Keyboard,
+  FlatList, StyleSheet, KeyboardAvoidingView, Platform, Keyboard,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChatMessage } from '../../data/mockData';
 import { BRAND_COLORS } from '../../theme/brand';
 
@@ -20,7 +20,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   messages, currentUserId, onSend, otherName, quickActions = [], onQuickAction,
 }) => {
   const [input, setInput] = useState('');
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const listRef = useRef<FlatList>(null);
+  const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvt, () => setKeyboardVisible(true));
+    const hide = Keyboard.addListener(hideEvt, () => setKeyboardVisible(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   const handleSend = () => {
     if (!input.trim()) return;
@@ -44,83 +57,63 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     );
   };
 
+  const bottomPad = keyboardVisible ? 8 : Math.max(insets.bottom, 12);
+
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{otherName[0]}</Text>
-          </View>
-          <Text style={styles.headerName}>{otherName}</Text>
-        </View>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={0}
+    >
+      <FlatList
+        ref={listRef}
+        data={messages}
+        keyExtractor={(item) => item.id}
+        renderItem={renderMessage}
+        contentContainerStyle={styles.messageList}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
+      />
 
-        {/* Mensajes */}
-        <FlatList
-          ref={listRef}
-          data={messages}
-          keyExtractor={(item) => item.id}
-          renderItem={renderMessage}
-          contentContainerStyle={styles.messageList}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
+      {quickActions.length > 0 && (
+        <View style={styles.quickRow}>
+          {quickActions.map((action) => (
+            <TouchableOpacity
+              key={action}
+              style={styles.quickChip}
+              onPress={() => (onQuickAction ? onQuickAction(action) : onSend(action))}
+            >
+              <Text style={styles.quickChipText}>{action}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
+      <View style={[styles.inputRow, { paddingBottom: bottomPad }]}>
+        <TextInput
+          style={styles.input}
+          value={input}
+          onChangeText={setInput}
+          placeholder="Escribe un mensaje..."
+          placeholderTextColor="#9CA3AF"
+          multiline
+          maxLength={500}
         />
-
-        {quickActions.length > 0 && (
-          <View style={styles.quickRow}>
-            {quickActions.map((action) => (
-              <TouchableOpacity
-                key={action}
-                style={styles.quickChip}
-                onPress={() => (onQuickAction ? onQuickAction(action) : onSend(action))}
-              >
-                <Text style={styles.quickChipText}>{action}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        {/* Input */}
-        <View style={styles.inputRow}>
-          <TextInput
-            style={styles.input}
-            value={input}
-            onChangeText={setInput}
-            placeholder="Escribe un mensaje..."
-            multiline
-            maxLength={500}
-          />
-          <TouchableOpacity
-            style={[styles.sendBtn, !input.trim() && styles.sendBtnDisabled]}
-            onPress={handleSend}
-            disabled={!input.trim()}
-          >
-            <Text style={styles.sendIcon}>➤</Text>
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </TouchableWithoutFeedback>
+        <TouchableOpacity
+          style={[styles.sendBtn, !input.trim() && styles.sendBtnDisabled]}
+          onPress={handleSend}
+          disabled={!input.trim()}
+        >
+          <Text style={styles.sendIcon}>➤</Text>
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
-  header: {
-    flexDirection: 'row', alignItems: 'center',
-    padding: 16, backgroundColor: '#fff',
-    borderBottomWidth: 1, borderBottomColor: '#E5E7EB',
-  },
-  avatar: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: BRAND_COLORS.primary, alignItems: 'center', justifyContent: 'center', marginRight: 10,
-  },
-  avatarText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  headerName: { fontSize: 16, fontWeight: '700', color: '#111827' },
   messageList: { padding: 16, paddingBottom: 12 },
   messageRow: { marginBottom: 8 },
   messageRowMe: { alignItems: 'flex-end' },
@@ -136,13 +129,13 @@ const styles = StyleSheet.create({
   timeOther: { color: '#9CA3AF' },
   inputRow: {
     flexDirection: 'row', alignItems: 'flex-end',
-    paddingHorizontal: 12, paddingTop: 10, paddingBottom: 12, backgroundColor: '#fff',
+    paddingHorizontal: 12, paddingTop: 10, backgroundColor: '#fff',
     borderTopWidth: 1, borderTopColor: '#E5E7EB',
   },
   input: {
     flex: 1, borderWidth: 1, borderColor: '#E5E7EB',
     borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8,
-    fontSize: 15, maxHeight: 100, backgroundColor: '#F9FAFB',
+    fontSize: 15, maxHeight: 100, backgroundColor: '#F9FAFB', color: '#111827',
   },
   sendBtn: {
     width: 40, height: 40, borderRadius: 20,

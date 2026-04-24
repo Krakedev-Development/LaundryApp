@@ -7,7 +7,8 @@ import { useOrderStore } from '../../../store/useOrderStore';
 import { MAPBOX_ACCESS_TOKEN } from '../../../config/mapbox';
 import { TIME_SLOTS } from '../../../data/mockData';
 import SchedulePicker from '../../../components/schedule/SchedulePicker';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import AppHeader from '../../../components/layout/AppHeader';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const QUITO = { lat: -0.2295, lng: -78.5243 };
 
@@ -58,6 +59,7 @@ const MAP_HTML = (token: string) => `
 
 export default function Step3Pickup() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { setPickup } = useOrderStore();
   const webRef = useRef<WebView>(null);
 
@@ -89,14 +91,8 @@ export default function Step3Pickup() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#111827" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Recogida</Text>
-        <Text style={styles.step}>3 / 5</Text>
-      </View>
+    <View style={styles.container}>
+      <AppHeader title="Recogida" rightText="3 / 5" onBack={() => router.back()} />
       <View style={styles.progressBar}><View style={[styles.progressFill, { width: '60%' }]} /></View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -182,7 +178,7 @@ export default function Step3Pickup() {
         </View>
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
         <TouchableOpacity
           style={[styles.nextBtn, !canContinue && styles.nextBtnDisabled]}
           onPress={handleNext}
@@ -232,7 +228,7 @@ export default function Step3Pickup() {
         </View>
       </Modal>
 
-    </SafeAreaView>
+    </View>
   );
 }
 

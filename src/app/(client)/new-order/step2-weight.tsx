@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useOrderStore } from '../../../store/useOrderStore';
+import AppHeader from '../../../components/layout/AppHeader';
 
 const POUND_OPTIONS = [10, 15, 20, 25, 30, 40];
 
@@ -28,13 +29,7 @@ export default function Step2Weight() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#111827" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Cantidad</Text>
-        <Text style={styles.step}>2 / 5</Text>
-      </View>
+      <AppHeader title="Cantidad" rightText="2 / 5" onBack={() => router.back()} />
 
       <View style={styles.progressBar}>
         <View style={[styles.progressFill, { width: '40%' }]} />
@@ -45,7 +40,7 @@ export default function Step2Weight() {
 
         {isPerPound ? (
           <>
-            <Text style={styles.sectionLabel}>Selecciona las libras estimadas</Text>
+            <Text style={styles.sectionLabel}>Selecciona la cantidad estimada de prendas</Text>
 
             {/* Selector manual */}
             <View style={styles.counterRow}>
@@ -54,7 +49,7 @@ export default function Step2Weight() {
               </TouchableOpacity>
               <View style={styles.counterValue}>
                 <Text style={styles.counterNumber}>{selected}</Text>
-                <Text style={styles.counterUnit}>libras</Text>
+                <Text style={styles.counterUnit}>prendas</Text>
               </View>
               <TouchableOpacity style={styles.counterBtn} onPress={handlePlus}>
                 <Ionicons name="add" size={22} color="#3B82F6" />
@@ -71,7 +66,7 @@ export default function Step2Weight() {
                   onPress={() => handleSelect(p)}
                 >
                   <Text style={[styles.poundChipText, selected === p && styles.poundChipTextSelected]}>
-                    {p} lbs
+                    {p} prendas
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -80,7 +75,7 @@ export default function Step2Weight() {
             <View style={styles.infoBox}>
               <Ionicons name="information-circle-outline" size={16} color="#6B7280" />
               <Text style={styles.infoText}>
-                El peso final se confirma en planta. Solo pagas por lo real.
+                La cantidad final se confirma en planta. Solo pagas por lo real.
               </Text>
             </View>
           </>

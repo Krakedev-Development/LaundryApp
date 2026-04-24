@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Dimensions, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useOrderStore } from '../../../store/useOrderStore';
+import { useAuthStore } from '../../../store/useAuthStore';
 import { MOCK_CLIENT, MOCK_ORDERS, MOCK_PROMOTIONS, Promotion } from '../../../data/mockData';
 import RewardsModal from '../../../components/rewards/RewardsModal';
 import PromoDetailModal from '../../../components/promos/PromoDetailModal';
 import { BRAND_ASSETS, BRAND_COLORS } from '../../../theme/brand';
 
-const { width } = Dimensions.get('window');
-
 export default function ClientHome() {
   const router = useRouter();
+  const { user } = useAuthStore();
   const { setPromo } = useOrderStore();
+  const firstName = user?.name?.trim()?.split(/\s+/)[0] ?? 'Cliente';
   const [showRewards, setShowRewards] = useState(false);
   const [selectedPromo, setSelectedPromo] = useState<Promotion | null>(null);
   const activeOrder = MOCK_ORDERS.find((o) => o.status === 'delivering' || o.status === 'picked_up');
@@ -22,26 +23,45 @@ export default function ClientHome() {
     if (promo.discount > 0) {
       setPromo(promo.id.toUpperCase(), promo.discount / 100);
     }
-    // Usa el flujo vigente de prendas para evitar el flujo legacy.
     router.push('/(client)/new-order/step1-garments');
   };
 
   return (
-    <>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-
-        {/* Header */}
-        <View style={styles.header}>
-          <Image source={BRAND_ASSETS.logo} style={styles.headerLogo} />
-          {/* Chip de puntos — abre modal de recompensas */}
-          <TouchableOpacity style={styles.pointsChip} onPress={() => setShowRewards(true)}>
-            <Ionicons name="star" size={14} color="#F59E0B" />
-            <Text style={styles.pointsText}>{MOCK_CLIENT.points} pts</Text>
-            <Ionicons name="chevron-forward" size={12} color="#D97706" />
+    <View style={styles.container}>
+      <View style={styles.stickyHeader}>
+        <View style={styles.headerLeft}>
+          <Image source={BRAND_ASSETS.logoMark} style={styles.headerLogo} />
+          <View style={styles.headerGreetingWrap}>
+            <Text style={styles.headerGreeting}>Hola,</Text>
+            <Text style={styles.headerName} numberOfLines={1}>{firstName}</Text>
+          </View>
+        </View>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.alertChip}
+            onPress={() => router.push('/(client)/notifications')}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="notifications-outline" size={15} color="#B45309" />
+            <Text style={styles.alertText}>Alertas</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.pointsChip}
+            onPress={() => setShowRewards(true)}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="star" size={15} color="#F59E0B" />
+            <Text style={styles.pointsText}>{MOCK_CLIENT.points}</Text>
+            <Text style={styles.pointsUnit}>pts</Text>
           </TouchableOpacity>
         </View>
+      </View>
 
-        {/* Saldo + puntos resumen */}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <Ionicons name="wallet-outline" size={20} color={BRAND_COLORS.primary} />
@@ -62,7 +82,6 @@ export default function ClientHome() {
           </View>
         </View>
 
-        {/* Pedido activo */}
         {activeOrder && (
           <TouchableOpacity
             style={styles.activeOrderCard}
@@ -72,14 +91,15 @@ export default function ClientHome() {
               <View style={styles.activePulse} />
               <View>
                 <Text style={styles.activeOrderTitle}>Pedido en camino</Text>
-                <Text style={styles.activeOrderSub}>{activeOrder.id} · {activeOrder.driver.name} · {activeOrder.driver.plate}</Text>
+                <Text style={styles.activeOrderSub}>
+                  {activeOrder.id} · {activeOrder.driver.name} · {activeOrder.driver.plate}
+                </Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={20} color={BRAND_COLORS.primary} />
           </TouchableOpacity>
         )}
 
-        {/* Botón principal */}
         <TouchableOpacity
           style={styles.newOrderBtn}
           onPress={() => router.push('/(client)/new-order/step1-garments')}
@@ -88,30 +108,11 @@ export default function ClientHome() {
           <Text style={styles.newOrderBtnText}>Solicitar recogida</Text>
         </TouchableOpacity>
 
-        {/* Accesos rápidos */}
-        <View style={styles.quickGrid}>
-          {[
-            { icon: 'receipt-outline' as const, label: 'Pedidos', color: '#EFF6FF', iconColor: '#3B82F6', onPress: () => router.push('/(client)/(tabs)/orders') },
-            { icon: 'star-outline' as const, label: 'Puntos', color: '#FEF3C7', iconColor: '#D97706', onPress: () => setShowRewards(true) },
-            { icon: 'map-outline' as const, label: 'Sedes', color: '#FDF4FF', iconColor: '#A855F7', onPress: () => {} },
-            { icon: 'notifications-outline' as const, label: 'Alertas', color: '#FFF7ED', iconColor: '#F59E0B', onPress: () => router.push('/(client)/notifications') },
-          ].map((item) => (
-            <TouchableOpacity key={item.label} style={styles.quickItem} onPress={item.onPress}>
-              <View style={[styles.quickIcon, { backgroundColor: item.color }]}>
-                <Ionicons name={item.icon} size={22} color={item.iconColor} />
-              </View>
-              <Text style={styles.quickLabel}>{item.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Promociones — sección principal */}
         <View style={styles.promoHeader}>
           <Text style={styles.sectionTitle}>Ofertas para ti</Text>
           <Text style={styles.promoSubtitle}>Toca para ver detalles</Text>
         </View>
 
-        {/* Promo destacada (primera) */}
         <TouchableOpacity
           style={[styles.promoFeatured, { backgroundColor: MOCK_PROMOTIONS[0].color }]}
           onPress={() => setSelectedPromo(MOCK_PROMOTIONS[0])}
@@ -130,7 +131,6 @@ export default function ClientHome() {
           </View>
         </TouchableOpacity>
 
-        {/* Resto de promos en grid */}
         <View style={styles.promoGrid}>
           {MOCK_PROMOTIONS.slice(1).map((promo) => (
             <TouchableOpacity
@@ -153,37 +153,90 @@ export default function ClientHome() {
             </TouchableOpacity>
           ))}
         </View>
-
       </ScrollView>
 
-      {/* Modales */}
       <RewardsModal visible={showRewards} onClose={() => setShowRewards(false)} />
       <PromoDetailModal
         promo={selectedPromo}
         onClose={() => setSelectedPromo(null)}
         onAccept={handlePromoAccept}
       />
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: BRAND_COLORS.background },
-  content: { paddingBottom: 32 },
-  header: {
+  stickyHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20, paddingTop: 56, paddingBottom: 16, backgroundColor: '#fff',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEF1F4',
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+    zIndex: 10,
   },
-  headerLogo: { width: 130, height: 40, resizeMode: 'contain', marginBottom: 10 },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+    minWidth: 0,
+  },
+  headerLogo: { width: 44, height: 44, resizeMode: 'contain' },
+  headerGreetingWrap: { flex: 1, minWidth: 0, justifyContent: 'center' },
+  headerGreeting: { fontSize: 12, fontWeight: '600', color: '#64748B', marginBottom: 1 },
+  headerName: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+    letterSpacing: 0.2,
+  },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  alertChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#FFF7ED',
+    borderRadius: 20,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: '#FED7AA',
+  },
+  alertText: { fontSize: 12, fontWeight: '700', color: '#B45309' },
   pointsChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#FEF3C7', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 20,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
   },
-  pointsText: { fontSize: 13, fontWeight: '700', color: '#D97706' },
+  pointsText: { fontSize: 13, fontWeight: '800', color: '#B45309' },
+  pointsUnit: { fontSize: 11, fontWeight: '700', color: '#D97706', marginLeft: -2 },
+  scroll: { flex: 1 },
+  content: { paddingBottom: 32, paddingTop: 12 },
   statsRow: {
-    flexDirection: 'row', backgroundColor: '#fff',
-    marginHorizontal: 16, marginTop: 12, borderRadius: 12, padding: 16,
-    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, elevation: 1,
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
   },
   statCard: { flex: 1, alignItems: 'center', gap: 4 },
   statDivider: { width: 1, backgroundColor: '#E5E7EB' },
@@ -203,10 +256,6 @@ const styles = StyleSheet.create({
     backgroundColor: BRAND_COLORS.primary, borderRadius: 12, margin: 16, padding: 16,
   },
   newOrderBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  quickGrid: { flexDirection: 'row', paddingHorizontal: 16, gap: 10, marginBottom: 20 },
-  quickItem: { flex: 1, alignItems: 'center' },
-  quickIcon: { width: 52, height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
-  quickLabel: { fontSize: 11, color: '#374151', fontWeight: '600' },
   promoHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingHorizontal: 16, marginBottom: 10 },
   sectionTitle: { fontSize: 17, fontWeight: '700', color: '#111827' },
   promoSubtitle: { fontSize: 12, color: '#9CA3AF' },

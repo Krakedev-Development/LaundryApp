@@ -1,6 +1,17 @@
 import { create } from 'zustand';
 
-export type WashType = 'wash_fold' | 'dry_clean' | 'iron' | 'wash_only';
+export type WashType =
+  | 'alfombra'
+  | 'blanqueo'
+  | 'costura'
+  | 'desmanche'
+  | 'edredones'
+  | 'lp'
+  | 'ls'
+  | 'reproceso'
+  | 'solo_plancha'
+  | 'tinturado'
+  | 'zapatos';
 
 export interface GarmentItem {
   type: string;       // camisas, pantalones, etc.
@@ -41,23 +52,17 @@ interface OrderStore extends OrderDraft {
 }
 
 const WASH_PRICES: Record<WashType, number> = {
-  wash_fold: 1.25,
-  wash_only: 0.90,
-  dry_clean: 3.50,
-  iron: 1.50,
-};
-
-const GARMENT_WEIGHTS: Record<string, number> = {
-  'Camisas': 0.3,
-  'Pantalones': 0.5,
-  'Vestidos': 0.4,
-  'Ropa interior': 0.1,
-  'Calcetines': 0.05,
-  'Sábanas': 1.5,
-  'Edredones': 2.5,
-  'Toallas': 0.6,
-  'Chaquetas': 0.8,
-  'Trajes': 1.0,
+  alfombra: 5.6,
+  blanqueo: 2.5,
+  costura: 3.6,
+  desmanche: 2.0,
+  edredones: 4.6,
+  lp: 1.6,
+  ls: 1.4,
+  reproceso: 1.0,
+  solo_plancha: 1.3,
+  tinturado: 4.1,
+  zapatos: 6.5,
 };
 
 const INITIAL: OrderDraft = {
@@ -92,9 +97,8 @@ export const useOrderStore = create<OrderStore>((set, get) => ({
   getSubtotal: () => {
     const { garments, extras } = get();
     let total = garments.reduce((sum, g) => {
-      const weight = GARMENT_WEIGHTS[g.type] ?? 0.3;
-      const price = WASH_PRICES[g.washType] ?? 1.25;
-      return sum + g.quantity * weight * price * 2.2; // kg a libras
+      const price = WASH_PRICES[g.washType] ?? 1.6;
+      return sum + g.quantity * price;
     }, 0);
     if (extras.includes('Doblado especial')) total += 2;
     if (extras.includes('Perfumado')) total += 1.5;
@@ -103,4 +107,4 @@ export const useOrderStore = create<OrderStore>((set, get) => ({
   },
 }));
 
-export { WASH_PRICES, GARMENT_WEIGHTS };
+export { WASH_PRICES };

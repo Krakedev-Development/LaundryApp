@@ -3,8 +3,10 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-nati
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MOCK_ORDERS } from '../../data/mockData';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { BRAND_COLORS } from '../../theme/brand';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useOrderStatusStore } from '../../store/useOrderStatusStore';
+import AppHeader from '../../components/layout/AppHeader';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; step: number }> = {
   pending:    { label: 'Pendiente',  color: '#D97706', bg: '#FEF3C7', step: 0 },
@@ -23,25 +25,21 @@ const SERVICE_LABEL: Record<string, string> = {
 
 export default function OrderDetail() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const order = MOCK_ORDERS.find((o) => o.id === id) ?? MOCK_ORDERS[0];
-  const status = STATUS_CONFIG[order.status];
+  const resolvedStatus = useOrderStatusStore((s) => s.overrides[order.id] ?? order.status);
+  const status = STATUS_CONFIG[resolvedStatus];
   const pickup = new Date(order.pickupTime);
-  const delivery = new Date(order.deliveryTime);
+  const hasDeliveryDate = Boolean(order.deliveryTime);
+  const delivery = hasDeliveryDate ? new Date(order.deliveryTime) : null;
   const serviceLabel = SERVICE_LABEL[order.serviceType] ?? order.serviceType;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#111827" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Detalle del pedido</Text>
-        <View style={{ width: 32 }} />
-      </View>
+    <View style={styles.container}>
+      <AppHeader title="Detalle del pedido" subtitle={order.id} onBack={() => router.back()} />
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom + 16, 28) }]}>
         <View style={styles.heroCard}>
           <View style={styles.heroTopRow}>
             <Text style={styles.heroOrder}>{order.id}</Text>
@@ -49,10 +47,11 @@ export default function OrderDetail() {
               <Text style={[styles.heroBadgeText, { color: status.color }]}>{status.label}</Text>
             </View>
           </View>
+          <Text style={styles.heroStatusKey}>Estado del sistema: {resolvedStatus}</Text>
           <Text style={styles.heroMessage}>
-            {order.status === 'delivering'
+            {resolvedStatus === 'delivering'
               ? `${order.driver.name} va en camino con tu pedido.`
-              : order.status === 'picked_up'
+              : resolvedStatus === 'picked_up'
               ? 'Tu pedido ya fue recogido y está rumbo a planta.'
               : 'Seguimos avanzando con tu pedido.'}
           </Text>
@@ -95,10 +94,10 @@ export default function OrderDetail() {
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Detalles del servicio</Text>
           <InfoRow icon="water-outline" label="Servicio" value={serviceLabel} />
-          <InfoRow icon="scale-outline" label="Libras" value={`${order.pounds} lbs`} />
+          <InfoRow icon="scale-outline" label="Prendas" value={`${order.garmentCount} prendas`} />
           <InfoRow icon="cash-outline" label="Total" value={`$${order.price.toFixed(2)}`} />
           <InfoRow icon="calendar-outline" label="Recogida" value={pickup.toLocaleDateString('es')} />
-          <InfoRow icon="calendar-outline" label="Entrega" value={delivery.toLocaleDateString('es')} />
+          <InfoRow icon="calendar-outline" label="Entrega" value={delivery ? delivery.toLocaleDateString('es') : 'Fecha de entrega aun no asignada'} />
           <InfoRow icon="location-outline" label="Dirección" value={order.address} />
         </View>
 
@@ -133,7 +132,7 @@ export default function OrderDetail() {
         )}
 
         {/* Acciones pegadas al pedido */}
-        {(order.status === 'delivering' || order.status === 'picked_up' || order.status === 'in_process') && (
+        {(resolvedStatus === 'delivering' || resolvedStatus === 'picked_up' || resolvedStatus === 'in_process') && (
           <View style={styles.actions}>
             <TouchableOpacity
               style={styles.actionBtn}
@@ -153,7 +152,7 @@ export default function OrderDetail() {
         )}
 
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -184,6 +183,7 @@ const styles = StyleSheet.create({
   heroOrder: { fontSize: 18, fontWeight: '700', color: BRAND_COLORS.primary },
   heroBadge: { borderRadius: 16, paddingHorizontal: 10, paddingVertical: 4 },
   heroBadgeText: { fontSize: 12, fontWeight: '700' },
+  heroStatusKey: { fontSize: 12, color: '#6B7280', fontWeight: '600', marginBottom: 6 },
   heroMessage: { fontSize: 13, color: '#374151', lineHeight: 19 },
   heroMetaRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
   heroMetaChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: BRAND_COLORS.primarySoft, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },

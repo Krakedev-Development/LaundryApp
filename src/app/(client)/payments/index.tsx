@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MOCK_PAYMENT_METHODS, MOCK_CLIENT, PaymentMethod } from '../../../data/mockData';
 import { BRAND_COLORS } from '../../../theme/brand';
+import AppHeader from '../../../components/layout/AppHeader';
 
 const CARD_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   visa: 'card-outline',
@@ -55,13 +56,7 @@ export default function PaymentsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#111827" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Métodos de pago</Text>
-        <View style={{ width: 32 }} />
-      </View>
+      <AppHeader title="Metodos de pago" onBack={() => router.back()} />
 
       <ScrollView contentContainerStyle={styles.content}>
         {/* Saldo */}
@@ -110,30 +105,6 @@ export default function PaymentsScreen() {
           </View>
           <Ionicons name="chevron-forward" size={20} color="#7C3AED" />
         </TouchableOpacity>
-
-        {/* Historial */}
-        <Text style={styles.sectionTitle}>Últimas transacciones</Text>
-        {[
-          { label: 'Recarga de saldo', amount: '+$30.00', date: '22/04/2026', color: '#10B981' },
-          { label: 'Pedido ORD-001', amount: '-$18.75', date: '22/04/2026', color: '#EF4444' },
-          { label: 'Pedido ORD-002', amount: '-$10.50', date: '20/04/2026', color: '#EF4444' },
-          { label: 'Recarga de saldo', amount: '+$20.00', date: '18/04/2026', color: '#10B981' },
-        ].map((tx, i) => (
-          <View key={i} style={styles.txRow}>
-            <View style={[styles.txIcon, { backgroundColor: tx.color + '20' }]}>
-              <Ionicons
-                name={tx.amount.startsWith('+') ? 'arrow-down-outline' : 'arrow-up-outline'}
-                size={16}
-                color={tx.color}
-              />
-            </View>
-            <View style={styles.txInfo}>
-              <Text style={styles.txLabel}>{tx.label}</Text>
-              <Text style={styles.txDate}>{tx.date}</Text>
-            </View>
-            <Text style={[styles.txAmount, { color: tx.color }]}>{tx.amount}</Text>
-          </View>
-        ))}
       </ScrollView>
     </View>
   );
@@ -169,10 +140,4 @@ const styles = StyleSheet.create({
   subscriptionLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   subscriptionTitle: { fontSize: 15, fontWeight: '700', color: '#7C3AED' },
   subscriptionSub: { fontSize: 12, color: '#8B5CF6', marginTop: 2 },
-  txRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 10, padding: 12, marginBottom: 8 },
-  txIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  txInfo: { flex: 1 },
-  txLabel: { fontSize: 14, fontWeight: '600', color: '#111827' },
-  txDate: { fontSize: 12, color: '#9CA3AF', marginTop: 2 },
-  txAmount: { fontSize: 15, fontWeight: '700' },
 });

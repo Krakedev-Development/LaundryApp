@@ -4,6 +4,8 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import MapViewCustom, { DriverMarker, StopMarker } from '../../components/map/MapViewCustom';
 import { MOCK_ORDERS } from '../../data/mockData';
+import AppHeader from '../../components/layout/AppHeader';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Ruta simulada con más puntos para movimiento fluido
 const ROUTE_LOOP = [
@@ -38,6 +40,7 @@ const MOCK_STOPS: StopMarker[] = [
 export default function TrackingScreen() {
   const router = useRouter();
   const stepRef = useRef(0);
+  const insets = useSafeAreaInsets();
   const activeOrder = MOCK_ORDERS[0];
 
   const [drivers, setDrivers] = useState<DriverMarker[]>([
@@ -65,17 +68,7 @@ export default function TrackingScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#111827" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Tracking en vivo</Text>
-        <View style={styles.badge}>
-          <View style={styles.dot} />
-          <Text style={styles.badgeText}>En camino</Text>
-        </View>
-      </View>
+      <AppHeader title="Tracking en vivo" rightText="En camino" onBack={() => router.back()} />
 
       {/* Mapa */}
       <MapViewCustom
@@ -93,7 +86,7 @@ export default function TrackingScreen() {
       />
 
       {/* Info chofer */}
-      <View style={styles.driverCard}>
+      <View style={[styles.driverCard, { paddingBottom: Math.max(insets.bottom, 12) }]}>
         <View style={styles.driverInfo}>
           <View style={styles.driverAvatar}>
             <Text style={styles.driverAvatarText}>{activeOrder.driver.name[0]}</Text>

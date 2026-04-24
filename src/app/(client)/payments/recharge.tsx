@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MOCK_CLIENT, MOCK_PAYMENT_METHODS, RECHARGE_AMOUNTS } from '../../../data/mockData';
 import { BRAND_COLORS } from '../../../theme/brand';
+import AppHeader from '../../../components/layout/AppHeader';
 
 export default function RechargeScreen() {
   const router = useRouter();
@@ -32,13 +33,7 @@ export default function RechargeScreen() {
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color="#111827" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Recargar saldo</Text>
-          <View style={{ width: 32 }} />
-        </View>
+        <AppHeader title="Recargar saldo" onBack={() => router.back()} />
 
         <ScrollView
           contentContainerStyle={styles.content}

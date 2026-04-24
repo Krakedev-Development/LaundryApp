@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import AppHeader from '../../components/layout/AppHeader';
 
 interface Notification {
   id: string;
@@ -15,7 +16,7 @@ interface Notification {
 const MOCK_NOTIFICATIONS: Notification[] = [
   { id: '1', type: 'driver', title: 'Tu chofer está cerca', body: 'Carlos llegará en aproximadamente 5 minutos a recoger tu ropa.', time: 'Hace 2 min', read: false },
   { id: '2', type: 'order', title: 'Pedido en camino', body: 'Tu pedido ORD-001 está siendo entregado. Llega hoy entre 16:00 - 18:00.', time: 'Hace 1 hora', read: false },
-  { id: '3', type: 'promo', title: '15 libras por $12 esta semana', body: 'Aprovecha nuestra oferta especial de lavado y doblado. Solo hasta el domingo.', time: 'Hace 3 horas', read: false },
+  { id: '3', type: 'promo', title: '15 prendas por $12 esta semana', body: 'Aprovecha nuestra oferta especial de lavado y doblado. Solo hasta el domingo.', time: 'Hace 3 horas', read: false },
   { id: '4', type: 'order', title: 'Ropa lista para entrega', body: 'Tu pedido ORD-001 fue procesado y está listo. Programamos la entrega para mañana.', time: 'Ayer 14:30', read: true },
   { id: '5', type: 'promo', title: '10% de descuento por descarga', body: 'Gracias por descargar LaundryApp. Usa el código BIENVENIDA en tu primer pedido.', time: 'Ayer 09:00', read: true },
   { id: '6', type: 'driver', title: 'Chofer asignado', body: 'Carlos Chofer fue asignado a tu pedido ORD-001. Placa: PBX-1234.', time: 'Hace 2 días', read: true },
@@ -41,24 +42,12 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#111827" />
+      <AppHeader title="Notificaciones" rightText={unreadCount > 0 ? `${unreadCount}` : undefined} onBack={() => router.back()} />
+      {unreadCount > 0 && (
+        <TouchableOpacity onPress={markAllRead} style={styles.markAllBtn}>
+          <Text style={styles.markAllText}>Leer todo</Text>
         </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.title}>Notificaciones</Text>
-          {unreadCount > 0 && (
-            <View style={styles.unreadBadge}>
-              <Text style={styles.unreadBadgeText}>{unreadCount}</Text>
-            </View>
-          )}
-        </View>
-        {unreadCount > 0 ? (
-          <TouchableOpacity onPress={markAllRead}>
-            <Text style={styles.markAllText}>Leer todo</Text>
-          </TouchableOpacity>
-        ) : <View style={{ width: 60 }} />}
-      </View>
+      )}
 
       <FlatList
         data={notifications}
@@ -101,6 +90,7 @@ export default function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
+  markAllBtn: { alignSelf: 'flex-end', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 2 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, paddingTop: 52, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
   backBtn: { padding: 4 },
   headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },

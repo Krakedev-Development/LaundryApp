@@ -14,7 +14,7 @@ export default function PendingScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, backgroundColor: '#fff' },
-  logo: { width: 220, height: 72, resizeMode: 'contain', marginBottom: 10 },
+  logo: { width: 280, height: 96, resizeMode: 'contain', marginBottom: 10 },
   icon: { fontSize: 64, marginBottom: 16 },
   title: { fontSize: 22, fontWeight: '700', color: BRAND_COLORS.primary, marginBottom: 12 },
   subtitle: { fontSize: 15, color: '#6B7280', textAlign: 'center', lineHeight: 22 },

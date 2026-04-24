@@ -4,17 +4,26 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useOrderStore } from '../../../store/useOrderStore';
 import { MOCK_CLIENT, MOCK_PAYMENT_METHODS } from '../../../data/mockData';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import AppHeader from '../../../components/layout/AppHeader';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const WASH_LABELS: Record<string, string> = {
-  wash_fold: 'Lavado y doblado',
-  wash_only: 'Solo lavado',
-  dry_clean: 'Lavado en seco',
-  iron: 'Solo planchado',
+  alfombra: 'Alfombra',
+  blanqueo: 'Blanqueo',
+  costura: 'Costura',
+  desmanche: 'Desmanche',
+  edredones: 'Edredones',
+  lp: 'L/P',
+  ls: 'L/S',
+  reproceso: 'Reproceso',
+  solo_plancha: 'Solo Plancha',
+  tinturado: 'Tinturado',
+  zapatos: 'Zapatos',
 };
 
 export default function Step5Confirm() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const {
     garments, extras, pickupDate, pickupSlot, pickupAddress,
     deliveryDate, deliverySlot, deliveryAddress, deliverySameAsPickup,
@@ -71,18 +80,12 @@ export default function Step5Confirm() {
 
   return (
     <>
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <View style={styles.container}>
         <KeyboardAvoidingView
           style={styles.container}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color="#111827" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Confirmar pedido</Text>
-          <Text style={styles.step}>5 / 5</Text>
-        </View>
+        <AppHeader title="Confirmar pedido" rightText="5 / 5" onBack={() => router.back()} />
         <View style={styles.progressBar}><View style={[styles.progressFill, { width: '100%' }]} /></View>
 
         <ScrollView
@@ -125,7 +128,7 @@ export default function Step5Confirm() {
         {/* Entrega */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Entrega</Text>
-          <InfoRow icon="calendar-outline" label="Fecha" value={deliveryDate ?? '-'} />
+          <InfoRow icon="calendar-outline" label="Fecha" value="Fecha de entrega aun no asignada" />
           <InfoRow icon="time-outline" label="Horario" value={deliverySlot ?? '-'} />
           <InfoRow icon="location-outline" label="Dirección" value={deliverySameAsPickup ? 'Misma que recogida' : (deliveryAddress || '-')} />
         </View>
@@ -217,14 +220,14 @@ export default function Step5Confirm() {
         </View>
         </ScrollView>
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm}>
             <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
             <Text style={styles.confirmBtnText}>Confirmar pedido · ${total.toFixed(2)}</Text>
           </TouchableOpacity>
         </View>
         </KeyboardAvoidingView>
-      </SafeAreaView>
+      </View>
 
       <Modal visible={showGateway} transparent animationType="fade">
         <View style={styles.gatewayOverlay}>

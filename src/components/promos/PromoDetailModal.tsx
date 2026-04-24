@@ -11,7 +11,7 @@ interface PromoDetailModalProps {
 
 const PROMO_DETAILS: Record<string, { requirements: string[]; includes: string[] }> = {
   p1: {
-    requirements: ['Mínimo 15 libras de ropa', 'Válido de lunes a viernes'],
+    requirements: ['Mínimo 15 prendas de ropa', 'Válido de lunes a viernes'],
     includes: ['Lavado completo', 'Secado', 'Doblado', 'Entrega a domicilio'],
   },
   p2: {
@@ -31,7 +31,7 @@ export default function PromoDetailModal({ promo, onClose, onAccept }: PromoDeta
   return (
     <Modal visible={!!promo} animationType="slide" transparent presentationStyle="overFullScreen">
       <View style={styles.overlay}>
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, { backgroundColor: promo.color }]}>
           <View style={styles.handle} />
 
           {/* Hero */}
@@ -45,37 +45,39 @@ export default function PromoDetailModal({ promo, onClose, onAccept }: PromoDeta
             <Text style={styles.heroDesc}>{promo.description}</Text>
           </View>
 
-          <ScrollView contentContainerStyle={styles.content}>
-            {/* Incluye */}
-            <Text style={styles.sectionTitle}>Qué incluye</Text>
-            {details.includes.map((item) => (
-              <View key={item} style={styles.listRow}>
-                <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-                <Text style={styles.listText}>{item}</Text>
-              </View>
-            ))}
+          <View style={styles.body}>
+            <ScrollView contentContainerStyle={styles.content}>
+              {/* Incluye */}
+              <Text style={styles.sectionTitle}>Qué incluye</Text>
+              {details.includes.map((item) => (
+                <View key={item} style={styles.listRow}>
+                  <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                  <Text style={styles.listText}>{item}</Text>
+                </View>
+              ))}
 
-            {/* Requisitos */}
-            <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Condiciones</Text>
-            {details.requirements.map((item) => (
-              <View key={item} style={styles.listRow}>
-                <Ionicons name="information-circle-outline" size={16} color="#6B7280" />
-                <Text style={styles.listText}>{item}</Text>
-              </View>
-            ))}
-          </ScrollView>
+              {/* Requisitos */}
+              <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Condiciones</Text>
+              {details.requirements.map((item) => (
+                <View key={item} style={styles.listRow}>
+                  <Ionicons name="information-circle-outline" size={16} color="#6B7280" />
+                  <Text style={styles.listText}>{item}</Text>
+                </View>
+              ))}
+            </ScrollView>
 
-          <View style={styles.footer}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
-              <Text style={styles.cancelText}>Cerrar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.acceptBtn, { backgroundColor: promo.color }]}
-              onPress={() => onAccept(promo)}
-            >
-              <Ionicons name="arrow-forward" size={18} color="#fff" />
-              <Text style={styles.acceptText}>Aprovechar oferta</Text>
-            </TouchableOpacity>
+            <View style={styles.footer}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
+                <Text style={styles.cancelText}>Cerrar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.acceptBtn, { backgroundColor: promo.color }]}
+                onPress={() => onAccept(promo)}
+              >
+                <Ionicons name="arrow-forward" size={18} color="#fff" />
+                <Text style={styles.acceptText}>Aprovechar oferta</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </View>
@@ -85,9 +87,10 @@ export default function PromoDetailModal({ promo, onClose, onAccept }: PromoDeta
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '80%' },
+  sheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '80%', overflow: 'hidden' },
   handle: { width: 40, height: 4, backgroundColor: 'rgba(255,255,255,0.5)', borderRadius: 2, alignSelf: 'center', marginTop: 10 },
   hero: { padding: 24, paddingTop: 16 },
+  body: { backgroundColor: '#fff', borderTopLeftRadius: 18, borderTopRightRadius: 18 },
   badge: { backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3, alignSelf: 'flex-start', marginBottom: 8 },
   badgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   heroTitle: { fontSize: 22, fontWeight: '700', color: '#fff', marginBottom: 6 },

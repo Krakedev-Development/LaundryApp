@@ -6,7 +6,6 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/useAuthStore';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { BRAND_ASSETS, BRAND_COLORS } from '../../theme/brand';
 
 export default function RegisterScreen() {
@@ -87,7 +86,7 @@ export default function RegisterScreen() {
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <SafeAreaView style={styles.flex} edges={['top']}>
+      <View style={styles.flex}>
         <KeyboardAvoidingView
           style={styles.flex}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -128,7 +127,7 @@ export default function RegisterScreen() {
             </TouchableOpacity>
           </ScrollView>
         </KeyboardAvoidingView>
-      </SafeAreaView>
+      </View>
     </TouchableWithoutFeedback>
   );
 }
@@ -136,7 +135,7 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   container: { padding: 20, backgroundColor: '#fff', paddingBottom: 30 },
-  logo: { width: 200, height: 70, resizeMode: 'contain', alignSelf: 'center', marginBottom: 8 },
+  logo: { width: 260, height: 92, resizeMode: 'contain', alignSelf: 'center', marginBottom: 8 },
   title: { fontSize: 28, fontWeight: '700', marginBottom: 4, color: BRAND_COLORS.primary, textAlign: 'center' },
   subtitle: { fontSize: 13, color: '#6B7280', marginBottom: 18, textAlign: 'center' },
   input: { borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 16 },
