@@ -4,13 +4,8 @@
     "slug": "LaundryApp",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icono-App.png",
+    "icon": "./assets/app-icon.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/logo-laundry-lav.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#143F73"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -19,7 +14,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icono-App.png",
+        "foregroundImage": "./assets/adaptive-icon-laundry.png",
         "backgroundColor": "#143F73"
       }
     },
@@ -30,10 +25,12 @@
     "scheme": "laundryapp",
     "plugins": [
       [
-        "@rnmapbox/maps",
+        "expo-splash-screen",
         {
-          "RNMapboxMapsImpl": "mapbox",
-          "RNMAPBOX_MAPS_DOWNLOAD_TOKEN": "pk.eyJ1IjoiYW5nZWxndWFuYTAwMSIsImEiOiJjbW5vdDlwMXkwaDhmMnJvcGRhY2lwcHA5In0.sVB6piHwj7TB5ja7HR1hZA"
+          "image": "./assets/logo-laundry-lav.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#143F73"
         }
       ],
       [
@@ -43,7 +40,8 @@
           "cameraPermission": "Permite acceso a la camara para tomar selfie de verificacion."
         }
       ],
-      "expo-router"
+      "expo-router",
+      "expo-font"
     ]
   }
 }
