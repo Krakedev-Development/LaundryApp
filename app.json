@@ -4,11 +4,7 @@
     "slug": "laundry-clean-fresh",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "backgroundColor": "#0284C7"
-    },
     "ios": {
       "supportsTablet": true
     },
@@ -17,6 +13,16 @@
         "backgroundColor": "#0284C7"
       },
       "package": "com.laundryfresh.app"
-    }
+    },
+    "plugins": [
+      "expo-font",
+      "expo-status-bar",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0284C7"
+        }
+      ]
+    ]
   }
 }

@@ -60,6 +60,7 @@ const initialCustomer: Customer = {
   email: 'maria.torres@gmail.com',
   phone: '+51 987 654 321',
   kycStatus: 'APPROVED',
+  kycDocumentType: 'DNI',
   addresses: [
     {
       id: 'addr-1',
