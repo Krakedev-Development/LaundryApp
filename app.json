@@ -10,7 +10,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0284C7"
+        "backgroundColor": "#143F73"
       },
       "package": "com.laundryfresh.app"
     },
@@ -20,9 +20,32 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#0284C7"
+          "backgroundColor": "#143F73",
+          "image": "./assets/logo-laundry-lav.png",
+          "imageWidth": 140
+        }
+      ],
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Permite seleccionar imágenes para verificar tu identidad o registrar una entrega.",
+          "cameraPermission": "Permite tomar fotos para verificar tu identidad o registrar una entrega.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Permite usar tu ubicación para navegar tus servicios asignados."
         }
       ]
-    ]
+    ],
+    "scheme": "laundryfresh",
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    }
   }
 }

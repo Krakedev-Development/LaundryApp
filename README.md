@@ -1,105 +1,85 @@
-# 🧺 Laundry Clean & Fresh - Versión React Native (Expo)
+# Laundry Clean & Fresh · Prototipo móvil
 
-Esta carpeta contiene la **migración completa de la aplicación móvil a React Native con TypeScript y Expo**, lista para ejecutarse tanto en **iOS** como en **Android**.
+Aplicación Expo SDK 57 con TypeScript y Expo Router para cliente y conductor. Los dos roles trabajan sobre los mismos pedidos en una demo persistente. El rol se obtiene de la cuenta, sin selector de rol ni cambios de identidad durante la sesión.
 
----
+## Ejecutar
 
-## 🚀 Cómo ejecutar esta app en tu computadora
+Requiere Node.js 22.13 o superior y Expo Go compatible con SDK 57.
 
-### 1. Requisitos previos
-* [Node.js](https://nodejs.org/) (versión 22.13.0 o superior; se recomienda Node 22 LTS).
-* La app [Expo Go](https://expo.dev/go) instalada en tu teléfono físico (iPhone o Android), o un simulador (Xcode / Android Studio).
-
-### 2. Instalación y arranque
-Abre una terminal en esta carpeta:
 ```bash
 cd LaundryApp
-npm install
-npx expo start --clear
-```
-
-### Compatibilidad y diagnóstico
-
-Este proyecto usa **Expo SDK 57**, React 19.2, React Native 0.86 y React Navigation 7. Usa una versión de Expo Go compatible con SDK 57: https://expo.dev/go. La versión instalada en el teléfono debe coincidir con el SDK del proyecto.
-
-Después de actualizar, detén cualquier servidor Expo anterior y reinicia con caché limpia:
-```bash
-npm install
+npm ci
 npm run start:lan -- --clear
 ```
 
-Para comprobar las dependencias y los tipos:
+Escanea el QR desde Expo Go. El teléfono y el equipo deben estar en la misma red. Para navegador: `npm run web`. El servidor debe anunciar la IP Wi-Fi, no localhost. Si Expo elige una interfaz virtual, configura `REACT_NATIVE_PACKAGER_HOSTNAME` con la IP Wi-Fi actual. Para túnel: `npm run start:tunnel -- --clear`.
+
+## Cuentas de demostración
+
+La contraseña inicial es **Laundry2026!**, salvo la cuenta con contraseña temporal. El botón «Cuentas de demostración» del login permite rellenar credenciales.
+
+- **nuevo@laundryfresh.com**: Sofía Fresh, cliente verificado sin pedidos, billetera de $30.
+- **maria.torres@gmail.com**: María Torres, cliente con pedidos, plan Premium, billetera, promociones y puntos.
+- **diego.valdivia@laundryweb.com**: Diego Valdivia, conductor disponible de FAC-02, recibe las nuevas recogidas de esa planta.
+- **mateo.quispe@laundryweb.com**: Mateo Quispe, conductor con servicio de recogida activo.
+- **javier.arriola@laundryweb.com**: Javier Arriola, conductor con entrega activa.
+- **carlos.ruiz@laundryweb.com**: Carlos Ruiz, contraseña **Temporal2026!**. Debe cambiarla antes de operar.
+
+También hay cuentas pendientes y rechazadas en el panel de demostración. Los datos de catálogo, clientes, plantas, conductores, promociones y pedidos iniciales provienen de `LaundryWeb/src/services/mockData.ts`, conservando sus IDs y precios en `src/services/laundryWebSeed.json`.
+
+## Recorrer el prototipo
+
+1. Registra una cuenta, adjunta documento y selfie, envía KYC y consulta «Ver estado» para simular la revisión. Una cuenta pendiente o rechazada no puede crear pedidos ni acceder a las rutas operativas del cliente.
+2. Para un pedido inmediato de prueba, entra como Sofía. Agrega tres camisas, un extra y programa recogida/entrega con dirección, pin y franjas disponibles. El asistente tiene cinco pasos. Confirma el pago con billetera o tarjeta de prueba.
+3. Abre el pedido creado: mantiene ID, prendas, importes, direcciones, pago y timeline. Cerrar y abrir la app conserva los cambios. Cierra sesión y entra como Diego para operar ese mismo pedido.
+4. El despacho simulado se ejecuta cada 12 segundos y asigna tareas a conductores disponibles de la planta. Habilita ubicación al iniciar navegación, marca llegada, verifica cantidad y confirma recogida. «Ir a planta» avanza el estado; confirma la llegada a planta.
+5. La simulación de LaundryWeb avanza procesamiento, calidad, preparación y programación de entrega en cuatro ciclos de 12 segundos. El conductor recibe una nueva asignación de entrega sobre el mismo pedido. Registra llegada, destinatario, relación y confirmación para entregarlo.
+6. Regresa como cliente para ver entrega, destinatario, timeline y puntos. El conductor puede consultar su etapa completada en Historial.
+
+Si otro conductor disponible recibe la entrega, consulta su cuenta de demo: las asignaciones pertenecen a su conductor y no se exponen a los demás.
+
+## Funciones incluidas
+
+- Registro, login, recuperación simulada, KYC y cambio obligatorio de contraseña temporal.
+- Inicio, pedidos activos/históricos, detalle y asistente de solicitud con edición, catálogo, extras, horarios y validaciones.
+- Pago atómico e idempotente, billetera con movimientos, recargas y tarjetas de prueba. 4242 aprueba; 0002 simula rechazo. No se almacena PAN ni CVV.
+- Promociones con vigencia, compra mínima, alcance por servicio y límites; membresías con descuentos y recogidas semanales.
+- Ledger de puntos, reserva de puntos para canjes pendientes y aplicación única de beneficios aprobados.
+- Direcciones guardadas con selección de pin, datos personales/fiscales, seguridad, preferencias, notificaciones y soporte simulado.
+- Ruta y servicios del conductor, acciones según estado, recogida con discrepancias/incidencias y foto opcional, entrega con destinatario obligatorio e historial.
+- Seguimiento y chat contextual entre cliente y conductor de la etapa actual; ETA y ruta simuladas.
+- Estado sin conexión, operaciones logísticas/mensajes pendientes y sincronización idempotente. Desde Soporte se puede simular desconexión. Crear pedidos, recargar y canjear requieren conexión.
+
+## Datos y arquitectura
+
+- `src/app`: rutas y layouts de Expo Router con barreras por rol, KYC y contraseña.
+- `src/features`: pantallas agrupadas por función.
+- `src/domain`: modelos comunes, precios/validaciones y motor transaccional de pedidos, logística, pagos y puntos.
+- `src/services`: datos compartidos de demo, fachadas de repositorios y almacenamiento seguro.
+- `src/store/AppStore.tsx`: hidratación, estado reactivo, persistencia y simulaciones de red/despacho/planta.
+- `src/components` y `src/theme`: componentes accesibles y sistema visual centralizado.
+
+AsyncStorage conserva datos y eventos de la demo. En iOS/Android, SecureStore conserva sesión, hashes de credenciales y referencias locales de evidencia KYC. En web, la sesión/referencias duran la pestaña y los hashes de credenciales se guardan localmente. La autenticación local es exclusiva del prototipo; una implementación real debe usar el backend y tokens.
+
+Los mapas nativos muestran pines y líneas de la ruta simulada. Android con build propio necesita la variable `GOOGLE_MAPS_ANDROID_API_KEY` en un archivo `.env` local; copia `.env.example`. Sin clave se conserva un esquema funcional. Web muestra el mismo esquema y selector de pin. La ubicación y cámara se solicitan cuando la función las necesita.
+
+Esta demo no sincroniza instalaciones diferentes ni escribe en LaundryWeb. Comparte su dominio y una instantánea inicial; backend, pasarela bancaria, notificaciones push, revisión administrativa remota, geocodificación y GPS en vivo quedan como integraciones reales. El chat y soporte son locales, la navegación externa abre Google Maps, Apple Maps o Waze.
+
+## Verificación
+
 ```bash
+npm run typecheck
+npm test
 npx expo install --check
 npx expo-doctor
-npm run typecheck
+npx expo export --platform all
 ```
 
-El teléfono y la computadora deben estar en la misma red. El QR debe anunciar la IP Wi-Fi de la computadora, nunca `127.0.0.1` ni `localhost`. Si Expo selecciona una interfaz virtual, fuerza la IP Wi-Fi en PowerShell (reemplaza la IP por la actual de tu computadora):
+Las pruebas de dominio cubren precios, KYC, pagos sin duplicados, permisos, privacidad de asignaciones, recogida/planta/entrega, puntos y sincronización. Las pruebas de interfaz usan Playwright; en Windows con Chrome instalado:
+
 ```powershell
-$env:REACT_NATIVE_PACKAGER_HOSTNAME = "192.168.100.151"
-npm run start:lan -- --clear
+$env:PLAYWRIGHT_CHANNEL = 'chrome'
+npm run test:ui
 ```
 
-Desde el teléfono, abre `http://<IP-WIFI>:8081/status`: debe responder `packager-status:running`. Si no responde, revisa el permiso de Red local de Expo Go en iOS, el firewall de Windows y el aislamiento de clientes Wi-Fi. Para probar con un túnel, elimina primero cualquier IP forzada:
-```powershell
-Remove-Item Env:REACT_NATIVE_PACKAGER_HOSTNAME -ErrorAction SilentlyContinue
-npm run start:tunnel -- --clear
-```
-
-Para abrir web con caché limpia:
-```bash
-npm run web -- --clear
-```
-
-Las dependencias nativas están alineadas con SDK 57. Actualízalas con `npx expo install` para conservar versiones compatibles. SDK 57 utiliza obligatoriamente la nueva arquitectura.
-
-### 3. Visualización
-* **En tu teléfono físico:** Escanea con tu cámara (iOS) o la app Expo Go (Android) el código QR que aparecerá en tu terminal.
-* **En el navegador web:** Presiona la tecla `w`.
-* **En Android Emulator local:** Presiona la tecla `a`.
-* **En iOS Simulator (Mac):** Presiona la tecla `i`.
-
----
-
-## 📂 Arquitectura del Proyecto
-
-```
-LaundryApp/
-├── App.tsx                     # Punto de entrada con Providers y StatusBar
-├── app.json                    # Configuración de Expo (nombre, íconos, bundle ID)
-├── package.json                # Dependencias (React Navigation, Expo, Vector Icons)
-├── tsconfig.json               # Configuración TypeScript
-└── src/
-    ├── types/                  # Modelos de datos TypeScript (Order, Customer, Driver, Status)
-    ├── theme/                  # Paleta de colores M3 (Primary Sky, Teal, Status)
-    ├── store/                  # Estado reactivo global (LaundryStore context)
-    ├── components/             # StatusBadge, OrderTimeline, Cards reutilizables
-    ├── navigation/             # RootNavigator (Stack) + ClientTabs + DriverTabs
-    └── screens/
-        ├── auth/               # Login con selector de rol y Validación KYC
-        ├── client/             # Inicio, Asistente de Nueva Orden (4 pasos),
-        │                       # Seguimiento en vivo, Chat en tiempo real,
-        │                       # Billetera & Puntos, Perfil
-        └── driver/             # Dashboard de ruta, Selector de disponibilidad,
-                                # Confirmación de recogida (conteo prendas) y entrega
-```
-
----
-
-## 🔄 Equivalencias con la versión de Android Nativo (Kotlin)
-
-| Módulo Kotlin / Compose | Implementación en este proyecto React Native |
-| :--- | :--- |
-| `LaundryRepository.kt` | `src/store/LaundryStore.tsx` (Context API + Hooks) |
-| `OrderModels.kt` / `OrderStatus.kt` | `src/types/index.ts` (Tipos estrictos de TS) |
-| `AppScreen.kt` | `src/navigation/RootNavigator.tsx` (@react-navigation) |
-| `NewOrderWizardScreen.kt` | `src/screens/client/NewOrderWizardScreen.tsx` |
-| `ClientTrackingAndChat.kt` | `ClientTrackingScreen.tsx` + `ClientChatScreen.tsx` |
-| `DriverConfirmationsAndMap.kt` | `DriverConfirmationsScreen.tsx` + `DriverRouteScreen.tsx` |
-| `ClientBenefitsAndWallet.kt` | `ClientWalletScreen.tsx` |
-
----
-
-## 💡 Alternador de Roles Rápido
-En la parte inferior de la pantalla encontrarás una barra flotante para alternar al instante entre **👤 Modo Cliente** y **🚚 Modo Chofer** para probar todos los flujos de recogida y entrega sin tener que cerrar sesión.
+En CI, instala el navegador con `npx playwright install chromium`. Capturas, trazas, reportes, exportaciones, dependencias, cachés, archivos nativos generados y variables locales están en `.gitignore`. Solo se incluyen código, lockfile, configuración pública, datos ficticios y logos pequeños necesarios para la app.

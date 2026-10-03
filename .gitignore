@@ -72,3 +72,12 @@ Desktop.ini
 *.tmp
 *.bak
 *.swp
+
+# QA output and local agent state
+/screenshots/
+/playwright-report/
+/test-results/
+.codex/
+*.dmp
+*.zip
+*.tar.gz
