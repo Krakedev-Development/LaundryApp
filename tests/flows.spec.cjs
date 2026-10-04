@@ -99,7 +99,24 @@ test("client order persists and the assigned driver completes its full lifecycle
     .getByRole("button", { name: "Cerrar sesión", exact: true })
     .last()
     .click();
-  await login(page, "diego.valdivia@laundryweb.com");
+  await expect
+    .poll(() =>
+      page.evaluate((orderId) => {
+        const data = JSON.parse(localStorage.getItem("laundry-mvp-v1") || "{}");
+        return data.assignments?.find(
+          (a) => a.orderId === orderId && a.type === "PICKUP",
+        )?.driverId;
+      }, id),
+    )
+    .toBeTruthy();
+  const pickupDriverEmail = await page.evaluate((orderId) => {
+    const data = JSON.parse(localStorage.getItem("laundry-mvp-v1"));
+    const assignment = data.assignments.find(
+      (a) => a.orderId === orderId && a.type === "PICKUP",
+    );
+    return data.drivers.find((d) => d.id === assignment.driverId).email;
+  }, id);
+  await login(page, pickupDriverEmail);
   await expect(
     page.getByText("Tu próxima parada, a un toque", { exact: true }),
   ).toBeVisible();
@@ -119,6 +136,20 @@ test("client order persists and the assigned driver completes its full lifecycle
   await page
     .getByRole("button", { name: "Iniciar navegación", exact: true })
     .click();
+  await expect
+    .poll(() =>
+      page.evaluate((orderId) => {
+        const data = JSON.parse(localStorage.getItem("laundry-mvp-v1"));
+        const assignment = data.assignments.find(
+          (a) => a.orderId === orderId && a.type === "PICKUP",
+        );
+        const driver = data.drivers.find((d) => d.id === assignment.driverId);
+        return (
+          driver.trackingEtaSeconds > 0 && driver.trackingEtaSeconds <= 120
+        );
+      }, id),
+    )
+    .toBe(true);
   await page
     .getByRole("button", { name: "Marcar llegada", exact: true })
     .click();
@@ -149,6 +180,38 @@ test("client order persists and the assigned driver completes its full lifecycle
     .getByRole("button", { name: "Confirmar entrega en planta", exact: true })
     .last()
     .click();
+  await expect
+    .poll(
+      () =>
+        page.evaluate((orderId) => {
+          const data = JSON.parse(
+            localStorage.getItem("laundry-mvp-v1") || "{}",
+          );
+          return data.assignments?.find(
+            (a) => a.orderId === orderId && a.type === "DELIVERY",
+          )?.driverId;
+        }, id),
+      { timeout: 70000 },
+    )
+    .toBeTruthy();
+  const deliveryDriverEmail = await page.evaluate((orderId) => {
+    const data = JSON.parse(localStorage.getItem("laundry-mvp-v1"));
+    const assignment = data.assignments.find(
+      (a) => a.orderId === orderId && a.type === "DELIVERY",
+    );
+    return data.drivers.find((d) => d.id === assignment.driverId).email;
+  }, id);
+  if (deliveryDriverEmail !== pickupDriverEmail) {
+    await page.goto("/(driver)/(tabs)/profile");
+    await page
+      .getByRole("button", { name: "Cerrar sesión", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Cerrar sesión", exact: true })
+      .last()
+      .click();
+    await login(page, deliveryDriverEmail);
+  }
   await page.goto(`/(driver)/service/${id}`);
   await expect(
     page.getByRole("button", { name: "Iniciar navegación", exact: true }),
@@ -196,6 +259,17 @@ test("client order persists and the assigned driver completes its full lifecycle
   ).toBeVisible();
   await expect(
     page.getByText("Recibió: Sofía Fresh · Cliente", { exact: true }),
+  ).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate((orderId) => {
+        const data = JSON.parse(localStorage.getItem("laundry-mvp-v1"));
+        return data.orders.find((o) => o.id === orderId).status;
+      }, id),
+    )
+    .toBe("CLOSED");
+  await expect(
+    page.getByText("Pedido finalizado", { exact: true }).first(),
   ).toBeVisible();
   await page.screenshot({
     path: "test-results/client-delivered.png",
@@ -277,12 +351,12 @@ test("new customer submits identity images and persists a saved address", async 
     .fill("Casa de Lucía");
   await page
     .getByLabel("Dirección completa", { exact: true })
-    .fill("Calle de Prueba 123, Lima");
+    .fill("Av. Samborondón 123, Ecuador");
   await page
     .getByLabel("Referencia / indicaciones", { exact: true })
     .fill("Portería principal");
   await page
-    .getByRole("button", { name: "Guardar dirección", exact: true })
+    .getByRole("button", { name: "Confirmar ubicación", exact: true })
     .click();
   await expect(page.getByText("Casa de Lucía", { exact: true })).toBeVisible();
   await page.reload();

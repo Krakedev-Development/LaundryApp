@@ -1,5 +1,8 @@
+import { eligibilityReasons } from "../services/geo/DispatchService";
+import { serviceAreaService } from "../services/geo/ServiceAreaService";
 import {
   AppData,
+  Address,
   Customer,
   DriverAssignment,
   Draft,
@@ -40,6 +43,25 @@ export class DomainEngine {
     const c = this.data.customers.find((v) => v.id === session.userId);
     if (!c) throw new Error("Cuenta no encontrada.");
     return c;
+  }
+  saveAddress(session: Session, address: Address) {
+    const customer = this.customer(session);
+    if (!address.title.trim() || address.fullAddress.trim().length < 8)
+      throw new Error("Completa el nombre y la dirección.");
+    if (address.persistence === "temporary")
+      throw new Error("Esta dirección todavía no se puede guardar.");
+    serviceAreaService.requireCoverage(address.coordinates);
+    this.update((data) => {
+      const next = data.customers.find((c) => c.id === customer.id)!;
+      if (address.isPrimary)
+        next.addresses.forEach((a) => {
+          a.isPrimary = false;
+        });
+      next.addresses = [
+        ...next.addresses.filter((a) => a.id !== address.id),
+        address,
+      ];
+    });
   }
   driver(session: Session) {
     if (session.role !== "CHOFER")
@@ -188,7 +210,9 @@ export class DomainEngine {
         pickup: draft.pickup!,
         delivery: draft.delivery!,
         rewardRedemptionId: draft.rewardRedemptionId,
-        facilityId: "FAC-02",
+        facilityId: serviceAreaService.requireCoverage(
+          draft.pickup!.address.coordinates,
+        ).facilityId,
         assignments: [],
         incidents: [],
         timeline: [],
@@ -264,19 +288,38 @@ export class DomainEngine {
       for (const o of d.orders.filter((o) =>
         ["PICKUP_PENDING", "DELIVERY_SCHEDULED"].includes(o.status),
       )) {
-        const driver = d.drivers.find(
-          (v) =>
-            v.operationalStatus === "AVAILABLE" &&
-            v.facilityId === o.facilityId &&
-            !v.mustChangePassword,
-        );
-        if (
-          !driver ||
-          d.assignments.filter(
-            (a) => a.driverId === driver.id && a.status !== "COMPLETED",
-          ).length >= 5
-        )
-          continue;
+        const destination = (
+          o.status === "DELIVERY_SCHEDULED" ? o.delivery : o.pickup
+        ).address.coordinates;
+        const area = serviceAreaService.findArea(destination);
+        const driver =
+          area &&
+          d.drivers.find(
+            (v) =>
+              !v.mustChangePassword &&
+              !eligibilityReasons(
+                {
+                  id: v.id,
+                  status: v.operationalStatus,
+                  coordinates: v.location,
+                  updatedAt: v.locationUpdatedAt ?? "",
+                  facilityId: v.facilityId,
+                  zoneId: v.zoneId ?? area.id,
+                  authorizedZoneIds: v.authorizedZoneIds,
+                  activeOrders: d.assignments.filter(
+                    (a) => a.driverId === v.id && a.status !== "COMPLETED",
+                  ).length,
+                  maxOrders: v.maxOrders ?? 5,
+                },
+                {
+                  id: o.id,
+                  coordinates: destination,
+                  facilityId: o.facilityId,
+                  zoneId: area.id,
+                },
+              ).length,
+          );
+        if (!driver) continue;
         const delivery = o.status === "DELIVERY_SCHEDULED";
         const id = this.id(d, "assignment");
         const a: DriverAssignment = {
@@ -464,6 +507,7 @@ export class DomainEngine {
             IN_PROCESS: "QUALITY_CONTROL",
             QUALITY_CONTROL: "READY_FOR_DELIVERY",
             READY_FOR_DELIVERY: "DELIVERY_SCHEDULED",
+            DELIVERED: "CLOSED",
           } as Partial<Record<OrderStatus, OrderStatus>>
         )[o.status];
         if (step && !d.pendingOperations.some((p) => p.orderId === o.id))

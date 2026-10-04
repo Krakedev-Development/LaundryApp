@@ -1,3 +1,4 @@
+import { serviceAreaService } from "../services/geo/ServiceAreaService";
 import { businessConfig as config } from "../config/business";
 import {
   Address,
@@ -388,6 +389,14 @@ export function validateOrder(data: AppData, customer: Customer, draft: Draft) {
   if (!draft.items.length) throw new Error("Agrega al menos una prenda.");
   validateSchedule(draft.pickup);
   validateSchedule(draft.delivery);
+  serviceAreaService.requireCoverage(draft.pickup!.address.coordinates);
+  serviceAreaService.requireCoverage(draft.delivery!.address.coordinates);
+  if (
+    [draft.pickup!.address, draft.delivery!.address].some(
+      (a) => a.persistence === "temporary",
+    )
+  )
+    throw new Error("Confirma una dirección que pueda guardarse.");
   if (
     !deliveryDates(data, draft.items, draft.pickup!.date).includes(
       draft.delivery!.date,

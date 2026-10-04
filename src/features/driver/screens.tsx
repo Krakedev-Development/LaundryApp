@@ -1,3 +1,7 @@
+import {
+  navigationOptions,
+  openExternalNavigation,
+} from "../../services/geo/ExternalNavigationService";
 import React, { useState } from "react";
 import { Image, Linking, Text, useWindowDimensions, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -121,7 +125,8 @@ function TaskCard({
         {dateLabel(schedule.date)} · {schedule.timeSlot}
       </Text>
       <Text style={ui.meta}>
-        {distance} km · ETA estimada {Math.max(3, Math.ceil(distance * 4))} min
+        {distance} km de demostración · Llegada simulada{" "}
+        {Math.max(3, Math.ceil(distance * 4))} min
       </Text>
       <Badge
         title={
@@ -195,7 +200,8 @@ export function DriverRouteScreen() {
           />
         </View>
         <Text style={ui.body}>
-          {route.estimatedDistance} km · {route.estimatedDuration} min estimados
+          {route.estimatedDistance} km · {route.estimatedDuration} min de
+          demostración
         </Text>
       </Card>
       {first ? (
@@ -405,6 +411,7 @@ export function DriverServiceScreen({ map = false }: { map?: boolean }) {
           destination={target}
           label={toFacility ? facility.name : schedule.address.title}
           height={350}
+          stage={o.id + ":" + o.status}
         />
       )}
       <Card>
@@ -417,7 +424,7 @@ export function DriverServiceScreen({ map = false }: { map?: boolean }) {
           {dateLabel(schedule.date)} · {schedule.timeSlot}
         </Text>
         <Text style={ui.meta}>
-          Distancia estimada: {routeDistance(drv.location, target)} km
+          Consulta la distancia y duración de esta etapa en el mapa.
         </Text>
         {!!schedule.notes && <Text style={ui.body}>{schedule.notes}</Text>}
       </Card>
@@ -518,27 +525,14 @@ export function DriverServiceScreen({ map = false }: { map?: boolean }) {
         title="Abrir navegación"
         onClose={() => setNavigation(false)}
       >
-        {[
-          {
-            name: "Google Maps",
-            url: `https://www.google.com/maps/dir/?api=1&destination=${target.lat},${target.lng}`,
-          },
-          {
-            name: "Apple Maps",
-            url: `https://maps.apple.com/?daddr=${target.lat},${target.lng}`,
-          },
-          {
-            name: "Waze",
-            url: `https://waze.com/ul?ll=${target.lat},${target.lng}&navigate=yes`,
-          },
-        ].map((provider) => (
+        {navigationOptions(target).map((provider) => (
           <Button
             key={provider.name}
             title={provider.name}
             variant="secondary"
             onPress={() =>
               a.run(async () => {
-                await Linking.openURL(provider.url);
+                await openExternalNavigation(provider.url);
                 setNavigation(false);
               })
             }

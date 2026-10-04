@@ -1,4 +1,337 @@
 {
+  "INITIAL_USERS": [
+    {
+      "id": "USR-001",
+      "name": "Carlos Mendoza",
+      "email": "admin@laundryweb.com",
+      "role": "ADMIN",
+      "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+      "facilityId": "FAC-01"
+    },
+    {
+      "id": "USR-002",
+      "name": "Elena Rostova",
+      "email": "supervisor@laundryweb.com",
+      "role": "SUPERVISOR",
+      "avatar": "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80",
+      "facilityId": "FAC-01"
+    }
+  ],
+  "INITIAL_SETTINGS": {
+    "maxOrdersPerDriver": 5,
+    "slaPickupMinutes": 45,
+    "slaDeliveryHours": 24,
+    "defaultFacilityId": "FAC-01",
+    "currency": "USD",
+    "currencySymbol": "$",
+    "timezone": "America/Guayaquil",
+    "locale": "es-EC",
+    "defaultCity": "Samborondón",
+    "phoneCountryCode": "+593",
+    "quarantineNotifySupervisor": true,
+    "autoSuggestDrivers": true
+  },
+  "INITIAL_FACILITIES": [
+    {
+      "id": "FAC-01",
+      "name": "Laundry La Puntilla",
+      "code": "HUB-NORTE",
+      "address": "Av. Samborondón · La Puntilla",
+      "city": "Samborondón",
+      "zone": "La Puntilla",
+      "capacityMaxKgDay": 1500,
+      "currentLoadKgDay": 1140,
+      "activeOrders": 28,
+      "assignedDriversCount": 5,
+      "status": "ACTIVE",
+      "phone": "+51 1 555-0192",
+      "managerName": "Roberto Gómez",
+      "coordinates": {
+        "lat": -2.139,
+        "lng": -79.871
+      }
+    },
+    {
+      "id": "FAC-02",
+      "name": "Laundry Samborondón Central",
+      "code": "HUB-SUR",
+      "address": "Av. Samborondón · Sector central",
+      "city": "Samborondón",
+      "zone": "Samborondón Central",
+      "capacityMaxKgDay": 900,
+      "currentLoadKgDay": 780,
+      "activeOrders": 19,
+      "assignedDriversCount": 3,
+      "status": "ACTIVE",
+      "phone": "+51 1 555-0844",
+      "managerName": "Mariana Silva",
+      "coordinates": {
+        "lat": -2.124,
+        "lng": -79.867
+      }
+    },
+    {
+      "id": "FAC-03",
+      "name": "Laundry Samborondón Norte",
+      "code": "HUB-FINANCIERO",
+      "address": "Av. Samborondón · Sector norte",
+      "city": "Samborondón",
+      "zone": "Samborondón Norte",
+      "capacityMaxKgDay": 600,
+      "currentLoadKgDay": 410,
+      "activeOrders": 12,
+      "assignedDriversCount": 2,
+      "status": "ACTIVE",
+      "phone": "+51 1 555-0371",
+      "managerName": "Daniel Benavides",
+      "coordinates": {
+        "lat": -2.105,
+        "lng": -79.863
+      }
+    }
+  ],
+  "INITIAL_DRIVERS": [
+    {
+      "id": "DRV-101",
+      "name": "Carlos Ruiz",
+      "phone": "+51 987 654 321",
+      "email": "carlos.ruiz@laundryweb.com",
+      "avatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80",
+      "vehicleType": "VAN",
+      "vehiclePlate": "ABC-123",
+      "facilityId": "FAC-01",
+      "facilityName": "Laundry La Puntilla",
+      "zoneId": "ZONA-NORTE",
+      "zoneName": "La Puntilla",
+      "status": "AVAILABLE",
+      "activeOrders": 2,
+      "maxOrders": 5,
+      "rating": 4.9,
+      "completedTripsToday": 8,
+      "location": {
+        "lat": -2.1409999999999996,
+        "lng": -79.87339999999999,
+        "address": "Av. Samborondón",
+        "lastUpdated": "2026-10-04T17:22:51.523Z",
+        "simulated": true
+      },
+      "authorizedZoneIds": [
+        "ZONA-NORTE",
+        "ZONA-SUR",
+        "ZONA-FINANCIERA"
+      ]
+    },
+    {
+      "id": "DRV-102",
+      "name": "Mateo Quispe",
+      "phone": "+51 981 123 456",
+      "email": "mateo.quispe@laundryweb.com",
+      "avatar": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&auto=format&fit=crop&q=80",
+      "vehicleType": "VAN",
+      "vehiclePlate": "XYZ-789",
+      "facilityId": "FAC-02",
+      "facilityName": "Laundry Samborondón Central",
+      "zoneId": "ZONA-SUR",
+      "zoneName": "Samborondón Central",
+      "status": "AVAILABLE",
+      "activeOrders": 4,
+      "maxOrders": 5,
+      "rating": 4.8,
+      "completedTripsToday": 6,
+      "location": {
+        "lat": -2.125,
+        "lng": -79.8686,
+        "address": "Av. Samborondón",
+        "lastUpdated": "2026-10-04T17:22:51.525Z",
+        "simulated": true
+      },
+      "authorizedZoneIds": [
+        "ZONA-NORTE",
+        "ZONA-SUR",
+        "ZONA-FINANCIERA"
+      ]
+    },
+    {
+      "id": "DRV-103",
+      "name": "Javier Arriola",
+      "phone": "+51 992 445 566",
+      "email": "javier.arriola@laundryweb.com",
+      "avatar": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=120&auto=format&fit=crop&q=80",
+      "vehicleType": "MOTO",
+      "vehiclePlate": "MOT-442",
+      "facilityId": "FAC-03",
+      "facilityName": "Laundry Samborondón Norte",
+      "zoneId": "ZONA-FINANCIERA",
+      "zoneName": "Samborondón Norte",
+      "status": "AVAILABLE",
+      "activeOrders": 1,
+      "maxOrders": 4,
+      "rating": 4.95,
+      "completedTripsToday": 11,
+      "location": {
+        "lat": -2.105,
+        "lng": -79.8638,
+        "address": "Av. Samborondón",
+        "lastUpdated": "2026-10-04T17:22:51.525Z",
+        "simulated": true
+      },
+      "authorizedZoneIds": [
+        "ZONA-NORTE",
+        "ZONA-SUR",
+        "ZONA-FINANCIERA"
+      ]
+    },
+    {
+      "id": "DRV-104",
+      "name": "Andrea Morales",
+      "phone": "+51 976 889 900",
+      "email": "andrea.morales@laundryweb.com",
+      "avatar": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=120&auto=format&fit=crop&q=80",
+      "vehicleType": "VAN",
+      "vehiclePlate": "VWT-505",
+      "facilityId": "FAC-01",
+      "facilityName": "Laundry La Puntilla",
+      "zoneId": "ZONA-NORTE",
+      "zoneName": "La Puntilla",
+      "status": "ON_SERVICE",
+      "activeOrders": 5,
+      "maxOrders": 5,
+      "rating": 4.7,
+      "completedTripsToday": 7,
+      "location": {
+        "lat": -2.138,
+        "lng": -79.871,
+        "address": "Av. Samborondón",
+        "lastUpdated": "2026-10-04T17:22:51.525Z",
+        "simulated": true
+      },
+      "authorizedZoneIds": [
+        "ZONA-NORTE",
+        "ZONA-SUR",
+        "ZONA-FINANCIERA"
+      ]
+    },
+    {
+      "id": "DRV-105",
+      "name": "Diego Valdivia",
+      "phone": "+51 965 334 221",
+      "email": "diego.valdivia@laundryweb.com",
+      "avatar": "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=120&auto=format&fit=crop&q=80",
+      "vehicleType": "CAMIONETA",
+      "vehiclePlate": "PKU-881",
+      "facilityId": "FAC-02",
+      "facilityName": "Laundry Samborondón Central",
+      "zoneId": "ZONA-SUR",
+      "zoneName": "Samborondón Central",
+      "status": "AVAILABLE",
+      "activeOrders": 0,
+      "maxOrders": 5,
+      "rating": 4.85,
+      "completedTripsToday": 5,
+      "location": {
+        "lat": -2.1220000000000003,
+        "lng": -79.8662,
+        "address": "Av. Samborondón",
+        "lastUpdated": "2026-10-04T17:22:51.525Z",
+        "simulated": true
+      },
+      "authorizedZoneIds": [
+        "ZONA-NORTE",
+        "ZONA-SUR",
+        "ZONA-FINANCIERA"
+      ]
+    },
+    {
+      "id": "DRV-106",
+      "name": "Lucía Santillán",
+      "phone": "+51 944 112 887",
+      "email": "lucia.santillan@laundryweb.com",
+      "avatar": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120&auto=format&fit=crop&q=80",
+      "vehicleType": "VAN",
+      "vehiclePlate": "ECO-204",
+      "facilityId": "FAC-03",
+      "facilityName": "Laundry Samborondón Norte",
+      "zoneId": "ZONA-FINANCIERA",
+      "zoneName": "Samborondón Norte",
+      "status": "AVAILABLE",
+      "activeOrders": 2,
+      "maxOrders": 5,
+      "rating": 4.92,
+      "completedTripsToday": 9,
+      "location": {
+        "lat": -2.1069999999999998,
+        "lng": -79.8614,
+        "address": "Av. Samborondón",
+        "lastUpdated": "2026-10-04T17:22:51.525Z",
+        "simulated": true
+      },
+      "authorizedZoneIds": [
+        "ZONA-NORTE",
+        "ZONA-SUR",
+        "ZONA-FINANCIERA"
+      ]
+    },
+    {
+      "id": "DRV-107",
+      "name": "Fernando Castro",
+      "phone": "+51 955 776 332",
+      "email": "fernando.castro@laundryweb.com",
+      "avatar": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=120&auto=format&fit=crop&q=80",
+      "vehicleType": "MOTO",
+      "vehiclePlate": "MOT-991",
+      "facilityId": "FAC-01",
+      "facilityName": "Laundry La Puntilla",
+      "zoneId": "ZONA-NORTE",
+      "zoneName": "La Puntilla",
+      "status": "OFFLINE",
+      "activeOrders": 0,
+      "maxOrders": 4,
+      "rating": 4.65,
+      "completedTripsToday": 3,
+      "location": {
+        "lat": -2.1399999999999997,
+        "lng": -79.8686,
+        "address": "Av. Samborondón",
+        "lastUpdated": "2026-10-04T17:12:51.525Z",
+        "simulated": true
+      },
+      "authorizedZoneIds": [
+        "ZONA-NORTE",
+        "ZONA-SUR",
+        "ZONA-FINANCIERA"
+      ]
+    },
+    {
+      "id": "DRV-108",
+      "name": "Gabriel Zúñiga",
+      "phone": "+51 933 221 445",
+      "email": "gabriel.zuniga@laundryweb.com",
+      "avatar": "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=120&auto=format&fit=crop&q=80",
+      "vehicleType": "VAN",
+      "vehiclePlate": "FST-319",
+      "facilityId": "FAC-02",
+      "facilityName": "Laundry Samborondón Central",
+      "zoneId": "ZONA-SUR",
+      "zoneName": "Samborondón Central",
+      "status": "AVAILABLE",
+      "activeOrders": 3,
+      "maxOrders": 5,
+      "rating": 4.88,
+      "completedTripsToday": 8,
+      "location": {
+        "lat": -2.124,
+        "lng": -79.8694,
+        "address": "Av. Samborondón",
+        "lastUpdated": "2026-10-04T17:22:51.526Z",
+        "simulated": true
+      },
+      "authorizedZoneIds": [
+        "ZONA-NORTE",
+        "ZONA-SUR",
+        "ZONA-FINANCIERA"
+      ]
+    }
+  ],
   "INITIAL_CUSTOMERS": [
     {
       "id": "CUST-001",
@@ -14,15 +347,15 @@
       "kycSelfieUrl": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80",
       "addresses": [
         {
-          "street": "Calle Grimaldo del Solar",
+          "street": "Av. Samborondón",
           "number": "240",
           "complement": "Dpto 502",
-          "neighborhood": "Miraflores",
-          "city": "Metropolitana",
+          "neighborhood": "Sector central",
+          "city": "Samborondón",
           "reference": "Frente al parque Reducto",
           "coordinates": {
-            "lat": -12.1245,
-            "lng": -77.0241
+            "lat": -2.126,
+            "lng": -79.8694
           }
         }
       ],
@@ -49,15 +382,15 @@
       "kycSelfieUrl": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80",
       "addresses": [
         {
-          "street": "Av. La Marina",
+          "street": "Av. Samborondón",
           "number": "2955",
           "complement": "Área de Hospitalización",
-          "neighborhood": "San Miguel",
-          "city": "Metropolitana",
+          "neighborhood": "Sector central",
+          "city": "Samborondón",
           "reference": "Puerta 3 de Carga",
           "coordinates": {
-            "lat": -12.0789,
-            "lng": -77.0912
+            "lat": -2.125,
+            "lng": -79.8686
           }
         }
       ],
@@ -83,15 +416,15 @@
       "kycSelfieUrl": "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=400&auto=format&fit=crop&q=80",
       "addresses": [
         {
-          "street": "Av. Javier Prado Oeste",
+          "street": "Av. Samborondón",
           "number": "1850",
           "complement": "Piso 14 - A",
-          "neighborhood": "San Isidro",
-          "city": "Metropolitana",
+          "neighborhood": "Sector central",
+          "city": "Samborondón",
           "reference": "Torre Empresarial Sigma",
           "coordinates": {
-            "lat": -12.0911,
-            "lng": -77.0512
+            "lat": -2.124,
+            "lng": -79.8678
           }
         }
       ],
@@ -118,15 +451,15 @@
       "kycSelfieUrl": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&auto=format&fit=crop&q=80",
       "addresses": [
         {
-          "street": "Malecón de la Reserva",
+          "street": "Av. Samborondón",
           "number": "725",
           "complement": "Penthouse 12",
-          "neighborhood": "Miraflores",
-          "city": "Metropolitana",
+          "neighborhood": "Sector central",
+          "city": "Samborondón",
           "reference": "Cerca a Larcomar",
           "coordinates": {
-            "lat": -12.1312,
-            "lng": -77.0289
+            "lat": -2.123,
+            "lng": -79.867
           }
         }
       ],
@@ -155,15 +488,15 @@
       "kycSelfieUrl": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&auto=format&fit=crop&q=80",
       "addresses": [
         {
-          "street": "Av. Salaverry",
+          "street": "Av. Samborondón",
           "number": "3100",
           "complement": "Dpto 301",
-          "neighborhood": "San Isidro",
-          "city": "Metropolitana",
+          "neighborhood": "Sector central",
+          "city": "Samborondón",
           "reference": "Frente al Real Plaza Salaverry",
           "coordinates": {
-            "lat": -12.0935,
-            "lng": -77.0543
+            "lat": -2.1220000000000003,
+            "lng": -79.8662
           }
         }
       ],
@@ -189,15 +522,15 @@
       "kycSelfieUrl": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&auto=format&fit=crop&q=80",
       "addresses": [
         {
-          "street": "Calle Dos de Mayo",
+          "street": "Av. Samborondón",
           "number": "560",
           "complement": "Casa 2",
-          "neighborhood": "San Isidro",
-          "city": "Metropolitana",
+          "neighborhood": "Sector central",
+          "city": "Samborondón",
           "reference": "A 2 cuadras de Av. Arequipa",
           "coordinates": {
-            "lat": -12.1012,
-            "lng": -77.0345
+            "lat": -2.126,
+            "lng": -79.86540000000001
           }
         }
       ],
@@ -222,15 +555,15 @@
       "kycReviewedBy": "Carlos Mendoza",
       "addresses": [
         {
-          "street": "Av. Grau",
+          "street": "Av. Samborondón",
           "number": "120",
           "complement": "Recepción Central",
-          "neighborhood": "Barranco",
-          "city": "Metropolitana",
+          "neighborhood": "Sector central",
+          "city": "Samborondón",
           "reference": "Cerca al Puente de los Suspiros",
           "coordinates": {
-            "lat": -12.1489,
-            "lng": -77.0212
+            "lat": -2.125,
+            "lng": -79.86460000000001
           }
         }
       ],
@@ -255,15 +588,15 @@
       "kycReviewedBy": "Elena Rostova",
       "addresses": [
         {
-          "street": "Calle Los Pinos",
+          "street": "Av. Samborondón",
           "number": "180",
           "complement": "Oficina 604",
-          "neighborhood": "Miraflores",
-          "city": "Metropolitana",
+          "neighborhood": "Sector central",
+          "city": "Samborondón",
           "reference": "Entre Benavides y Schell",
           "coordinates": {
-            "lat": -12.1223,
-            "lng": -77.0298
+            "lat": -2.124,
+            "lng": -79.8694
           }
         }
       ],
@@ -276,259 +609,6 @@
       "createdAt": "2026-06-25"
     }
   ],
-  "INITIAL_DRIVERS": [
-    {
-      "id": "DRV-101",
-      "name": "Carlos Ruiz",
-      "phone": "+51 987 654 321",
-      "email": "carlos.ruiz@laundryweb.com",
-      "avatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80",
-      "vehicleType": "VAN",
-      "vehiclePlate": "ABC-123",
-      "facilityId": "FAC-01",
-      "facilityName": "Sede Central Norte - Clean Hub",
-      "zoneId": "ZONA-NORTE",
-      "zoneName": "Zona Norte & Centro",
-      "status": "AVAILABLE",
-      "activeOrders": 2,
-      "maxOrders": 5,
-      "rating": 4.9,
-      "completedTripsToday": 8,
-      "location": {
-        "lat": -12.052,
-        "lng": -77.039,
-        "address": "Cerca a Av. Colonial km 2.4",
-        "lastUpdated": "Hace 3 min"
-      }
-    },
-    {
-      "id": "DRV-102",
-      "name": "Mateo Quispe",
-      "phone": "+51 981 123 456",
-      "email": "mateo.quispe@laundryweb.com",
-      "avatar": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&auto=format&fit=crop&q=80",
-      "vehicleType": "VAN",
-      "vehiclePlate": "XYZ-789",
-      "facilityId": "FAC-02",
-      "facilityName": "Sede Fresh Miraflores",
-      "zoneId": "ZONA-SUR",
-      "zoneName": "Zona Sur & Bahía",
-      "status": "ON_DUTY",
-      "activeOrders": 4,
-      "maxOrders": 5,
-      "rating": 4.8,
-      "completedTripsToday": 6,
-      "location": {
-        "lat": -12.115,
-        "lng": -77.032,
-        "address": "En ruta: Av. Pardo con Comandante Espinar",
-        "lastUpdated": "Hace 1 min"
-      }
-    },
-    {
-      "id": "DRV-103",
-      "name": "Javier Arriola",
-      "phone": "+51 992 445 566",
-      "email": "javier.arriola@laundryweb.com",
-      "avatar": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=120&auto=format&fit=crop&q=80",
-      "vehicleType": "MOTO",
-      "vehiclePlate": "MOT-442",
-      "facilityId": "FAC-03",
-      "facilityName": "Sede San Isidro Executive",
-      "zoneId": "ZONA-FINANCIERA",
-      "zoneName": "Zona Financiera & Residencial",
-      "status": "AVAILABLE",
-      "activeOrders": 1,
-      "maxOrders": 4,
-      "rating": 4.95,
-      "completedTripsToday": 11,
-      "location": {
-        "lat": -12.095,
-        "lng": -77.031,
-        "address": "Calle Los Cedros 210",
-        "lastUpdated": "Hace 5 min"
-      }
-    },
-    {
-      "id": "DRV-104",
-      "name": "Andrea Morales",
-      "phone": "+51 976 889 900",
-      "email": "andrea.morales@laundryweb.com",
-      "avatar": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=120&auto=format&fit=crop&q=80",
-      "vehicleType": "VAN",
-      "vehiclePlate": "VWT-505",
-      "facilityId": "FAC-01",
-      "facilityName": "Sede Central Norte - Clean Hub",
-      "zoneId": "ZONA-NORTE",
-      "zoneName": "Zona Norte & Centro",
-      "status": "BUSY",
-      "activeOrders": 5,
-      "maxOrders": 5,
-      "rating": 4.7,
-      "completedTripsToday": 7,
-      "location": {
-        "lat": -12.061,
-        "lng": -77.045,
-        "address": "Entregando en Jr. Zorritos 490",
-        "lastUpdated": "Hace 2 min"
-      }
-    },
-    {
-      "id": "DRV-105",
-      "name": "Diego Valdivia",
-      "phone": "+51 965 334 221",
-      "email": "diego.valdivia@laundryweb.com",
-      "avatar": "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=120&auto=format&fit=crop&q=80",
-      "vehicleType": "CAMIONETA",
-      "vehiclePlate": "PKU-881",
-      "facilityId": "FAC-02",
-      "facilityName": "Sede Fresh Miraflores",
-      "zoneId": "ZONA-SUR",
-      "zoneName": "Zona Sur & Bahía",
-      "status": "AVAILABLE",
-      "activeOrders": 0,
-      "maxOrders": 5,
-      "rating": 4.85,
-      "completedTripsToday": 5,
-      "location": {
-        "lat": -12.13,
-        "lng": -77.022,
-        "address": "Base Miraflores - En espera",
-        "lastUpdated": "Hace 7 min"
-      }
-    },
-    {
-      "id": "DRV-106",
-      "name": "Lucía Santillán",
-      "phone": "+51 944 112 887",
-      "email": "lucia.santillan@laundryweb.com",
-      "avatar": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120&auto=format&fit=crop&q=80",
-      "vehicleType": "VAN",
-      "vehiclePlate": "ECO-204",
-      "facilityId": "FAC-03",
-      "facilityName": "Sede San Isidro Executive",
-      "zoneId": "ZONA-FINANCIERA",
-      "zoneName": "Zona Financiera & Residencial",
-      "status": "AVAILABLE",
-      "activeOrders": 2,
-      "maxOrders": 5,
-      "rating": 4.92,
-      "completedTripsToday": 9,
-      "location": {
-        "lat": -12.091,
-        "lng": -77.04,
-        "address": "Av. Prescott 330",
-        "lastUpdated": "Hace 4 min"
-      }
-    },
-    {
-      "id": "DRV-107",
-      "name": "Fernando Castro",
-      "phone": "+51 955 776 332",
-      "email": "fernando.castro@laundryweb.com",
-      "avatar": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=120&auto=format&fit=crop&q=80",
-      "vehicleType": "MOTO",
-      "vehiclePlate": "MOT-991",
-      "facilityId": "FAC-01",
-      "facilityName": "Sede Central Norte - Clean Hub",
-      "zoneId": "ZONA-NORTE",
-      "zoneName": "Zona Norte & Centro",
-      "status": "OFFLINE",
-      "activeOrders": 0,
-      "maxOrders": 4,
-      "rating": 4.65,
-      "completedTripsToday": 3,
-      "location": {
-        "lat": -12.046,
-        "lng": -77.042,
-        "address": "En mantenimiento vehicular",
-        "lastUpdated": "Hace 45 min"
-      }
-    },
-    {
-      "id": "DRV-108",
-      "name": "Gabriel Zúñiga",
-      "phone": "+51 933 221 445",
-      "email": "gabriel.zuniga@laundryweb.com",
-      "avatar": "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=120&auto=format&fit=crop&q=80",
-      "vehicleType": "VAN",
-      "vehiclePlate": "FST-319",
-      "facilityId": "FAC-02",
-      "facilityName": "Sede Fresh Miraflores",
-      "zoneId": "ZONA-SUR",
-      "zoneName": "Zona Sur & Bahía",
-      "status": "ON_DUTY",
-      "activeOrders": 3,
-      "maxOrders": 5,
-      "rating": 4.88,
-      "completedTripsToday": 8,
-      "location": {
-        "lat": -12.126,
-        "lng": -77.026,
-        "address": "Malecón Balta 410",
-        "lastUpdated": "Hace 2 min"
-      }
-    }
-  ],
-  "INITIAL_FACILITIES": [
-    {
-      "id": "FAC-01",
-      "name": "Sede Central Norte - Clean Hub",
-      "code": "HUB-NORTE",
-      "address": "Av. Industrial 1420, Parque Empresarial",
-      "city": "Metropolitana",
-      "zone": "Zona Norte & Centro",
-      "capacityMaxKgDay": 1500,
-      "currentLoadKgDay": 1140,
-      "activeOrders": 28,
-      "assignedDriversCount": 5,
-      "status": "ACTIVE",
-      "phone": "+51 1 555-0192",
-      "managerName": "Roberto Gómez",
-      "coordinates": {
-        "lat": -12.0464,
-        "lng": -77.0428
-      }
-    },
-    {
-      "id": "FAC-02",
-      "name": "Sede Fresh Miraflores",
-      "code": "HUB-SUR",
-      "address": "Calle Las Acacias 380, San Antonio",
-      "city": "Metropolitana",
-      "zone": "Zona Sur & Bahía",
-      "capacityMaxKgDay": 900,
-      "currentLoadKgDay": 780,
-      "activeOrders": 19,
-      "assignedDriversCount": 3,
-      "status": "ACTIVE",
-      "phone": "+51 1 555-0844",
-      "managerName": "Mariana Silva",
-      "coordinates": {
-        "lat": -12.1219,
-        "lng": -77.0297
-      }
-    },
-    {
-      "id": "FAC-03",
-      "name": "Sede San Isidro Executive",
-      "code": "HUB-FINANCIERO",
-      "address": "Av. Camino Real 720, Edificio Platinum",
-      "city": "Metropolitana",
-      "zone": "Zona Financiera & Residencial",
-      "capacityMaxKgDay": 600,
-      "currentLoadKgDay": 410,
-      "activeOrders": 12,
-      "assignedDriversCount": 2,
-      "status": "ACTIVE",
-      "phone": "+51 1 555-0371",
-      "managerName": "Daniel Benavides",
-      "coordinates": {
-        "lat": -12.0969,
-        "lng": -77.0353
-      }
-    }
-  ],
   "INITIAL_ORDERS": [
     {
       "id": "SOL-4587",
@@ -539,33 +619,33 @@
       "customerEmail": "maria.torres@gmail.com",
       "customerPlan": "Premium Fresh",
       "customerAddress": {
-        "street": "Calle Grimaldo del Solar",
+        "street": "Av. Samborondón",
         "number": "240",
         "complement": "Dpto 502",
-        "neighborhood": "Miraflores",
-        "city": "Metropolitana",
+        "neighborhood": "Samborondón Central",
+        "city": "Samborondón",
         "reference": "Frente al parque Reducto",
         "coordinates": {
-          "lat": -12.1245,
-          "lng": -77.0241
+          "lat": -2.126,
+          "lng": -79.8694
         }
       },
       "deliveryAddress": {
-        "street": "Calle Grimaldo del Solar",
+        "street": "Av. Samborondón",
         "number": "240",
         "complement": "Dpto 502",
-        "neighborhood": "Miraflores",
-        "city": "Metropolitana",
+        "neighborhood": "Samborondón Central",
+        "city": "Samborondón",
         "reference": "Frente al parque Reducto",
         "coordinates": {
-          "lat": -12.1245,
-          "lng": -77.0241
+          "lat": -2.125,
+          "lng": -79.8686
         }
       },
       "facilityId": "FAC-02",
-      "facilityName": "Sede Fresh Miraflores",
+      "facilityName": "Laundry Samborondón Central",
       "zoneId": "ZONA-SUR",
-      "zoneName": "Zona Sur & Bahía",
+      "zoneName": "Samborondón Central",
       "priority": "URGENT",
       "status": "PICKUP_PENDING",
       "slaStatus": "ATTENTION",
@@ -667,33 +747,33 @@
       "customerEmail": "logistica@clinicasangabriel.com",
       "customerPlan": "Corporativo",
       "customerAddress": {
-        "street": "Av. La Marina",
+        "street": "Av. Samborondón",
         "number": "2955",
         "complement": "Área de Hospitalización",
-        "neighborhood": "San Miguel",
-        "city": "Metropolitana",
+        "neighborhood": "La Puntilla",
+        "city": "Samborondón",
         "reference": "Puerta 3 de Carga",
         "coordinates": {
-          "lat": -12.0789,
-          "lng": -77.0912
+          "lat": -2.1399999999999997,
+          "lng": -79.87259999999999
         }
       },
       "deliveryAddress": {
-        "street": "Av. La Marina",
+        "street": "Av. Samborondón",
         "number": "2955",
         "complement": "Área de Hospitalización",
-        "neighborhood": "San Miguel",
-        "city": "Metropolitana",
+        "neighborhood": "La Puntilla",
+        "city": "Samborondón",
         "reference": "Puerta 3 de Carga",
         "coordinates": {
-          "lat": -12.0789,
-          "lng": -77.0912
+          "lat": -2.139,
+          "lng": -79.8718
         }
       },
       "facilityId": "FAC-01",
-      "facilityName": "Sede Central Norte - Clean Hub",
+      "facilityName": "Laundry La Puntilla",
       "zoneId": "ZONA-NORTE",
-      "zoneName": "Zona Norte & Centro",
+      "zoneName": "La Puntilla",
       "priority": "HIGH",
       "status": "IN_PROCESS",
       "slaStatus": "ON_TIME",
@@ -803,31 +883,31 @@
       "customerEmail": "luciana.b@estilourbano.pe",
       "customerPlan": "Eco Wash Club",
       "customerAddress": {
-        "street": "Malecón de la Reserva",
+        "street": "Av. Samborondón",
         "number": "725",
         "complement": "Penthouse 12",
-        "neighborhood": "Miraflores",
-        "city": "Metropolitana",
+        "neighborhood": "Samborondón Central",
+        "city": "Samborondón",
         "coordinates": {
-          "lat": -12.1312,
-          "lng": -77.0289
+          "lat": -2.124,
+          "lng": -79.8678
         }
       },
       "deliveryAddress": {
-        "street": "Malecón de la Reserva",
+        "street": "Av. Samborondón",
         "number": "725",
         "complement": "Penthouse 12",
-        "neighborhood": "Miraflores",
-        "city": "Metropolitana",
+        "neighborhood": "Samborondón Central",
+        "city": "Samborondón",
         "coordinates": {
-          "lat": -12.1312,
-          "lng": -77.0289
+          "lat": -2.123,
+          "lng": -79.867
         }
       },
       "facilityId": "FAC-02",
-      "facilityName": "Sede Fresh Miraflores",
+      "facilityName": "Laundry Samborondón Central",
       "zoneId": "ZONA-SUR",
-      "zoneName": "Zona Sur & Bahía",
+      "zoneName": "Samborondón Central",
       "priority": "HIGH",
       "status": "QUARANTINE",
       "slaStatus": "AT_RISK",
@@ -933,31 +1013,31 @@
       "customerEmail": "operaciones@casaandinafresh.com",
       "customerPlan": "Corporativo",
       "customerAddress": {
-        "street": "Av. Grau",
+        "street": "Av. Samborondón",
         "number": "120",
         "complement": "Recepción Central",
-        "neighborhood": "Barranco",
-        "city": "Metropolitana",
+        "neighborhood": "Samborondón Central",
+        "city": "Samborondón",
         "coordinates": {
-          "lat": -12.1489,
-          "lng": -77.0212
+          "lat": -2.123,
+          "lng": -79.867
         }
       },
       "deliveryAddress": {
-        "street": "Av. Grau",
+        "street": "Av. Samborondón",
         "number": "120",
         "complement": "Recepción Central",
-        "neighborhood": "Barranco",
-        "city": "Metropolitana",
+        "neighborhood": "Samborondón Central",
+        "city": "Samborondón",
         "coordinates": {
-          "lat": -12.1489,
-          "lng": -77.0212
+          "lat": -2.1220000000000003,
+          "lng": -79.8662
         }
       },
       "facilityId": "FAC-02",
-      "facilityName": "Sede Fresh Miraflores",
+      "facilityName": "Laundry Samborondón Central",
       "zoneId": "ZONA-SUR",
-      "zoneName": "Zona Sur & Bahía",
+      "zoneName": "Samborondón Central",
       "priority": "HIGH",
       "status": "READY_FOR_DELIVERY",
       "slaStatus": "ON_TIME",
@@ -1068,31 +1148,31 @@
       "customerEmail": "renzo.c@legalgroup.pe",
       "customerPlan": "Premium Fresh",
       "customerAddress": {
-        "street": "Calle Los Pinos",
+        "street": "Av. Samborondón",
         "number": "180",
         "complement": "Oficina 604",
-        "neighborhood": "Miraflores",
-        "city": "Metropolitana",
+        "neighborhood": "Samborondón Norte",
+        "city": "Samborondón",
         "coordinates": {
-          "lat": -12.1223,
-          "lng": -77.0298
+          "lat": -2.103,
+          "lng": -79.8622
         }
       },
       "deliveryAddress": {
-        "street": "Calle Los Pinos",
+        "street": "Av. Samborondón",
         "number": "180",
         "complement": "Oficina 604",
-        "neighborhood": "Miraflores",
-        "city": "Metropolitana",
+        "neighborhood": "Samborondón Norte",
+        "city": "Samborondón",
         "coordinates": {
-          "lat": -12.1223,
-          "lng": -77.0298
+          "lat": -2.1069999999999998,
+          "lng": -79.8614
         }
       },
       "facilityId": "FAC-03",
-      "facilityName": "Sede San Isidro Executive",
+      "facilityName": "Laundry Samborondón Norte",
       "zoneId": "ZONA-FINANCIERA",
-      "zoneName": "Zona Financiera & Residencial",
+      "zoneName": "Samborondón Norte",
       "priority": "NORMAL",
       "status": "OUT_FOR_DELIVERY",
       "slaStatus": "ON_TIME",
@@ -1181,31 +1261,31 @@
       "customerEmail": "sofia.montalvo@atelier.com",
       "customerPlan": "Premium Fresh",
       "customerAddress": {
-        "street": "Calle Dos de Mayo",
+        "street": "Av. Samborondón",
         "number": "560",
         "complement": "Casa 2",
-        "neighborhood": "San Isidro",
-        "city": "Metropolitana",
+        "neighborhood": "Samborondón Norte",
+        "city": "Samborondón",
         "coordinates": {
-          "lat": -12.1012,
-          "lng": -77.0345
+          "lat": -2.1069999999999998,
+          "lng": -79.8614
         }
       },
       "deliveryAddress": {
-        "street": "Calle Dos de Mayo",
+        "street": "Av. Samborondón",
         "number": "560",
         "complement": "Casa 2",
-        "neighborhood": "San Isidro",
-        "city": "Metropolitana",
+        "neighborhood": "Samborondón Norte",
+        "city": "Samborondón",
         "coordinates": {
-          "lat": -12.1012,
-          "lng": -77.0345
+          "lat": -2.106,
+          "lng": -79.8606
         }
       },
       "facilityId": "FAC-03",
-      "facilityName": "Sede San Isidro Executive",
+      "facilityName": "Laundry Samborondón Norte",
       "zoneId": "ZONA-FINANCIERA",
-      "zoneName": "Zona Financiera & Residencial",
+      "zoneName": "Samborondón Norte",
       "priority": "URGENT",
       "status": "PICKUP_PENDING",
       "slaStatus": "OVERDUE",
@@ -1282,29 +1362,29 @@
       "customerEmail": "maria.torres@gmail.com",
       "customerPlan": "Premium Fresh",
       "customerAddress": {
-        "street": "Calle Grimaldo del Solar",
+        "street": "Av. Samborondón",
         "number": "240",
-        "neighborhood": "Miraflores",
-        "city": "Metropolitana",
+        "neighborhood": "Samborondón Central",
+        "city": "Samborondón",
         "coordinates": {
-          "lat": -12.1245,
-          "lng": -77.0241
+          "lat": -2.125,
+          "lng": -79.86460000000001
         }
       },
       "deliveryAddress": {
-        "street": "Calle Grimaldo del Solar",
+        "street": "Av. Samborondón",
         "number": "240",
-        "neighborhood": "Miraflores",
-        "city": "Metropolitana",
+        "neighborhood": "Samborondón Central",
+        "city": "Samborondón",
         "coordinates": {
-          "lat": -12.1245,
-          "lng": -77.0241
+          "lat": -2.124,
+          "lng": -79.8694
         }
       },
       "facilityId": "FAC-02",
-      "facilityName": "Sede Fresh Miraflores",
+      "facilityName": "Laundry Samborondón Central",
       "zoneId": "ZONA-SUR",
-      "zoneName": "Zona Sur & Bahía",
+      "zoneName": "Samborondón Central",
       "priority": "NORMAL",
       "status": "CLOSED",
       "slaStatus": "ON_TIME",
@@ -1379,29 +1459,29 @@
       "customerEmail": "andres.villa@techcorp.io",
       "customerPlan": "Estándar",
       "customerAddress": {
-        "street": "Av. Javier Prado Oeste",
+        "street": "Av. Samborondón",
         "number": "1850",
-        "neighborhood": "San Isidro",
-        "city": "Metropolitana",
+        "neighborhood": "Samborondón Norte",
+        "city": "Samborondón",
         "coordinates": {
-          "lat": -12.0911,
-          "lng": -77.0512
+          "lat": -2.105,
+          "lng": -79.8654
         }
       },
       "deliveryAddress": {
-        "street": "Av. Javier Prado Oeste",
+        "street": "Av. Samborondón",
         "number": "1850",
-        "neighborhood": "San Isidro",
-        "city": "Metropolitana",
+        "neighborhood": "Samborondón Norte",
+        "city": "Samborondón",
         "coordinates": {
-          "lat": -12.0911,
-          "lng": -77.0512
+          "lat": -2.104,
+          "lng": -79.8646
         }
       },
       "facilityId": "FAC-03",
-      "facilityName": "Sede San Isidro Executive",
+      "facilityName": "Laundry Samborondón Norte",
       "zoneId": "ZONA-FINANCIERA",
-      "zoneName": "Zona Financiera & Residencial",
+      "zoneName": "Samborondón Norte",
       "priority": "NORMAL",
       "status": "AT_FACILITY",
       "slaStatus": "ON_TIME",
@@ -1480,29 +1560,29 @@
       "customerEmail": "luciana.b@estilourbano.pe",
       "customerPlan": "Eco Wash Club",
       "customerAddress": {
-        "street": "Malecón de la Reserva",
+        "street": "Av. Samborondón",
         "number": "725",
-        "neighborhood": "Miraflores",
-        "city": "Metropolitana",
+        "neighborhood": "Samborondón Central",
+        "city": "Samborondón",
         "coordinates": {
-          "lat": -12.1312,
-          "lng": -77.0289
+          "lat": -2.123,
+          "lng": -79.8686
         }
       },
       "deliveryAddress": {
-        "street": "Malecón de la Reserva",
+        "street": "Av. Samborondón",
         "number": "725",
-        "neighborhood": "Miraflores",
-        "city": "Metropolitana",
+        "neighborhood": "Samborondón Central",
+        "city": "Samborondón",
         "coordinates": {
-          "lat": -12.1312,
-          "lng": -77.0289
+          "lat": -2.1220000000000003,
+          "lng": -79.8678
         }
       },
       "facilityId": "FAC-02",
-      "facilityName": "Sede Fresh Miraflores",
+      "facilityName": "Laundry Samborondón Central",
       "zoneId": "ZONA-SUR",
-      "zoneName": "Zona Sur & Bahía",
+      "zoneName": "Samborondón Central",
       "priority": "NORMAL",
       "status": "QUALITY_CONTROL",
       "slaStatus": "ON_TIME",
@@ -1587,29 +1667,29 @@
       "customerEmail": "jorge.rospigliosi@outlook.com",
       "customerPlan": "Estándar",
       "customerAddress": {
-        "street": "Av. Salaverry",
+        "street": "Av. Samborondón",
         "number": "3100",
-        "neighborhood": "San Isidro",
-        "city": "Metropolitana",
+        "neighborhood": "Samborondón Norte",
+        "city": "Samborondón",
         "coordinates": {
-          "lat": -12.0935,
-          "lng": -77.0543
+          "lat": -2.103,
+          "lng": -79.8638
         }
       },
       "deliveryAddress": {
-        "street": "Av. Salaverry",
+        "street": "Av. Samborondón",
         "number": "3100",
-        "neighborhood": "San Isidro",
-        "city": "Metropolitana",
+        "neighborhood": "Samborondón Norte",
+        "city": "Samborondón",
         "coordinates": {
-          "lat": -12.0935,
-          "lng": -77.0543
+          "lat": -2.1069999999999998,
+          "lng": -79.863
         }
       },
       "facilityId": "FAC-03",
-      "facilityName": "Sede San Isidro Executive",
+      "facilityName": "Laundry Samborondón Norte",
       "zoneId": "ZONA-FINANCIERA",
-      "zoneName": "Zona Financiera & Residencial",
+      "zoneName": "Samborondón Norte",
       "priority": "HIGH",
       "status": "PICKUP_ASSIGNED",
       "slaStatus": "ATTENTION",
@@ -1664,6 +1744,79 @@
       ],
       "createdAt": "2026-09-29 13:45",
       "updatedAt": "2026-09-29 14:00"
+    }
+  ],
+  "INITIAL_INCIDENTS": [
+    {
+      "id": "INC-0187",
+      "orderId": "SOL-4579",
+      "customerId": "CUST-004",
+      "customerName": "Luciana Barandiarán",
+      "type": "MANCHA_PERSISTENTE",
+      "severity": "ALTA",
+      "status": "IN_PROGRESS",
+      "description": "Mancha rebelde desconocida en vestido de alta costura. Se detectó riesgo de desprendimiento de pigmento si se aplica percloroetileno estándar.",
+      "evidences": [
+        {
+          "id": "EVD-01",
+          "url": "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=500&auto=format&fit=crop&q=80",
+          "caption": "Detalle de la orla inferior del vestido con residuo químico previo",
+          "uploadedAt": "2026-09-29 11:15"
+        }
+      ],
+      "assignedTo": "Mariana Silva (Jefa de Planta Miraflores)",
+      "reportedBy": "Mateo Quispe",
+      "reportedRole": "SUPERVISOR",
+      "createdAt": "2026-09-29 11:15",
+      "internalNotes": [
+        {
+          "id": "NOT-01",
+          "author": "Mariana Silva",
+          "text": "Se contactó a la cliente Luciana Barandiarán a las 11:40 am para informarle sobre la condición previa de la prenda. Se aguarda confirmación para prueba en parche oculto.",
+          "createdAt": "2026-09-29 11:45"
+        }
+      ]
+    },
+    {
+      "id": "INC-0185",
+      "orderId": "SOL-4560",
+      "customerId": "CUST-006",
+      "customerName": "Sofía Montalvo Cisneros",
+      "type": "RETRASO_OPERACIONAL",
+      "severity": "MEDIA",
+      "status": "OPEN",
+      "description": "Retraso de más de 45 minutos en la asignación de chofer para recogida en zona San Isidro debido a alta congestión en hora punta.",
+      "evidences": [],
+      "assignedTo": "Elena Rostova (Supervisor)",
+      "reportedBy": "Sistema LaundryWeb",
+      "reportedRole": "ADMIN",
+      "createdAt": "2026-09-29 14:05",
+      "internalNotes": [
+        {
+          "id": "NOT-02",
+          "author": "Elena Rostova",
+          "text": "Se intentará reasignar a Lucía Santillán o chofer de Sede Norte.",
+          "createdAt": "2026-09-29 14:10"
+        }
+      ]
+    },
+    {
+      "id": "INC-0180",
+      "orderId": "SOL-4552",
+      "customerId": "CUST-001",
+      "customerName": "María Torres Alarcón",
+      "type": "CLIENTE_AUSENTE",
+      "severity": "BAJA",
+      "status": "RESOLVED",
+      "description": "En el primer intento de recogida el cliente no respondía al intercomunicador. Se reprogramó 30 minutos después exitosamente.",
+      "evidences": [],
+      "assignedTo": "Carlos Ruiz",
+      "reportedBy": "Carlos Ruiz",
+      "reportedRole": "SUPERVISOR",
+      "createdAt": "2026-09-26 10:15",
+      "resolvedAt": "2026-09-26 11:10",
+      "resolutionNotes": "El conserje notificó que la cliente había bajado a compras breves. Recogida efectuada a las 11:10 am.",
+      "internalNotes": []
     }
   ],
   "INITIAL_CATALOG": [
@@ -1847,7 +2000,9 @@
       "minOrderAmount": 25,
       "usageLimit": 500,
       "usageCount": 142,
-      "applicableServices": ["Todos los servicios"],
+      "applicableServices": [
+        "Todos los servicios"
+      ],
       "startDate": "2026-01-01",
       "endDate": "2026-12-31",
       "status": "ACTIVE"
@@ -1862,7 +2017,10 @@
       "minOrderAmount": 40,
       "usageLimit": 200,
       "usageCount": 88,
-      "applicableServices": ["Edredón / Plumón King Size", "Ropa de Hogar"],
+      "applicableServices": [
+        "Edredón / Plumón King Size",
+        "Ropa de Hogar"
+      ],
       "startDate": "2026-09-01",
       "endDate": "2026-10-31",
       "status": "ACTIVE"
@@ -1895,7 +2053,9 @@
       "minOrderAmount": 30,
       "usageLimit": 300,
       "usageCount": 0,
-      "applicableServices": ["Vestido casual / diario"],
+      "applicableServices": [
+        "Vestido casual / diario"
+      ],
       "startDate": "2026-12-01",
       "endDate": "2027-02-28",
       "status": "SCHEDULED"
@@ -1941,6 +2101,43 @@
       "minSpend": 40,
       "validityDays": 45,
       "status": "ACTIVE"
+    }
+  ],
+  "INITIAL_REDEMPTIONS": [
+    {
+      "id": "RED-01",
+      "customerId": "CUST-001",
+      "customerName": "María Torres Alarcón",
+      "rewardId": "REW-02",
+      "rewardName": "Bolsa Fresh 5kg Sin Costo",
+      "pointsSpent": 500,
+      "date": "2026-09-24 16:30",
+      "status": "DELIVERED",
+      "reviewedBy": "Carlos Mendoza",
+      "notes": "Aplicado en solicitud SOL-4552 con éxito."
+    },
+    {
+      "id": "RED-02",
+      "customerId": "CUST-004",
+      "customerName": "Luciana Barandiarán",
+      "rewardId": "REW-04",
+      "rewardName": "Kit de Cuidado Textil Ecológico",
+      "pointsSpent": 650,
+      "date": "2026-09-28 11:20",
+      "status": "PENDING",
+      "notes": "Pendiente de entrega con el próximo pedido."
+    },
+    {
+      "id": "RED-03",
+      "customerId": "CUST-007",
+      "customerName": "Hotel Boutique Casa Andina Fresh",
+      "rewardId": "REW-03",
+      "rewardName": "Crédito de Billetera Digital $20",
+      "pointsSpent": 1200,
+      "date": "2026-09-29 08:15",
+      "status": "APPROVED",
+      "reviewedBy": "Carlos Mendoza",
+      "notes": "Acreditado a la cuenta corriente del hotel."
     }
   ],
   "INITIAL_POINTS_LEDGER": [
@@ -2003,41 +2200,66 @@
       "adminUser": "Carlos Mendoza"
     }
   ],
-  "INITIAL_REDEMPTIONS": [
+  "INITIAL_AUDIT_LOGS": [
     {
-      "id": "RED-01",
-      "customerId": "CUST-001",
-      "customerName": "María Torres Alarcón",
-      "rewardId": "REW-02",
-      "rewardName": "Bolsa Fresh 5kg Sin Costo",
-      "pointsSpent": 500,
-      "date": "2026-09-24 16:30",
-      "status": "DELIVERED",
-      "reviewedBy": "Carlos Mendoza",
-      "notes": "Aplicado en solicitud SOL-4552 con éxito."
+      "id": "AUD-01",
+      "timestamp": "Hoy 14:16",
+      "userName": "Sistema LaundryWeb",
+      "userRole": "ADMIN",
+      "action": "SOLICITUD_CREADA",
+      "entity": "Order",
+      "entityId": "SOL-4587",
+      "previousValue": "-",
+      "newValue": "PICKUP_PENDING",
+      "notes": "Nueva orden generada por María Torres"
     },
     {
-      "id": "RED-02",
-      "customerId": "CUST-004",
-      "customerName": "Luciana Barandiarán",
-      "rewardId": "REW-04",
-      "rewardName": "Kit de Cuidado Textil Ecológico",
-      "pointsSpent": 650,
-      "date": "2026-09-28 11:20",
-      "status": "PENDING",
-      "notes": "Pendiente de entrega con el próximo pedido."
+      "id": "AUD-02",
+      "timestamp": "Hoy 14:05",
+      "userName": "Elena Rostova",
+      "userRole": "SUPERVISOR",
+      "action": "CHOFER_ASIGNADO",
+      "entity": "Order",
+      "entityId": "SOL-4586",
+      "previousValue": "Sin asignar",
+      "newValue": "Javier Arriola (MOT-442)",
+      "notes": "Asignación manual de chofer"
     },
     {
-      "id": "RED-03",
-      "customerId": "CUST-007",
-      "customerName": "Hotel Boutique Casa Andina Fresh",
-      "rewardId": "REW-03",
-      "rewardName": "Crédito de Billetera Digital $20",
-      "pointsSpent": 1200,
-      "date": "2026-09-29 08:15",
-      "status": "APPROVED",
-      "reviewedBy": "Carlos Mendoza",
-      "notes": "Acreditado a la cuenta corriente del hotel."
+      "id": "AUD-03",
+      "timestamp": "Hoy 11:15",
+      "userName": "Mariana Silva",
+      "userRole": "SUPERVISOR",
+      "action": "ESTADO_CAMBIADO",
+      "entity": "Order",
+      "entityId": "SOL-4579",
+      "previousValue": "AT_FACILITY",
+      "newValue": "QUARANTINE",
+      "notes": "Mancha persistente detectada en orla de vestido"
+    },
+    {
+      "id": "AUD-04",
+      "timestamp": "Hoy 09:15",
+      "userName": "Andrés Villalobos",
+      "userRole": "ADMIN",
+      "action": "KYC_DOCUMENTO_SUBIDO",
+      "entity": "Customer",
+      "entityId": "CUST-003",
+      "previousValue": "Sin documentos",
+      "newValue": "DNI + Selfie subidos",
+      "notes": "Solicitud de verificación pendiente"
+    },
+    {
+      "id": "AUD-05",
+      "timestamp": "Ayer 17:15",
+      "userName": "Carlos Mendoza",
+      "userRole": "ADMIN",
+      "action": "KYC_RECHAZADO",
+      "entity": "Customer",
+      "entityId": "CUST-005",
+      "previousValue": "PENDING",
+      "newValue": "REJECTED",
+      "notes": "Documento borroso y bordes recortados"
     }
   ]
 }

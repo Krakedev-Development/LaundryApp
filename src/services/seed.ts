@@ -40,6 +40,7 @@ export function makeSeed(): AppData {
     reference: a.reference ?? "",
     coordinates: a.coordinates,
     isPrimary: index === 0,
+    persistence: "demo",
   });
   const customers: Customer[] = web.INITIAL_CUSTOMERS.map((c) => ({
     id: c.id,
@@ -75,7 +76,7 @@ export function makeSeed(): AppData {
     id: "CUST-DEMO",
     name: "Sofía Fresh",
     email: "nuevo@laundryfresh.com",
-    phone: "+51 999 888 777",
+    phone: "+593 999 888 777",
     kycStatus: "APPROVED",
     addresses: [address(web.INITIAL_CUSTOMERS[0].addresses[0], "demo-home")],
     membershipId: "basic",
@@ -107,12 +108,19 @@ export function makeSeed(): AppData {
     facilityId: d.facilityId,
     zoneName: d.zoneName,
     location: { lat: d.location.lat, lng: d.location.lng },
+    locationUpdatedAt: now,
+    locationSimulated: true,
+    zoneId: d.zoneId,
+    authorizedZoneIds: d.authorizedZoneIds,
+    maxOrders: d.maxOrders,
     operationalStatus:
       d.status === "AVAILABLE"
         ? "AVAILABLE"
         : d.status === "OFFLINE"
           ? "OFFLINE"
-          : "ON_SERVICE",
+          : d.status === "BREAK"
+            ? "BREAK"
+            : "ON_SERVICE",
     mustChangePassword: d.id === "DRV-101",
     locationAllowed: false,
   }));

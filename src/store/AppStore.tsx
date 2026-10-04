@@ -1,3 +1,5 @@
+import { AppMockTracking } from "../services/geo/AppMockTracking";
+import { migrateAppGeoData } from "../services/geo/AppDemoData";
 import React, {
   createContext,
   useContext,
@@ -109,6 +111,7 @@ export class AppStore {
           !Number.isFinite(data.sequence)
         )
           throw new Error("Datos guardados incompatibles.");
+        migrateAppGeoData(data);
         this.engine.data = data;
         this.state = { ...this.state, data };
       }
@@ -329,10 +332,41 @@ export function AppProvider({ children }: React.PropsWithChildren) {
   useEffect(() => {
     const timer = setInterval(() => {
       if (!store.state.ready || !store.connected) return;
+      store.engine.update((data) =>
+        data.drivers.forEach((driver) => {
+          if (
+            driver.locationSimulated &&
+            driver.operationalStatus !== "OFFLINE"
+          )
+            driver.locationUpdatedAt = new Date().toISOString();
+        }),
+      );
       store.engine.plantTick();
       store.engine.dispatch();
     }, 12000);
     return () => clearInterval(timer);
+  }, [store]);
+  useEffect(() => {
+    const tracking = new AppMockTracking();
+    const reconcile = () => {
+      if (!store.state.ready) return;
+      tracking.reconcile(store.state.data, store.connected, (location) =>
+        store.engine.update((data) => {
+          const driver = data.drivers.find((d) => d.id === location.driverId);
+          if (driver) {
+            driver.location = location.coordinates;
+            driver.locationUpdatedAt = location.updatedAt;
+            driver.trackingEtaSeconds = location.etaSeconds;
+          }
+        }),
+      );
+    };
+    reconcile();
+    const unsubscribe = store.subscribe(reconcile);
+    return () => {
+      unsubscribe();
+      tracking.dispose();
+    };
   }, [store]);
   return (
     <StoreContext.Provider value={store}>{children}</StoreContext.Provider>

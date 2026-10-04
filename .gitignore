@@ -81,3 +81,7 @@ Desktop.ini
 *.dmp
 *.zip
 *.tar.gz
+
+/.npm-cache/
+
+/dist-geo/

@@ -12,11 +12,7 @@ import {
 } from "../../components/ui";
 import { RouteMap } from "../../components/RouteMap";
 import { useApp } from "../../store/AppStore";
-import {
-  activeAssignment,
-  routeDistance,
-  trackingAvailable,
-} from "../../domain/rules";
+import { activeAssignment, trackingAvailable } from "../../domain/rules";
 import { ORDER_STATUS_LABELS } from "../../domain/models";
 
 export function TrackingScreen() {
@@ -54,7 +50,6 @@ export function TrackingScreen() {
     );
   const target = (assignment!.type === "PICKUP" ? order.pickup : order.delivery)
     .address;
-  const distance = routeDistance(driver.location, target.coordinates);
   return (
     <Page>
       <AppHeader title="Seguimiento" subtitle={id} icon="navigate-outline" />
@@ -64,6 +59,7 @@ export function TrackingScreen() {
         destination={target.coordinates}
         label={target.title}
         height={380}
+        stage={order.id + ":" + order.status}
       />
       <Card>
         <Text style={ui.section}>{driver.name}</Text>
@@ -71,10 +67,14 @@ export function TrackingScreen() {
           {driver.vehicle} · {driver.plate}
         </Text>
         <Text style={ui.section}>
-          Llega aproximadamente en {Math.max(3, Math.ceil(distance * 4))} min.
+          Llegada simulada:{" "}
+          {driver.trackingEtaSeconds === undefined
+            ? "preparando recorrido"
+            : Math.ceil(driver.trackingEtaSeconds / 60) + " min"}
+          .
         </Text>
         <Text style={ui.meta}>
-          Ubicación y ETA de demostración; no es GPS en tiempo real.
+          Movimiento y llegada simulados para este escenario local.
         </Text>
         <Button
           title="Chat con chofer"

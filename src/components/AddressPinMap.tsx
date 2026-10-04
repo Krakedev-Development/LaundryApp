@@ -1,1 +1,1 @@
-export { AddressPinMap } from "./AddressPinSchematic";
+export { AddressPinMap } from "./AddressPicker";

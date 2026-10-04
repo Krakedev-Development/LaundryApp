@@ -303,6 +303,9 @@ test("driver state machine completes pickup, facility, internal plant and delive
     engine.order(client, o.id).delivery.recipient.name,
     "María Torres",
   );
+  engine.plantTick();
+  assert.equal(engine.order(client, o.id).status, "CLOSED");
+  engine.plantTick();
   assert.equal(engine.routeFor(driver).assignments.length, 0);
   assert.equal(
     engine.data.pointsLedger.filter(

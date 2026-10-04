@@ -1,1 +1,1 @@
-export { RouteSchematic as RouteMap } from "./RouteSchematic";
+export { RouteMap } from "./GeoRoute";

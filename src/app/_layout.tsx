@@ -1,4 +1,7 @@
 import React from "react";
+import { Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useFonts, FontDisplay } from "expo-font";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
@@ -30,6 +33,23 @@ function AppNavigation() {
   );
 }
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    [Ionicons.getFontFamily()]: {
+      uri: Ionicons.font[Ionicons.getFontFamily()],
+      testString: String.fromCodePoint(Number(Ionicons.glyphMap.checkmark)),
+      display: FontDisplay.SWAP,
+    },
+  });
+  if (fontError)
+    return (
+      <View style={{ padding: 24 }}>
+        <Text>
+          No pudimos cargar la interfaz. Revisa la conexión y vuelve a abrir la
+          aplicación.
+        </Text>
+      </View>
+    );
+  if (!fontsLoaded) return <LoadingSkeleton />;
   return (
     <SafeAreaProvider>
       <AppProvider>

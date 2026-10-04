@@ -1,6 +1,10 @@
+import { geoProvider } from "../../services/geo";
+import { geoConfig } from "../../services/geo/geo.config";
+import { AddressSearch } from "../../components/AddressSearch";
+import { DEMO_CENTER } from "../../services/geo/demo";
+import { DriverLocationService } from "../../services/geo/DriverLocationService";
 import React, { useState } from "react";
 import { Linking, Text, View } from "react-native";
-import * as Location from "expo-location";
 import { Address } from "../../domain/models";
 import { validCoordinates } from "../../domain/rules";
 import {
@@ -32,46 +36,32 @@ export function AddressEditor({
   const a = useAction();
   const c = engine.customer(session!);
   const [title, setTitle] = useState(address?.title ?? "");
+  const [persistence, setPersistence] = useState<Address["persistence"]>(
+    address?.persistence ?? "user",
+  );
   const [full, setFull] = useState(address?.fullAddress ?? "");
   const [reference, setReference] = useState(address?.reference ?? "");
   const [lat, setLat] = useState(
-    address ? String(address.coordinates.lat) : "",
+    String(address?.coordinates.lat ?? DEMO_CENTER.lat),
   );
   const [lng, setLng] = useState(
-    address ? String(address.coordinates.lng) : "",
+    String(address?.coordinates.lng ?? DEMO_CENTER.lng),
   );
-  const [search, setSearch] = useState("");
   const coordinates = { lat: Number(lat), lng: Number(lng) };
-  const places = data.facilities.filter(
-    (f) =>
-      search.length > 1 &&
-      `${f.address} ${f.name}`.toLowerCase().includes(search.toLowerCase()),
-  );
   return (
     <BottomSheet
       visible={visible}
       title={address ? "Editar dirección" : "Nueva dirección"}
       onClose={onClose}
     >
-      <Field
-        label="Buscar ubicación de referencia"
-        value={search}
-        onChangeText={setSearch}
-        placeholder="Miraflores, San Isidro o Industrial"
+      <AddressSearch
+        onSelect={(selected) => {
+          setFull(selected.formattedAddress);
+          setPersistence(selected.persistence);
+          setLat(String(selected.coordinates.lat));
+          setLng(String(selected.coordinates.lng));
+        }}
       />
-      {places.map((p) => (
-        <Button
-          key={p.id}
-          title={p.address}
-          variant="secondary"
-          onPress={() => {
-            setFull(p.address);
-            setLat(String(p.coordinates.lat));
-            setLng(String(p.coordinates.lng));
-            setSearch("");
-          }}
-        />
-      ))}
       <Button
         title="Usar ubicación actual"
         icon="locate-outline"
@@ -79,23 +69,33 @@ export function AddressEditor({
         busy={a.busy}
         onPress={() =>
           a.run(async () => {
-            const permission =
-              await Location.requestForegroundPermissionsAsync();
-            if (!permission.granted)
-              throw new Error(
-                "No tenemos permiso de ubicación. Habilítalo en configuración o selecciona una referencia.",
+            const position = await new DriverLocationService().current(
+              session!.userId,
+            );
+            setLat(String(position.coordinates.lat));
+            setLng(String(position.coordinates.lng));
+            setFull("");
+            setPersistence("user");
+            if (geoConfig.mode === "demo" || geoConfig.permanentGeocoding) {
+              const resolved = await geoProvider.reverseGeocode(
+                position.coordinates,
+                { permanent: true },
               );
-            const position = await Location.getCurrentPositionAsync({
-              accuracy: Location.Accuracy.Balanced,
-            });
-            setLat(String(position.coords.latitude));
-            setLng(String(position.coords.longitude));
+              if (resolved) {
+                setFull(resolved.formattedAddress);
+                setPersistence(resolved.persistence);
+              }
+            }
           })
         }
       />
       {!!validCoordinates(coordinates) && (
         <AddressPinMap
           coordinates={coordinates}
+          onAddress={(value) => {
+            setFull(value);
+            setPersistence("permanent");
+          }}
           onPick={(position) => {
             setLat(String(position.lat));
             setLng(String(position.lng));
@@ -121,12 +121,12 @@ export function AddressEditor({
         multiline
       />
       <Text style={ui.meta}>
-        Las búsquedas de esta demo incluyen ubicaciones de referencia del
-        catálogo local. Verifica el pin y la dirección antes de guardar.
+        Verifica tu dirección y confirma el pin. Las direcciones preparadas son
+        escenarios de demostración.
       </Text>
       {!!a.error && <ErrorState text={a.error} />}
       <Button
-        title="Guardar dirección"
+        title="Confirmar ubicación"
         busy={a.busy}
         onPress={() =>
           a.run(() => {
@@ -138,21 +138,14 @@ export function AddressEditor({
               throw new Error(
                 "Completa nombre, dirección y coordenadas válidas.",
               );
-            engine.update((d) => {
-              const customer = d.customers.find((v) => v.id === c.id)!;
-              const saved: Address = {
-                id: address?.id ?? engine.id(d, "address"),
-                title: title.trim(),
-                fullAddress: full.trim(),
-                reference: reference.trim(),
-                coordinates,
-                isPrimary:
-                  address?.isPrimary ?? customer.addresses.length === 0,
-              };
-              customer.addresses = [
-                ...customer.addresses.filter((v) => v.id !== saved.id),
-                saved,
-              ];
+            engine.saveAddress(session!, {
+              id: address?.id ?? "address-" + Date.now(),
+              title: title.trim(),
+              fullAddress: full.trim(),
+              reference: reference.trim(),
+              coordinates,
+              persistence,
+              isPrimary: address?.isPrimary ?? c.addresses.length === 0,
             });
             onClose();
           }, "Dirección guardada")

@@ -4,15 +4,17 @@ Aplicación Expo SDK 57 con TypeScript y Expo Router para cliente y conductor. L
 
 ## Ejecutar
 
-Requiere Node.js 22.13 o superior y Expo Go compatible con SDK 57.
+Requiere Node.js 22.13 o superior y una compilación de desarrollo Expo SDK 57. Mapbox nativo requiere Android SDK/JDK para Android o macOS/Xcode para iOS. Consulta [configuración geoespacial](GEO-MVP.md).
 
 ```bash
 cd LaundryApp
 npm ci
-npm run start:lan -- --clear
+npm run android
+# En macOS: npm run ios
+# Después de instalar la compilación: npm run start:lan -- --clear
 ```
 
-Escanea el QR desde Expo Go. El teléfono y el equipo deben estar en la misma red. Para navegador: `npm run web`. El servidor debe anunciar la IP Wi-Fi, no localhost. Si Expo elige una interfaz virtual, configura `REACT_NATIVE_PACKAGER_HOSTNAME` con la IP Wi-Fi actual. Para túnel: `npm run start:tunnel -- --clear`.
+Abre la compilación de desarrollo instalada. Expo Go muestra un aviso cuando se intenta abrir el mapa; no incluye las dependencias nativas de Mapbox. El teléfono y el equipo deben estar en la misma red. Para navegador: `npm run web`. El servidor debe anunciar la IP Wi-Fi, no localhost. Si Expo elige una interfaz virtual, configura `REACT_NATIVE_PACKAGER_HOSTNAME` con la IP Wi-Fi actual. Para túnel: `npm run start:tunnel -- --clear`.
 
 ## Cuentas de demostración
 
@@ -20,7 +22,7 @@ La contraseña inicial es **Laundry2026!**, salvo la cuenta con contraseña temp
 
 - **nuevo@laundryfresh.com**: Sofía Fresh, cliente verificado sin pedidos, billetera de $30.
 - **maria.torres@gmail.com**: María Torres, cliente con pedidos, plan Premium, billetera, promociones y puntos.
-- **diego.valdivia@laundryweb.com**: Diego Valdivia, conductor disponible de FAC-02, recibe las nuevas recogidas de esa planta.
+- **diego.valdivia@laundryweb.com**: Diego Valdivia, conductor disponible de FAC-02. El despacho simulado elige un conductor elegible de la sede.
 - **mateo.quispe@laundryweb.com**: Mateo Quispe, conductor con servicio de recogida activo.
 - **javier.arriola@laundryweb.com**: Javier Arriola, conductor con entrega activa.
 - **carlos.ruiz@laundryweb.com**: Carlos Ruiz, contraseña **Temporal2026!**. Debe cambiarla antes de operar.
@@ -31,7 +33,7 @@ También hay cuentas pendientes y rechazadas en el panel de demostración. Los d
 
 1. Registra una cuenta, adjunta documento y selfie, envía KYC y consulta «Ver estado» para simular la revisión. Una cuenta pendiente o rechazada no puede crear pedidos ni acceder a las rutas operativas del cliente.
 2. Para un pedido inmediato de prueba, entra como Sofía. Agrega tres camisas, un extra y programa recogida/entrega con dirección, pin y franjas disponibles. El asistente tiene cinco pasos. Confirma el pago con billetera o tarjeta de prueba.
-3. Abre el pedido creado: mantiene ID, prendas, importes, direcciones, pago y timeline. Cerrar y abrir la app conserva los cambios. Cierra sesión y entra como Diego para operar ese mismo pedido.
+3. Abre el pedido creado: mantiene ID, prendas, importes, direcciones, pago y timeline. Cerrar y abrir la app conserva los cambios. Consulta el conductor asignado en el seguimiento, cierra sesión y entra con su cuenta de demo para operar ese mismo pedido.
 4. El despacho simulado se ejecuta cada 12 segundos y asigna tareas a conductores disponibles de la planta. Habilita ubicación al iniciar navegación, marca llegada, verifica cantidad y confirma recogida. «Ir a planta» avanza el estado; confirma la llegada a planta.
 5. La simulación de LaundryWeb avanza procesamiento, calidad, preparación y programación de entrega en cuatro ciclos de 12 segundos. El conductor recibe una nueva asignación de entrega sobre el mismo pedido. Registra llegada, destinatario, relación y confirmación para entregarlo.
 6. Regresa como cliente para ver entrega, destinatario, timeline y puntos. El conductor puede consultar su etapa completada en Historial.
@@ -61,9 +63,9 @@ Si otro conductor disponible recibe la entrega, consulta su cuenta de demo: las 
 
 AsyncStorage conserva datos y eventos de la demo. En iOS/Android, SecureStore conserva sesión, hashes de credenciales y referencias locales de evidencia KYC. En web, la sesión/referencias duran la pestaña y los hashes de credenciales se guardan localmente. La autenticación local es exclusiva del prototipo; una implementación real debe usar el backend y tokens.
 
-Los mapas nativos muestran pines y líneas de la ruta simulada. Android con build propio necesita la variable `GOOGLE_MAPS_ANDROID_API_KEY` en un archivo `.env` local; copia `.env.example`. Sin clave se conserva un esquema funcional. Web muestra el mismo esquema y selector de pin. La ubicación y cámara se solicitan cuando la función las necesita.
+Los mapas nativos utilizan @rnmapbox/maps, con pines, cobertura y rutas de Directions. Copia .env.example y configura un token público Mapbox para habilitar mapas y consultas reales. Sin credenciales se conservan direcciones y pines preparados, y un recorrido local identificado como simulación. La búsqueda usa Geocoding v6, con persistencia permanente habilitada por la cuenta para guardar resultados. La ubicación y cámara se solicitan cuando la función las necesita.
 
-Esta demo no sincroniza instalaciones diferentes ni escribe en LaundryWeb. Comparte su dominio y una instantánea inicial; backend, pasarela bancaria, notificaciones push, revisión administrativa remota, geocodificación y GPS en vivo quedan como integraciones reales. El chat y soporte son locales, la navegación externa abre Google Maps, Apple Maps o Waze.
+Esta demo no sincroniza instalaciones diferentes ni escribe en LaundryWeb. Comparte su dominio y una instantánea inicial; backend, pasarela bancaria, notificaciones push, revisión administrativa remota y tracking remoto en vivo quedan para una siguiente fase. La geocodificación, Directions y Matrix ya están integradas detrás de GeoProvider. El chat y soporte son locales, la navegación externa abre Google Maps, Apple Maps o Waze.
 
 ## Verificación
 

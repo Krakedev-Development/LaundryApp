@@ -58,6 +58,7 @@ export interface Address {
   reference: string;
   isPrimary: boolean;
   coordinates: Coordinates;
+  persistence?: "permanent" | "user" | "demo" | "temporary";
 }
 export interface BillingData {
   name: string;
@@ -93,6 +94,13 @@ export interface Driver {
   facilityId: string;
   zoneName: string;
   location: Coordinates;
+  locationUpdatedAt?: string;
+  trackingEtaSeconds?: number;
+  locationSimulated?: boolean;
+  zoneId?: string;
+  authorizedZoneIds?: string[];
+  maxOrders?: number;
+  accuracy?: number;
   mustChangePassword: boolean;
   locationAllowed: boolean;
 }
