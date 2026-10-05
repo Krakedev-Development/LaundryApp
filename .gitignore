@@ -39,3 +39,49 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Build artifacts and caches
+/build/
+/coverage/
+/.cache/
+/.turbo/
+/.npm/
+*.apk
+*.aab
+*.ipa
+*.xcarchive/
+*.hprof
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+!.env.*.example
+.aws/
+*.log
+
+# Editor and OS files
+.idea/
+.vscode/
+Thumbs.db
+Desktop.ini
+
+# Temporary files
+/tmp/
+/temp/
+*.tmp
+*.bak
+*.swp
+
+# QA output and local agent state
+/screenshots/
+/playwright-report/
+/test-results/
+.codex/
+*.dmp
+*.zip
+*.tar.gz
+
+/.npm-cache/
+
+/dist-geo/

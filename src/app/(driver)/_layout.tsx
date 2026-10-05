@@ -1,16 +1,28 @@
-import { Stack } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { BRAND_COLORS } from '../../theme/brand';
-
+import { Redirect, Stack, usePathname } from "expo-router";
+import { useApp } from "../../store/AppStore";
+import { Colors } from "../../theme/colors";
 export default function DriverLayout() {
+  const { session, data } = useApp();
+  const pathname = usePathname();
+  if (!session || session.role !== "CHOFER") return <Redirect href="/" />;
+  if (
+    data.drivers.find((d) => d.id === session.userId)?.mustChangePassword &&
+    pathname !== "/change-password"
+  )
+    return <Redirect href="/(driver)/change-password" />;
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: BRAND_COLORS.background }} edges={['top']}>
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: BRAND_COLORS.background } }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="order" options={{ animation: 'slide_from_right' }} />
-        <Stack.Screen name="map" options={{ animation: 'slide_from_right' }} />
-        <Stack.Screen name="chat" options={{ animation: 'slide_from_right' }} />
-      </Stack>
-    </SafeAreaView>
+    <Stack
+      screenOptions={{
+        headerTintColor: Colors.primary,
+        headerTitle: "Clean & Fresh",
+        headerShadowVisible: false,
+      }}
+    >
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="change-password"
+        options={{ headerBackVisible: false }}
+      />
+    </Stack>
   );
 }

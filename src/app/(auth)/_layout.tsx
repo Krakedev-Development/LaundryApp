@@ -1,10 +1,17 @@
-import { Stack } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
+import { Stack } from "expo-router";
+import { Colors } from "../../theme/colors";
 export default function AuthLayout() {
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['top']}>
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#fff' } }} />
-    </SafeAreaView>
+    <Stack
+      screenOptions={{
+        headerTintColor: Colors.primary,
+        headerTitle: "Clean & Fresh",
+        headerShadowVisible: false,
+      }}
+    >
+      <Stack.Screen name="login" options={{ headerShown: false }} />
+      <Stack.Screen name="pending" options={{ headerShown: false }} />
+      <Stack.Screen name="kyc" options={{ headerShown: false }} />
+    </Stack>
   );
 }

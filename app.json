@@ -1,49 +1,60 @@
 {
   "expo": {
-    "name": "LaundryApp",
-    "slug": "LaundryApp",
+    "name": "Laundry Clean & Fresh",
+    "slug": "laundry-clean-fresh",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icono-App.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/logo-laundry-lav.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#143F73"
-    },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icono-App.png",
         "backgroundColor": "#143F73"
-      }
+      },
+      "package": "com.laundryfresh.app"
     },
-    "web": {
-      "bundler": "metro",
-      "favicon": "./assets/icono-App.png"
-    },
-    "scheme": "laundryapp",
     "plugins": [
+      "expo-font",
+      "expo-status-bar",
       [
-        "@rnmapbox/maps",
+        "expo-splash-screen",
         {
-          "RNMapboxMapsImpl": "mapbox",
-          "RNMAPBOX_MAPS_DOWNLOAD_TOKEN": "pk.eyJ1IjoiYW5nZWxndWFuYTAwMSIsImEiOiJjbW5vdDlwMXkwaDhmMnJvcGRhY2lwcHA5In0.sVB6piHwj7TB5ja7HR1hZA"
+          "backgroundColor": "#143F73",
+          "image": "./assets/logo-laundry-lav.png",
+          "imageWidth": 140
         }
       ],
+      "expo-router",
+      "expo-secure-store",
       [
         "expo-image-picker",
         {
-          "photosPermission": "Permite acceso a tus fotos para subir documentos.",
-          "cameraPermission": "Permite acceso a la camara para tomar selfie de verificacion."
+          "photosPermission": "Permite seleccionar imágenes para verificar tu identidad o registrar una entrega.",
+          "cameraPermission": "Permite tomar fotos para verificar tu identidad o registrar una entrega.",
+          "microphonePermission": false
         }
       ],
-      "expo-router"
-    ]
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Permite usar tu ubicación para navegar tus servicios asignados."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Permite usar la cámara para verificar códigos de transferencia.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": true
+        }
+      ]
+    ],
+    "scheme": "laundryfresh",
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    }
   }
 }
