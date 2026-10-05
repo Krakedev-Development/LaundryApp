@@ -8,6 +8,7 @@ import React, {
   useSyncExternalStore,
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Crypto from "expo-crypto";
 import NetInfo from "@react-native-community/netinfo";
 import { AppData, Session } from "../domain/models";
 import { DomainEngine } from "../domain/engine";
@@ -43,11 +44,18 @@ export class AppStore {
       forcedOffline: false,
       storageError: "",
     };
-    this.engine = new DomainEngine(data, (d) => {
-      this.state = { ...this.state, data: d };
-      this.emit();
-      this.persist(d);
-    });
+    this.engine = new DomainEngine(
+      data,
+      (d) => {
+        this.state = { ...this.state, data: d };
+        this.emit();
+        this.persist(d);
+      },
+      () =>
+        Array.from(Crypto.getRandomBytes(20), (b) =>
+          b.toString(16).padStart(2, "0"),
+        ).join(""),
+    );
   }
   subscribe = (callback: () => void) => {
     this.listeners.add(callback);
@@ -113,6 +121,7 @@ export class AppStore {
           throw new Error("Datos guardados incompatibles.");
         migrateAppGeoData(data);
         this.engine.data = data;
+        this.engine.initializeWorkflow();
         this.state = { ...this.state, data };
       }
       const raw = await secure.get(SESSION_KEY);
@@ -151,6 +160,18 @@ export class AppStore {
   }
   retrySave() {
     this.persist(this.state.data);
+  }
+  async resetDemo() {
+    await this.logout();
+    this.engine.data = makeSeed();
+    this.engine.initializeWorkflow();
+    this.state = {
+      ...this.state,
+      data: this.engine.data,
+      forcedOffline: false,
+    };
+    this.persist(this.engine.data);
+    this.emit();
   }
   async login(email: string, password: string) {
     const normalized = email.trim().toLowerCase();

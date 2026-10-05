@@ -276,6 +276,7 @@ export function makeSeed(): AppData {
   }));
   return {
     version: 1,
+    handoffs: [], handoffAudits: [],
     customers,
     drivers,
     orders,

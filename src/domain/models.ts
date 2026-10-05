@@ -1,4 +1,18 @@
+import {
+  Fulfillment,
+  FulfillmentMode,
+  Handoff,
+  HandoffAudit,
+  IntakeHold,
+} from "./fulfillment";
 export const ORDER_STATES = [
+  "DRAFT",
+  "PAYMENT_PENDING",
+  "CONFIRMED",
+  "AWAITING_INTAKE",
+  "READY",
+  "COMPLETED",
+  "ARRIVED_AT_FACILITY",
   "CREATED",
   "PICKUP_PENDING",
   "PICKUP_ASSIGNED",
@@ -22,6 +36,13 @@ export const ORDER_STATES = [
 ] as const;
 export type OrderStatus = (typeof ORDER_STATES)[number];
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
+  DRAFT: "Borrador",
+  PAYMENT_PENDING: "Pago pendiente",
+  CONFIRMED: "Confirmado",
+  AWAITING_INTAKE: "Esperando ingreso",
+  READY: "Listo para retiro",
+  COMPLETED: "Pedido finalizado",
+  ARRIVED_AT_FACILITY: "Esperando recepción en planta",
   CREATED: "Solicitud confirmada",
   PICKUP_PENDING: "Esperando chofer",
   PICKUP_ASSIGNED: "Chofer asignado",
@@ -105,6 +126,11 @@ export interface Driver {
   locationAllowed: boolean;
 }
 export interface Facility {
+  active?: boolean;
+  acceptsCustomerDropoff?: boolean;
+  allowsCustomerPickup?: boolean;
+  serviceAreaIds?: string[];
+  openingHours?: string;
   id: string;
   name: string;
   address: string;
@@ -169,6 +195,9 @@ export interface TimelineEvent {
   syncStatus: "SYNCED" | "PENDING";
 }
 export interface Order {
+  fulfillment?: Fulfillment;
+  workflowVersion?: number;
+  intakeHold?: IntakeHold;
   id: string;
   customerId: string;
   customerName: string;
@@ -332,6 +361,9 @@ export interface PendingOperation {
   date: string;
 }
 export interface Draft {
+  customerDropoff?: { date: string; timeSlot: string; notes?: string };
+  fulfillmentMode?: FulfillmentMode;
+  facilityId?: string;
   items: OrderItem[];
   extraIds: string[];
   pickup?: Schedule;
@@ -341,6 +373,8 @@ export interface Draft {
   paymentMethod: string;
 }
 export interface AppData {
+  handoffs: Handoff[];
+  handoffAudits: HandoffAudit[];
   version: 1;
   customers: Customer[];
   drivers: Driver[];

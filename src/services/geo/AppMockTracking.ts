@@ -1,3 +1,4 @@
+import { operationalStage } from '../../domain/fulfillment';
 import {
   MockTrackingProvider,
   demoTrackingRoute,
@@ -26,7 +27,7 @@ export class AppMockTracking {
             "HEADING_TO_PICKUP",
             "OUT_FOR_DELIVERY",
             "HEADING_TO_FACILITY",
-          ].includes(o.status),
+          ].includes(operationalStage(o)),
         )
         .forEach((order) => {
           const assignment = data.assignments.find(
@@ -37,16 +38,16 @@ export class AppMockTracking {
           );
           if (!driver || needed.has(driver.id)) return;
           const target =
-            order.status === "HEADING_TO_FACILITY"
+            operationalStage(order) === "HEADING_TO_FACILITY"
               ? data.facilities.find((f) => f.id === order.facilityId)
                   ?.coordinates
-              : (order.status === "OUT_FOR_DELIVERY"
+              : (operationalStage(order) === "OUT_FOR_DELIVERY"
                   ? order.delivery
                   : order.pickup
                 ).address.coordinates;
           if (!target) return;
           const id = driver.id,
-            key = order.id + ":" + order.status;
+            key = order.id + ":" + operationalStage(order);
           needed.add(id);
           if (this.active.get(id)?.key === key) return;
           this.stop(id);

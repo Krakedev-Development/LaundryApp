@@ -112,7 +112,7 @@
         "lat": -2.1409999999999996,
         "lng": -79.87339999999999,
         "address": "Av. Samborondón",
-        "lastUpdated": "2026-10-04T17:22:51.523Z",
+        "lastUpdated": "2026-10-05T00:08:48.658Z",
         "simulated": true
       },
       "authorizedZoneIds": [
@@ -142,7 +142,7 @@
         "lat": -2.125,
         "lng": -79.8686,
         "address": "Av. Samborondón",
-        "lastUpdated": "2026-10-04T17:22:51.525Z",
+        "lastUpdated": "2026-10-05T00:08:48.659Z",
         "simulated": true
       },
       "authorizedZoneIds": [
@@ -172,7 +172,7 @@
         "lat": -2.105,
         "lng": -79.8638,
         "address": "Av. Samborondón",
-        "lastUpdated": "2026-10-04T17:22:51.525Z",
+        "lastUpdated": "2026-10-05T00:08:48.659Z",
         "simulated": true
       },
       "authorizedZoneIds": [
@@ -202,7 +202,7 @@
         "lat": -2.138,
         "lng": -79.871,
         "address": "Av. Samborondón",
-        "lastUpdated": "2026-10-04T17:22:51.525Z",
+        "lastUpdated": "2026-10-05T00:08:48.659Z",
         "simulated": true
       },
       "authorizedZoneIds": [
@@ -232,7 +232,7 @@
         "lat": -2.1220000000000003,
         "lng": -79.8662,
         "address": "Av. Samborondón",
-        "lastUpdated": "2026-10-04T17:22:51.525Z",
+        "lastUpdated": "2026-10-05T00:08:48.659Z",
         "simulated": true
       },
       "authorizedZoneIds": [
@@ -262,7 +262,7 @@
         "lat": -2.1069999999999998,
         "lng": -79.8614,
         "address": "Av. Samborondón",
-        "lastUpdated": "2026-10-04T17:22:51.525Z",
+        "lastUpdated": "2026-10-05T00:08:48.659Z",
         "simulated": true
       },
       "authorizedZoneIds": [
@@ -292,7 +292,7 @@
         "lat": -2.1399999999999997,
         "lng": -79.8686,
         "address": "Av. Samborondón",
-        "lastUpdated": "2026-10-04T17:12:51.525Z",
+        "lastUpdated": "2026-10-04T23:58:48.659Z",
         "simulated": true
       },
       "authorizedZoneIds": [
@@ -322,7 +322,7 @@
         "lat": -2.124,
         "lng": -79.8694,
         "address": "Av. Samborondón",
-        "lastUpdated": "2026-10-04T17:22:51.526Z",
+        "lastUpdated": "2026-10-05T00:08:48.659Z",
         "simulated": true
       },
       "authorizedZoneIds": [
@@ -2260,6 +2260,56 @@
       "previousValue": "PENDING",
       "newValue": "REJECTED",
       "notes": "Documento borroso y bordes recortados"
+    }
+  ],
+  "INITIAL_FULFILLMENT_SCENARIOS": [
+    {
+      "id": "SOL-STORE-001",
+      "mode": "STORE_STORE",
+      "facilityId": "FAC-02",
+      "customerId": "CUST-001",
+      "handoffs": [
+        {
+          "id": "HND-SOL-STORE-001-1",
+          "type": "CUSTOMER_TO_FACILITY",
+          "code": "583214"
+        },
+        {
+          "id": "HND-SOL-STORE-001-2",
+          "type": "FACILITY_TO_CUSTOMER",
+          "code": "583351"
+        }
+      ]
+    },
+    {
+      "id": "SOL-HOME-001",
+      "mode": "HOME_HOME",
+      "facilityId": "FAC-02",
+      "customerId": "CUST-001",
+      "pickupAssignmentId": "SOL-HOME-001-pickup",
+      "deliveryAssignmentId": "SOL-HOME-001-delivery",
+      "handoffs": [
+        {
+          "id": "HND-SOL-HOME-001-1",
+          "type": "CUSTOMER_TO_DRIVER",
+          "code": "726483"
+        },
+        {
+          "id": "HND-SOL-HOME-001-2",
+          "type": "DRIVER_TO_FACILITY",
+          "code": "726620"
+        },
+        {
+          "id": "HND-SOL-HOME-001-3",
+          "type": "FACILITY_TO_DRIVER",
+          "code": "726757"
+        },
+        {
+          "id": "HND-SOL-HOME-001-4",
+          "type": "DRIVER_TO_CUSTOMER",
+          "code": "726894"
+        }
+      ]
     }
   ]
 }

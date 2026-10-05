@@ -16,6 +16,15 @@ require.extensions[".ts"] = (module, filename) =>
   );
 const { makeSeed } = require("../src/services/seed.ts");
 const { DomainEngine } = require("../src/domain/engine.ts");
+const { operationalStage } = require("../src/domain/fulfillment.ts");
+function confirmHandoff(engine, id, type, actor, details = {}) {
+  const h = engine.data.handoffs.find(
+    (h) => h.orderId === id && h.type === type && h.status === "ACTIVE",
+  );
+  if (!h) throw new Error("Código no habilitado para el estado actual.");
+  const v = engine.handoffService.verify(h.fallbackCode, actor, h.id);
+  engine.handoffService.confirm(actor, { ticket: v.ticket, ...details });
+}
 const rules = require("../src/domain/rules.ts");
 const web = require("../src/services/laundryWebSeed.json");
 
@@ -186,7 +195,7 @@ test("payment is atomic, idempotent and appends a debit ledger entry", () => {
     rules.walletBalance(engine.data, client.userId),
     rules.money(initial - order.pricing.total),
   );
-  assert.equal(order.status, "PICKUP_PENDING");
+  assert.equal(order.status, "AWAITING_INTAKE");
   assert.equal(order.payment.amount, order.pricing.total);
   assert.equal(
     engine.data.pointsLedger.filter(
@@ -271,30 +280,50 @@ test("driver state machine completes pickup, facility, internal plant and delive
   );
   for (const s of ["HEADING_TO_PICKUP", "ARRIVED_FOR_PICKUP"])
     engine.transition(driver, o.id, s, true);
-  engine.transition(driver, o.id, "PICKED_UP", true, {
+  confirmHandoff(engine, o.id, "CUSTOMER_TO_DRIVER", driver.userId, {
     confirmed: true,
     count: 5,
   });
   engine.transition(driver, o.id, "HEADING_TO_FACILITY", true);
-  engine.transition(driver, o.id, "AT_FACILITY", true);
+  engine.transition(driver, o.id, "ARRIVED_AT_FACILITY", true);
+  confirmHandoff(
+    engine,
+    o.id,
+    "DRIVER_TO_FACILITY",
+    "DEMO-ADMIN-" + engine.order(client, o.id).facilityId,
+    {
+      count: engine
+        .order(client, o.id)
+        .items.reduce((n, i) => n + i.quantity, 0),
+    },
+  );
   assert.equal(engine.routeFor(driver).assignments.length, 0);
   for (let i = 0; i < 4; i++) engine.plantTick();
   engine.dispatch();
   assert.equal(engine.data.orders.length, 1);
   assert.equal(engine.data.assignments.length, 2);
-  assert.equal(engine.order(client, o.id).status, "DELIVERY_ASSIGNED");
+  assert.equal(
+    operationalStage(engine.order(client, o.id)),
+    "DELIVERY_ASSIGNED",
+  );
+  confirmHandoff(
+    engine,
+    o.id,
+    "FACILITY_TO_DRIVER",
+    "DEMO-ADMIN-" + engine.order(client, o.id).facilityId,
+  );
   engine.transition(driver, o.id, "OUT_FOR_DELIVERY", true);
   engine.transition(driver, o.id, "ARRIVED_FOR_DELIVERY", true);
   assert.throws(
     () =>
-      engine.transition(driver, o.id, "DELIVERED", true, {
+      confirmHandoff(engine, o.id, "DRIVER_TO_CUSTOMER", driver.userId, {
         confirmed: true,
         recipient: "",
         relationship: "Cliente",
       }),
-    /destinatario/,
+    /retira|recibe/,
   );
-  engine.transition(driver, o.id, "DELIVERED", true, {
+  confirmHandoff(engine, o.id, "DRIVER_TO_CUSTOMER", driver.userId, {
     confirmed: true,
     recipient: "María Torres",
     relationship: "Cliente",
@@ -304,7 +333,7 @@ test("driver state machine completes pickup, facility, internal plant and delive
     "María Torres",
   );
   engine.plantTick();
-  assert.equal(engine.order(client, o.id).status, "CLOSED");
+  assert.equal(engine.order(client, o.id).status, "COMPLETED");
   engine.plantTick();
   assert.equal(engine.routeFor(driver).assignments.length, 0);
   assert.equal(
@@ -315,7 +344,7 @@ test("driver state machine completes pickup, facility, internal plant and delive
   );
   assert.throws(
     () =>
-      engine.transition(driver, o.id, "DELIVERED", true, {
+      confirmHandoff(engine, o.id, "DRIVER_TO_CUSTOMER", driver.userId, {
         confirmed: true,
         recipient: "María Torres",
         relationship: "Cliente",
@@ -416,7 +445,7 @@ test("pickup discrepancy registers an incident and persists in a JSON round trip
   engine.dispatch();
   engine.transition(driver, o.id, "HEADING_TO_PICKUP", true);
   engine.transition(driver, o.id, "ARRIVED_FOR_PICKUP", true);
-  engine.transition(driver, o.id, "PICKED_UP", true, {
+  confirmHandoff(engine, o.id, "CUSTOMER_TO_DRIVER", driver.userId, {
     confirmed: true,
     count: 4,
     notes: "Falta una camisa.",
@@ -522,12 +551,23 @@ test("previous pickup driver cannot message the newly assigned delivery driver",
   engine.dispatch();
   engine.transition(driver, order.id, "HEADING_TO_PICKUP", true);
   engine.transition(driver, order.id, "ARRIVED_FOR_PICKUP", true);
-  engine.transition(driver, order.id, "PICKED_UP", true, {
+  confirmHandoff(engine, order.id, "CUSTOMER_TO_DRIVER", driver.userId, {
     confirmed: true,
     count: 5,
   });
   engine.transition(driver, order.id, "HEADING_TO_FACILITY", true);
-  engine.transition(driver, order.id, "AT_FACILITY", true);
+  engine.transition(driver, order.id, "ARRIVED_AT_FACILITY", true);
+  confirmHandoff(
+    engine,
+    order.id,
+    "DRIVER_TO_FACILITY",
+    "DEMO-ADMIN-" + engine.order(client, order.id).facilityId,
+    {
+      count: engine
+        .order(client, order.id)
+        .items.reduce((n, i) => n + i.quantity, 0),
+    },
+  );
   engine.driverStatus(driver, "BREAK");
   for (let i = 0; i < 4; i++) engine.plantTick();
   engine.dispatch();

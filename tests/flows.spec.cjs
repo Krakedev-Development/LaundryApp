@@ -21,6 +21,69 @@ async function logout(page) {
     page.getByRole("button", { name: "Iniciar sesión", exact: true }),
   ).toBeVisible();
 }
+async function confirmTransfer(page, id, type, facility = false) {
+  const receipt = await page.evaluate(
+    ({ id, type }) => {
+      const d = JSON.parse(localStorage.getItem("laundry-mvp-v1"));
+      const o = d.orders.find((o) => o.id === id);
+      return {
+        code: d.handoffs.find(
+          (h) => h.orderId === id && h.type === type && h.status === "ACTIVE",
+        )?.fallbackCode,
+        count: o.items.reduce((n, i) => n + i.quantity, 0),
+      };
+    },
+    { id, type },
+  );
+  if (facility) {
+    await page.goto("/(driver)/demo-operations");
+    await page.getByRole("button", { name: id, exact: true }).click();
+  }
+  await page
+    .getByLabel("Código de 6 dígitos o contenido QR", { exact: true })
+    .filter({ visible: true })
+    .fill(receipt.code);
+  await page
+    .getByRole("button", { name: "Verificar código", exact: true })
+    .click();
+  if (
+    [
+      "CUSTOMER_TO_DRIVER",
+      "DRIVER_TO_FACILITY",
+      "CUSTOMER_TO_FACILITY",
+    ].includes(type)
+  )
+    await page
+      .getByLabel("Prendas recibidas", { exact: true })
+      .filter({ visible: true })
+      .fill(String(receipt.count));
+  if (["DRIVER_TO_CUSTOMER", "FACILITY_TO_CUSTOMER"].includes(type)) {
+    await page
+      .getByLabel("Nombre de quien recibe o retira", { exact: true })
+      .filter({ visible: true })
+      .fill("María Torres");
+    await page
+      .getByLabel("Relación o autorización", { exact: true })
+      .filter({ visible: true })
+      .fill("Persona autorizada");
+  }
+  await page
+    .getByRole("checkbox", {
+      name: "Verifiqué las prendas y confirmo la entrega física",
+      exact: true,
+    })
+    .check();
+  await page
+    .getByRole("button", { name: "Confirmar transferencia", exact: true })
+    .click();
+  await expect(
+    page.getByText(
+      "Transferencia registrada. El código ya no se puede reutilizar.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  if (facility) await page.goto("/(driver)/service/" + id);
+}
 async function selectSchedule(page) {
   await page
     .getByRole("button", { name: /^(lun|mar|mié|jue|vie|sáb|dom)/i })
@@ -39,6 +102,9 @@ test("client order persists and the assigned driver completes its full lifecycle
   await login(page, "nuevo@laundryfresh.com");
   await page
     .getByRole("button", { name: "Solicitar recogida", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Elegir servicio a domicilio", exact: true })
     .click();
   await expect(
     page.getByText("Aún no has agregado prendas", { exact: true }),
@@ -154,32 +220,12 @@ test("client order persists and the assigned driver completes its full lifecycle
     .getByRole("button", { name: "Marcar llegada", exact: true })
     .click();
   await page.getByRole("button", { name: "Sí, llegué", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Confirmar recogida", exact: true })
-    .click();
-  await page
-    .getByRole("checkbox", {
-      name: "Verifiqué las prendas entregadas por el cliente.",
-      exact: true,
-    })
-    .click();
-  await page
-    .getByRole("button", { name: "Confirmar recogida", exact: true })
-    .click();
-  await expect(
-    page
-      .getByText("Recogida registrada", { exact: true })
-      .filter({ visible: true })
-      .first(),
-  ).toBeVisible();
+  await confirmTransfer(page, id, "CUSTOMER_TO_DRIVER");
   await page.getByRole("button", { name: "Ir a planta", exact: true }).click();
   await page
-    .getByRole("button", { name: "Confirmar entrega en planta", exact: true })
+    .getByRole("button", { name: "Marcar llegada a planta", exact: true })
     .click();
-  await page
-    .getByRole("button", { name: "Confirmar entrega en planta", exact: true })
-    .last()
-    .click();
+  await confirmTransfer(page, id, "DRIVER_TO_FACILITY", true);
   await expect
     .poll(
       () =>
@@ -213,6 +259,7 @@ test("client order persists and the assigned driver completes its full lifecycle
     await login(page, deliveryDriverEmail);
   }
   await page.goto(`/(driver)/service/${id}`);
+  await confirmTransfer(page, id, "FACILITY_TO_DRIVER", true);
   await expect(
     page.getByRole("button", { name: "Iniciar navegación", exact: true }),
   ).toBeVisible({ timeout: 70000 });
@@ -223,58 +270,31 @@ test("client order persists and the assigned driver completes its full lifecycle
     .getByRole("button", { name: "Marcar llegada", exact: true })
     .click();
   await page.getByRole("button", { name: "Sí, llegué", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Confirmar entrega", exact: true })
-    .click();
-  await expect(
-    page.getByRole("button", { name: "Completar entrega", exact: true }),
-  ).toBeDisabled();
-  await page
-    .getByLabel("Nombre del destinatario", { exact: true })
-    .fill("Sofía Fresh");
-  await page
-    .getByRole("checkbox", {
-      name: "Confirmo que el pedido fue entregado al destinatario indicado.",
-      exact: true,
-    })
-    .click();
-  await page
-    .getByRole("button", { name: "Completar entrega", exact: true })
-    .click();
-  await expect(
-    page.getByText("Entrega completada", { exact: true }),
-  ).toBeVisible();
-  await page.goto("/(driver)/(tabs)/profile");
-  await page
-    .getByRole("button", { name: "Cerrar sesión", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Cerrar sesión", exact: true })
-    .last()
-    .click();
-  await login(page, "nuevo@laundryfresh.com");
-  await page.goto(`/(client)/order/${id}`);
-  await expect(
-    page.getByText("Pedido entregado", { exact: true }).first(),
-  ).toBeVisible();
-  await expect(
-    page.getByText("Recibió: Sofía Fresh · Cliente", { exact: true }),
-  ).toBeVisible();
+  await confirmTransfer(page, id, "DRIVER_TO_CUSTOMER");
   await expect
     .poll(() =>
-      page.evaluate((orderId) => {
-        const data = JSON.parse(localStorage.getItem("laundry-mvp-v1"));
-        return data.orders.find((o) => o.id === orderId).status;
-      }, id),
+      page.evaluate(
+        (id) =>
+          JSON.parse(localStorage.getItem("laundry-mvp-v1")).orders.find(
+            (o) => o.id === id,
+          ).status,
+        id,
+      ),
     )
-    .toBe("CLOSED");
-  await expect(
-    page.getByText("Pedido finalizado", { exact: true }).first(),
-  ).toBeVisible();
-  await page.screenshot({
-    path: "test-results/client-delivered.png",
-    fullPage: true,
-  });
+    .toBe("COMPLETED");
+  await page.reload();
+  const records = await page.evaluate((id) => {
+    const d = JSON.parse(localStorage.getItem("laundry-mvp-v1"));
+    return {
+      handoffs: d.handoffs.filter(
+        (h) => h.orderId === id && h.status === "USED",
+      ).length,
+      points: d.pointsLedger.filter(
+        (p) => p.reference === id && p.type === "EARN",
+      ).length,
+    };
+  }, id);
+  expect(records).toEqual({ handoffs: 4, points: 1 });
   expect(errors).toEqual([]);
 });
 

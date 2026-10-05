@@ -297,6 +297,7 @@ export function Check({
       accessibilityRole="checkbox"
       accessibilityLabel={title}
       accessibilityState={{ checked }}
+      aria-checked={checked}
       onPress={onPress}
       style={[ui.row, { minHeight: 48 }]}
     >

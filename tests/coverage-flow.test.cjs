@@ -6,6 +6,57 @@ const { DomainEngine } = require("../src/domain/engine.ts");
 const { DEMO_FACILITIES } = require("../src/services/geo/demo.ts");
 const { today, addDays, deliveryDates } = require("../src/domain/rules.ts");
 const session = { userId: "CUST-DEMO", role: "CLIENTE" };
+test("STORE_STORE domain accepts only facility and dropoff appointment without home schedules or home coverage", () => {
+  const engine = new DomainEngine(makeSeed());
+  const item = engine.data.catalog.find((c) => c.id === "CAT-01");
+  const draft = {
+    fulfillmentMode: "STORE_STORE",
+    facilityId: "FAC-02",
+    customerDropoff: { date: addDays(today(), 1), timeSlot: "16:00 - 18:00" },
+    items: [
+      {
+        id: "STORE",
+        catalogId: item.id,
+        serviceId: "care",
+        name: item.name,
+        serviceName: "Cuidado incluido",
+        quantity: 3,
+        unitPrice: item.price,
+        notes: "",
+      },
+    ],
+    extraIds: [],
+    promoCode: "",
+    paymentMethod: "WALLET",
+  };
+  engine.update((d) => {
+    d.customers.find((c) => c.id === session.userId).addresses = [];
+  });
+  const order = engine.createOrder(
+    session,
+    draft,
+    "store-without-addresses",
+    true,
+  );
+  assert.equal(order.fulfillment.mode, "STORE_STORE");
+  assert.equal(order.fulfillment.inbound.method, "CUSTOMER");
+  assert.equal(order.pricing.deliveryFee, 0);
+  assert.deepEqual(
+    order.pickup.address.coordinates,
+    DEMO_FACILITIES[1].coordinates,
+  );
+  engine.dispatch();
+  assert.equal(
+    engine.data.assignments.filter((a) => a.orderId === order.id).length,
+    0,
+  );
+  assert.equal(
+    engine.data.handoffs.find(
+      (h) => h.orderId === order.id && h.type === "CUSTOMER_TO_FACILITY",
+    ).status,
+    "ACTIVE",
+  );
+});
 test("addresses and checkout reject out-of-area locations before mutating data or wallet", () => {
   const engine = new DomainEngine(makeSeed());
   const address = {

@@ -1,3 +1,5 @@
+import { HandoffCode, FacilityInfo } from "../handoffs/components";
+import { operationalStage } from "../../domain/fulfillment";
 import React, { useState } from "react";
 import { Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -30,7 +32,7 @@ export function ClientHomeScreen() {
   const router = useRouter();
   const c = engine.customer(session!);
   const orders = engine.ordersFor(session!);
-  const active = orders.find((o) => !isFinished(o.status));
+  const active = orders.find((o) => !isFinished(operationalStage(o)));
   const plan = data.plans.find((p) => p.id === c.membershipId);
   const unread = data.notifications.filter(
     (n) => n.userId === c.id && !n.read,
@@ -139,7 +141,7 @@ export function OrdersScreen() {
     .ordersFor(session!)
     .filter(
       (o) =>
-        isFinished(o.status) === history &&
+        isFinished(operationalStage(o)) === history &&
         new Date(o.createdAt).getTime() >= cut,
     );
   return (
@@ -218,17 +220,44 @@ export function OrderDetailScreen() {
       <AppHeader title={o.id} subtitle="Tu solicitud" icon="receipt-outline" />
       <View style={ui.heroCard}>
         <Text style={[ui.title, { color: C.surface }]}>
-          {ORDER_STATUS_LABELS[o.status]}
+          {
+            ORDER_STATUS_LABELS[
+              o.fulfillment?.mode === "STORE_STORE"
+                ? o.status
+                : operationalStage(o)
+            ]
+          }
         </Text>
         <Text style={{ color: C.surface }}>
           Entrega estimada: {dateLabel(o.delivery.date)} · {o.delivery.timeSlot}
         </Text>
       </View>
       <ClientOrderActions order={o} />
+      <HandoffCode order={o} />
+      {o.fulfillment?.mode === "STORE_STORE" && <FacilityInfo order={o} />}
+      <Button
+        title="Operaciones de sede · demo"
+        variant="secondary"
+        onPress={() => router.push("/(client)/demo-operations")}
+      />
       <Timeline order={o} />
       {[
-        { title: "Recogida", schedule: o.pickup, driver: a?.driverId },
-        { title: "Entrega", schedule: o.delivery, driver: d?.driverId },
+        {
+          title:
+            o.fulfillment?.mode === "STORE_STORE"
+              ? "Ingreso en sede"
+              : "Recogida",
+          schedule: o.pickup,
+          driver: a?.driverId,
+        },
+        {
+          title:
+            o.fulfillment?.mode === "STORE_STORE"
+              ? "Retiro cuando esté listo"
+              : "Entrega",
+          schedule: o.delivery,
+          driver: d?.driverId,
+        },
       ].map((row) => (
         <Card key={row.title}>
           <Text style={ui.section}>{row.title}</Text>

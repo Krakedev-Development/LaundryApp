@@ -1,6 +1,11 @@
 export const businessConfig = {
   minimumOrder: 5,
   deliveryFee: 2,
+  storePricing: {
+    basis: "CATALOG_PER_GARMENT",
+    transportFee: 0,
+    provisional: true,
+  },
   pointsPerDollar: 10,
   maxQuantity: 99,
   timeSlots: [

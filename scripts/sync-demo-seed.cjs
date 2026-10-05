@@ -15,6 +15,7 @@ require.extensions[".ts"] = (module, filename) =>
 const seed = require(
   path.resolve(__dirname, "../../LaundryWeb/src/services/mockData.ts"),
 );
+if (!Array.isArray(seed.INITIAL_FULFILLMENT_SCENARIOS) || seed.INITIAL_FULFILLMENT_SCENARIOS.length !== 2) throw new Error('Faltan escenarios equivalentes de QR.');
 fs.writeFileSync(
   path.resolve(__dirname, "../src/services/laundryWebSeed.json"),
   JSON.stringify(seed, null, 2) + "\n",

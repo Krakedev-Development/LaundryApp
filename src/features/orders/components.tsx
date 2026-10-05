@@ -1,3 +1,4 @@
+import { operationalStage } from "../../domain/fulfillment";
 import React from "react";
 import { Text, View } from "react-native";
 import { useRouter } from "expo-router";
@@ -24,9 +25,20 @@ export function OrderCard({ order }: { order: Order }) {
         )}
       </View>
       <Badge
-        title={ORDER_STATUS_LABELS[order.status]}
-        tone={isFinished(order.status) ? "success" : "primary"}
+        title={
+          ORDER_STATUS_LABELS[
+            order.fulfillment?.mode === "STORE_STORE"
+              ? order.status
+              : operationalStage(order)
+          ]
+        }
+        tone={isFinished(operationalStage(order)) ? "success" : "primary"}
       />
+      <Text style={ui.meta}>
+        {order.fulfillment?.mode === "STORE_STORE"
+          ? "Ingreso y retiro en sede"
+          : "Servicio a domicilio"}
+      </Text>
       <Text style={ui.body}>
         {order.items.reduce((s, i) => s + i.quantity, 0)} prendas ·{" "}
         {order.items[0]?.serviceName}
@@ -41,12 +53,14 @@ export function OrderCard({ order }: { order: Order }) {
         </Text>
         <Button
           title={
-            trackingAvailable(order.status) ? "Ver seguimiento" : "Ver detalle"
+            trackingAvailable(operationalStage(order))
+              ? "Ver seguimiento"
+              : "Ver detalle"
           }
           variant="secondary"
           onPress={() =>
             router.push(
-              `/(client)/${trackingAvailable(order.status) ? "tracking" : "order"}/${order.id}`,
+              `/(client)/${trackingAvailable(operationalStage(order)) ? "tracking" : "order"}/${order.id}`,
             )
           }
         />
@@ -55,6 +69,32 @@ export function OrderCard({ order }: { order: Order }) {
   );
 }
 export function OrderProgress({ order }: { order: Order }) {
+  if (order.fulfillment?.mode === "STORE_STORE") {
+    const states = [
+      "AWAITING_INTAKE",
+      "AT_FACILITY",
+      "IN_PROCESS",
+      "QUALITY_CONTROL",
+      "READY",
+      "COMPLETED",
+    ];
+    return (
+      <View style={[ui.row, { gap: 6 }]}>
+        {states.map((s, i) => (
+          <View
+            key={s}
+            style={{
+              flex: 1,
+              height: 5,
+              borderRadius: 10,
+              backgroundColor:
+                states.indexOf(order.status) >= i ? C.limeDark : C.border,
+            }}
+          />
+        ))}
+      </View>
+    );
+  }
   const milestones = [
     "CREATED",
     "PICKED_UP",
@@ -62,10 +102,10 @@ export function OrderProgress({ order }: { order: Order }) {
     "READY_FOR_DELIVERY",
     "DELIVERED",
   ];
-  const current = ORDER_STATES.indexOf(order.status);
+  const current = ORDER_STATES.indexOf(operationalStage(order));
   return (
     <View
-      accessibilityLabel={ORDER_STATUS_LABELS[order.status]}
+      accessibilityLabel={ORDER_STATUS_LABELS[operationalStage(order)]}
       style={[ui.row, { gap: 6 }]}
     >
       {milestones.map((m) => (
@@ -77,7 +117,9 @@ export function OrderProgress({ order }: { order: Order }) {
             borderRadius: 10,
             backgroundColor:
               current >= ORDER_STATES.indexOf(m as Order["status"]) &&
-              !["CANCELLED", "QUARANTINE", "INCIDENT"].includes(order.status)
+              !["CANCELLED", "QUARANTINE", "INCIDENT"].includes(
+                operationalStage(order),
+              )
                 ? C.limeDark
                 : C.border,
           }}
@@ -87,6 +129,21 @@ export function OrderProgress({ order }: { order: Order }) {
   );
 }
 export function Timeline({ order }: { order: Order }) {
+  if (order.fulfillment?.mode === "STORE_STORE")
+    return (
+      <Card>
+        <Text style={ui.section}>Ingreso → cuidado → retiro</Text>
+        {order.timeline.map((t) => (
+          <View key={t.id}>
+            <Text style={ui.body}>{ORDER_STATUS_LABELS[t.status]}</Text>
+            <Text style={ui.meta}>
+              {timeLabel(t.timestamp)} · {t.notes}
+            </Text>
+          </View>
+        ))}
+        <Text style={ui.muted}>{ORDER_STATUS_LABELS[order.status]}</Text>
+      </Card>
+    );
   const future = [
     "PICKED_UP",
     "AT_FACILITY",
@@ -130,12 +187,13 @@ export function Timeline({ order }: { order: Order }) {
           </View>
         </View>
       ))}
-      {!isFinished(order.status) &&
+      {!isFinished(operationalStage(order)) &&
         future
           .filter(
             (s) =>
               !done.includes(s) &&
-              ORDER_STATES.indexOf(s) > ORDER_STATES.indexOf(order.status),
+              ORDER_STATES.indexOf(s) >
+                ORDER_STATES.indexOf(operationalStage(order)),
           )
           .map((s) => (
             <View key={s} style={ui.row}>
@@ -157,14 +215,14 @@ export function ClientOrderActions({ order }: { order: Order }) {
   const router = useRouter();
   return (
     <View style={{ gap: 8 }}>
-      {!!trackingAvailable(order.status) && (
+      {!!trackingAvailable(operationalStage(order)) && (
         <Button
           title="Seguir chofer"
           icon="navigate-outline"
           onPress={() => router.push(`/(client)/tracking/${order.id}`)}
         />
       )}
-      {!!chatAvailable(order.status) && (
+      {!!chatAvailable(operationalStage(order)) && (
         <Button
           title="Chat con chofer"
           icon="chatbubble-outline"

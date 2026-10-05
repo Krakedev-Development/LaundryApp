@@ -1,3 +1,5 @@
+import { HandoffAction, HandoffCode } from "../handoffs/components";
+import { operationalStage } from "../../domain/fulfillment";
 import {
   navigationOptions,
   openExternalNavigation,
@@ -103,13 +105,17 @@ function TaskCard({
   const facility = data.facilities.find((f) => f.id === o.facilityId)!;
   const toFacility =
     assignment.status !== "COMPLETED" &&
-    ["PICKED_UP", "HEADING_TO_FACILITY"].includes(o.status);
+    ["PICKED_UP", "HEADING_TO_FACILITY", "ARRIVED_AT_FACILITY"].includes(
+      operationalStage(o),
+    );
   const distance = routeDistance(
     drv.location,
     toFacility ? facility.coordinates : schedule.address.coordinates,
   );
   const next =
-    assignment.status !== "COMPLETED" ? DRIVER_NEXT[o.status] : undefined;
+    assignment.status !== "COMPLETED"
+      ? DRIVER_NEXT[operationalStage(o)]
+      : undefined;
   return (
     <Card>
       <View style={ui.between}>
@@ -132,7 +138,7 @@ function TaskCard({
         title={
           assignment.status === "COMPLETED"
             ? "Etapa completada"
-            : ORDER_STATUS_LABELS[o.status]
+            : ORDER_STATUS_LABELS[operationalStage(o)]
         }
         tone={assignment.status === "COMPLETED" ? "success" : "primary"}
       />
@@ -172,7 +178,11 @@ export function DriverRouteScreen() {
   let target;
   if (first) {
     const o = engine.order(session!, first.orderId);
-    target = ["PICKED_UP", "HEADING_TO_FACILITY"].includes(o.status)
+    target = [
+      "PICKED_UP",
+      "HEADING_TO_FACILITY",
+      "ARRIVED_AT_FACILITY",
+    ].includes(operationalStage(o))
       ? data.facilities.find((f) => f.id === o.facilityId)!
       : (first.type === "PICKUP" ? o.pickup : o.delivery).address;
   }
@@ -368,7 +378,11 @@ export function DriverServiceScreen({ map = false }: { map?: boolean }) {
         .filter((v) => v.orderId === id && v.driverId === session!.userId)
         .at(-1)!;
   const facility = data.facilities.find((v) => v.id === o.facilityId)!;
-  const toFacility = ["PICKED_UP", "HEADING_TO_FACILITY"].includes(o.status);
+  const toFacility = [
+    "PICKED_UP",
+    "HEADING_TO_FACILITY",
+    "ARRIVED_AT_FACILITY",
+  ].includes(operationalStage(o));
   const schedule = stage.type === "PICKUP" ? o.pickup : o.delivery;
   const target = toFacility
     ? facility.coordinates
@@ -377,7 +391,7 @@ export function DriverServiceScreen({ map = false }: { map?: boolean }) {
     ? facility.address
     : schedule.address.fullAddress;
   const drv = engine.driver(session!);
-  const next = ownsActive ? DRIVER_NEXT[o.status] : undefined;
+  const next = ownsActive ? DRIVER_NEXT[operationalStage(o)] : undefined;
   const execute = () =>
     a.run(() => {
       if (!next) return;
@@ -403,15 +417,22 @@ export function DriverServiceScreen({ map = false }: { map?: boolean }) {
         subtitle={`${stage.type === "PICKUP" ? "Recogida" : "Entrega"} · ${o.customerName}`}
         icon="navigate-outline"
       />
-      <Badge title={ORDER_STATUS_LABELS[o.status]} />
+      <Badge title={ORDER_STATUS_LABELS[operationalStage(o)]} />
       <LocationNotice />
+      <HandoffCode order={o} />
+      <HandoffAction key={o.id} order={o} actorId={session!.userId} />
+      <Button
+        title="Operaciones de sede · demo"
+        variant="secondary"
+        onPress={() => router.push("/(driver)/demo-operations")}
+      />
       {!!map && (
         <RouteMap
           origin={drv.location}
           destination={target}
           label={toFacility ? facility.name : schedule.address.title}
           height={350}
-          stage={o.id + ":" + o.status}
+          stage={o.id + ":" + operationalStage(o)}
         />
       )}
       <Card>
@@ -439,7 +460,7 @@ export function DriverServiceScreen({ map = false }: { map?: boolean }) {
           </Text>
         ))}
       </Card>
-      {!!next && (
+      {!!(next && !["PICKED_UP", "DELIVERED"].includes(next.status)) && (
         <Button
           title={next.label}
           onPress={execute}
@@ -560,178 +581,14 @@ export function DriverConfirmationScreen({
       </Page>
     );
   }
-  return <DriverConfirmationForm key={id} order={order} delivery={delivery} />;
-}
-function DriverConfirmationForm({
-  order,
-  delivery,
-}: {
-  order: Order;
-  delivery: boolean;
-}) {
-  const id = order.id;
-  const { session, engine, online } = useApp();
-  const router = useRouter();
-  const a = useAction();
-  const [count, setCount] = useState(
-    String(order.items.reduce((sum, i) => sum + i.quantity, 0)),
-  );
-  const [recipient, setRecipient] = useState("");
-  const [relation, setRelation] = useState("Cliente");
-  const [notes, setNotes] = useState("");
-  const [confirmed, setConfirmed] = useState(false);
-  const [evidence, setEvidence] = useState("");
-  const [success, setSuccess] = useState(false);
-  if (success)
-    return (
-      <Page>
-        <EmptyState
-          title={delivery ? "Entrega completada" : "Recogida registrada"}
-          text={id}
-          icon="checkmark-circle-outline"
-        />
-        <Card>
-          <Text style={ui.body}>
-            {delivery
-              ? `Recibió: ${recipient} · ${relation}`
-              : `${count} prendas recibidas`}
-          </Text>
-          <Text style={ui.meta}>
-            {timeLabel(new Date().toISOString())}
-            {!online ? " · Pendiente de sincronización" : ""}
-          </Text>
-        </Card>
-        <Button
-          title={delivery ? "Continuar ruta" : "Ir a planta"}
-          onPress={() =>
-            a.run(() => {
-              if (delivery) router.replace("/(driver)/(tabs)/route");
-              else {
-                engine.transition(session!, id, "HEADING_TO_FACILITY", online);
-                router.replace(`/(driver)/map/${id}`);
-              }
-            })
-          }
-        />
-      </Page>
-    );
-  if (
-    order.status !== (delivery ? "ARRIVED_FOR_DELIVERY" : "ARRIVED_FOR_PICKUP")
-  )
-    return (
-      <Page>
-        <ErrorState text="Registra tu llegada antes de confirmar este servicio." />
-        <Button
-          title="Volver al servicio"
-          onPress={() => router.replace(`/(driver)/service/${id}`)}
-        />
-      </Page>
-    );
   return (
     <Page>
       <AppHeader
         title={delivery ? "Confirmar entrega" : "Confirmar recogida"}
-        subtitle={`${id} · ${order.customerName}`}
+        subtitle={order.id}
+        icon="qr-code-outline"
       />
-      <Card>
-        <Text style={ui.body}>
-          {(delivery ? order.delivery : order.pickup).address.fullAddress}
-        </Text>
-        {delivery ? (
-          <>
-            <Field
-              label="Nombre del destinatario"
-              value={recipient}
-              onChangeText={setRecipient}
-            />
-            <Text style={ui.section}>Relación con el cliente</Text>
-            <View style={ui.wrap}>
-              {["Cliente", "Familiar", "Recepción", "Otro"].map((r) => (
-                <Chip
-                  key={r}
-                  title={r}
-                  selected={relation === r}
-                  onPress={() => setRelation(r)}
-                />
-              ))}
-            </View>
-          </>
-        ) : (
-          <>
-            <Text style={ui.body}>
-              Cantidad esperada:{" "}
-              {order.items.reduce((s, i) => s + i.quantity, 0)}
-            </Text>
-            <Field
-              label="Cantidad recibida"
-              value={count}
-              onChangeText={setCount}
-              keyboardType="number-pad"
-            />
-          </>
-        )}
-        <Field
-          label="Notas opcionales"
-          value={notes}
-          onChangeText={setNotes}
-          multiline
-        />
-        <Button
-          title="Tomar foto opcional"
-          icon="camera-outline"
-          variant="secondary"
-          onPress={() =>
-            a.run(async () => {
-              const uri = await captureImage(true);
-              if (uri) setEvidence(uri);
-            })
-          }
-        />
-        {!!evidence && (
-          <Image
-            source={{ uri: evidence }}
-            style={{ width: "100%", height: 180, borderRadius: 12 }}
-            resizeMode="contain"
-          />
-        )}
-        <Check
-          title={
-            delivery
-              ? "Confirmo que el pedido fue entregado al destinatario indicado."
-              : "Verifiqué las prendas entregadas por el cliente."
-          }
-          checked={confirmed}
-          onPress={() => setConfirmed(!confirmed)}
-        />
-      </Card>
-      {!!a.error && <ErrorState text={a.error} />}
-      <Button
-        title={delivery ? "Completar entrega" : "Confirmar recogida"}
-        busy={a.busy}
-        disabled={!confirmed || (delivery && recipient.trim().length < 3)}
-        onPress={() =>
-          a.run(
-            () => {
-              engine.transition(
-                session!,
-                id,
-                delivery ? "DELIVERED" : "PICKED_UP",
-                online,
-                {
-                  count: Number(count),
-                  confirmed,
-                  notes,
-                  recipient,
-                  relationship: relation,
-                  evidence: evidence || undefined,
-                },
-              );
-              setSuccess(true);
-            },
-            delivery ? "Entrega registrada" : "Recogida registrada",
-          )
-        }
-      />
+      <HandoffAction key={id} order={order} actorId={session!.userId} />
     </Page>
   );
 }

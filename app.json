@@ -40,6 +40,15 @@
         {
           "locationWhenInUsePermission": "Permite usar tu ubicación para navegar tus servicios asignados."
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Permite usar la cámara para verificar códigos de transferencia.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": true
+        }
       ]
     ],
     "scheme": "laundryfresh",

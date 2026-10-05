@@ -1,3 +1,4 @@
+import { FacilityPicker } from "./FacilityPicker";
 import React, { useRef, useState } from "react";
 import { Text, View } from "react-native";
 import { useRouter } from "expo-router";
@@ -69,6 +70,7 @@ export function WizardScreen({ step }: { step: number }) {
   const router = useRouter();
   const customer = engine.customer(session!);
   const draft = data.draft;
+  const storeMode = draft.fulfillmentMode === "STORE_STORE";
   const a = useAction();
   const [editor, setEditor] = useState<OrderItem | "new" | null>(null);
   const [addressOpen, setAddressOpen] = useState(false);
@@ -121,7 +123,10 @@ export function WizardScreen({ step }: { step: number }) {
       if (step === 2 || step === 3) validateSchedule(schedule);
       if (step === 3 && !dates.includes(schedule!.date))
         throw new Error("Selecciona una fecha de entrega disponible.");
-      if (step < 4) router.push(`/(client)/new-order/${ROUTES[step + 1]}`);
+      if (step < 4)
+        router.push(
+          `/(client)/new-order/${ROUTES[storeMode && step === 2 ? 4 : step + 1]}`,
+        );
       else {
         await new Promise((r) => setTimeout(r, 700));
         const order = engine.createOrder(
@@ -134,6 +139,52 @@ export function WizardScreen({ step }: { step: number }) {
         router.replace(`/(client)/success/${order.id}`);
       }
     });
+  if (step === 0 && !draft.fulfillmentMode)
+    return (
+      <Page>
+        <AppHeader
+          title="¿Cómo quieres atender tu pedido?"
+          subtitle="Elige el recorrido completo"
+          icon="shirt-outline"
+        />
+        <Card>
+          <Text style={ui.section}>Recogida y entrega a domicilio</Text>
+          <Text style={ui.muted}>
+            Un chofer recoge tus prendas y las devuelve a tu dirección.
+          </Text>
+          <Button
+            title="Elegir servicio a domicilio"
+            onPress={() =>
+              update({
+                fulfillmentMode: "HOME_HOME",
+                pickup: undefined,
+                delivery: undefined,
+                facilityId: undefined,
+              })
+            }
+          />
+        </Card>
+        <Card>
+          <Text style={ui.section}>Ingreso y retiro en sede</Text>
+          <Text style={ui.muted}>
+            Llevas las prendas a una sede y las retiras con tu código. Tarifa
+            provisional por prenda, extras y descuentos; sin transporte
+            domiciliario.
+          </Text>
+          <Button
+            title="Elegir ingreso y retiro en sede"
+            onPress={() =>
+              update({
+                fulfillmentMode: "STORE_STORE",
+                pickup: undefined,
+                delivery: undefined,
+                facilityId: undefined,
+              })
+            }
+          />
+        </Card>
+      </Page>
+    );
   return (
     <Page
       footer={
@@ -144,7 +195,9 @@ export function WizardScreen({ step }: { step: number }) {
               variant="secondary"
               disabled={a.busy}
               onPress={() =>
-                router.replace(`/(client)/new-order/${ROUTES[step - 1]}`)
+                router.replace(
+                  `/(client)/new-order/${ROUTES[storeMode && step === 4 ? 2 : step - 1]}`,
+                )
               }
             />
           )}
@@ -165,7 +218,19 @@ export function WizardScreen({ step }: { step: number }) {
         </View>
       }
     >
-      <Stepper step={step} />
+      {storeMode ? (
+        <Text style={ui.meta}>
+          Paso {step === 4 ? 4 : step + 1} de 4 ·{" "}
+          {step === 2 ? "Sede e ingreso" : STEPS[step]}
+        </Text>
+      ) : (
+        <Stepper step={step} />
+      )}
+      <Text style={ui.muted}>
+        {storeMode
+          ? "Ingreso y retiro en sede"
+          : "Recogida y entrega a domicilio"}
+      </Text>
       <AppHeader
         title={
           [
@@ -297,7 +362,76 @@ export function WizardScreen({ step }: { step: number }) {
               />
             </Card>
           ))}
-      {!!(step === 2 || step === 3) && (
+      {!!(storeMode && step === 2) && (
+        <>
+          <Text style={ui.section}>Elige tu sede</Text>
+          <Text style={ui.muted}>
+            Puedes ingresar en cualquiera de las sedes habilitadas. El retiro
+            será en la misma sede, cuando el pedido esté listo.
+          </Text>
+          <FacilityPicker
+            selected={draft.facilityId}
+            onSelect={(f) => {
+              const address = {
+                id: f.id,
+                title: f.name,
+                fullAddress: f.address,
+                reference: "Ingreso y retiro en sede",
+                isPrimary: false,
+                coordinates: f.coordinates,
+                persistence: "demo" as const,
+              };
+              update({
+                facilityId: f.id,
+                pickup: { address, date: "", timeSlot: "", notes: "" },
+                delivery: { address, date: "", timeSlot: "", notes: "" },
+              });
+            }}
+          />
+          <Text style={ui.section}>Fecha de ingreso</Text>
+          <View style={ui.wrap}>
+            {pickupDates().map((date) => (
+              <Chip
+                key={date}
+                title={dateLabel(date)}
+                selected={schedule?.date === date}
+                onPress={() => {
+                  if (!draft.facilityId) return;
+                  const pickup = { ...draft.pickup!, date, timeSlot: "" };
+                  update({
+                    pickup,
+                    delivery: {
+                      ...draft.delivery!,
+                      date: deliveryDates(data, draft.items, date)[0] ?? date,
+                      timeSlot: "Retiro al estar listo",
+                    },
+                  });
+                }}
+              />
+            ))}
+          </View>
+          <Text style={ui.section}>Franja de ingreso</Text>
+          <View style={ui.wrap}>
+            {schedule?.date &&
+              availableSlots(schedule.date).map((slot) => (
+                <Chip
+                  key={slot}
+                  title={slot}
+                  selected={schedule.timeSlot === slot}
+                  onPress={() =>
+                    update({ pickup: { ...schedule, timeSlot: slot } })
+                  }
+                />
+              ))}
+          </View>
+          <Text style={ui.muted}>
+            El código de retiro se habilita al terminar el cuidado de las
+            prendas. Llegar fuera de la cita genera una advertencia en esta
+            demo.
+          </Text>
+        </>
+      )}
+      {!!(!storeMode && (step === 2 || step === 3)) && (
         <>
           {!!(step === 3 && draft.pickup) && (
             <Button
@@ -397,26 +531,34 @@ export function WizardScreen({ step }: { step: number }) {
             />
           </Card>
           {[
-            { title: "Recogida", schedule: draft.pickup, route: "pickup" },
+            {
+              title: storeMode ? "Ingreso en sede" : "Recogida",
+              schedule: draft.pickup,
+              route: "pickup",
+            },
             { title: "Entrega", schedule: draft.delivery, route: "delivery" },
-          ].map((row) => (
-            <Card key={row.title}>
-              <Text style={ui.section}>{row.title}</Text>
-              <Text style={ui.body}>
-                {row.schedule
-                  ? `${dateLabel(row.schedule.date)} · ${row.schedule.timeSlot}`
-                  : "Falta programar"}
-              </Text>
-              <Text style={ui.muted}>{row.schedule?.address?.fullAddress}</Text>
-              <Button
-                title={`Editar ${row.title.toLowerCase()}`}
-                variant="secondary"
-                onPress={() =>
-                  router.replace(`/(client)/new-order/${row.route}`)
-                }
-              />
-            </Card>
-          ))}
+          ]
+            .filter((row) => !storeMode || row.route === "pickup")
+            .map((row) => (
+              <Card key={row.title}>
+                <Text style={ui.section}>{row.title}</Text>
+                <Text style={ui.body}>
+                  {row.schedule
+                    ? `${dateLabel(row.schedule.date)} · ${row.schedule.timeSlot}`
+                    : "Falta programar"}
+                </Text>
+                <Text style={ui.muted}>
+                  {row.schedule?.address?.fullAddress}
+                </Text>
+                <Button
+                  title={`Editar ${row.title.toLowerCase()}`}
+                  variant="secondary"
+                  onPress={() =>
+                    router.replace(`/(client)/new-order/${row.route}`)
+                  }
+                />
+              </Card>
+            ))}
           <Card>
             <Field
               label="Código promocional"

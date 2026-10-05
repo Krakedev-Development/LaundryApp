@@ -1,3 +1,10 @@
+import { LocalHandoffRepository } from "./LocalHandoffRepository";
+import {
+  operationalStage,
+  advanceOperational,
+  migrateOrder,
+} from "./fulfillment";
+import { HandoffService, HandoffState } from "./HandoffService";
 import { eligibilityReasons } from "../services/geo/DispatchService";
 import { serviceAreaService } from "../services/geo/ServiceAreaService";
 import {
@@ -15,6 +22,7 @@ import {
   DRIVER_NEXT,
   isFinished,
   money,
+  normalizeFulfillmentDraft,
   pointsBalance,
   quote,
   reservedPoints,
@@ -30,7 +38,191 @@ export class DomainEngine {
   constructor(
     public data: AppData,
     private changed: (data: AppData) => void = () => {},
-  ) {}
+    private randomToken: () => string = () =>
+      Array.from(globalThis.crypto.getRandomValues(new Uint8Array(20)), (b) =>
+        b.toString(16).padStart(2, "0"),
+      ).join(""),
+  ) {
+    this.initializeWorkflow();
+  }
+  readonly handoffService = new HandoffService({
+    ...new LocalHandoffRepository(
+      () => this.data,
+      (work) => this.update((d) => work(d)),
+    ),
+    random: () => this.randomToken(),
+    actor: (id) => {
+      const customer = this.data.customers.find((c) => c.id === id);
+      if (customer) return { id, name: customer.name, role: "CLIENT" };
+      const driver = this.data.drivers.find((d) => d.id === id);
+      if (driver) return { id, name: driver.name, role: "DRIVER" };
+      const match = /^DEMO-(ADMIN|SUPERVISOR)-(FAC-\d+)$/.exec(id);
+      if (match && this.data.facilities.some((f) => f.id === match[2]))
+        return {
+          id,
+          name: "Operador demo de sede",
+          role: match[1] as "ADMIN" | "SUPERVISOR",
+          facilityId: match[2],
+        };
+      throw new Error("Operador no autorizado.");
+    },
+    paid: (o) => (o as Order).payment.status === "PAID",
+    declaredCount: (o) =>
+      (o as Order).items.reduce((n, i) => n + i.quantity, 0),
+    confirmed: (state, raw, h, actor) => {
+      const d = state as AppData;
+      const o = raw as Order;
+      const assignment = d.assignments.find(
+        (a) => a.id === h.driverAssignmentId,
+      );
+      if (assignment && h.receipt?.count !== undefined) {
+        assignment.actualCount = h.receipt.count;
+        assignment.expectedCount = h.receipt.declaredCount;
+      }
+      if (h.type === "CUSTOMER_TO_DRIVER") {
+        o.pickup.completedAt = h.usedAt;
+        o.pickup.notes = h.receipt?.notes ?? o.pickup.notes;
+      }
+      if (["DRIVER_TO_CUSTOMER", "FACILITY_TO_CUSTOMER"].includes(h.type)) {
+        o.delivery.completedAt = h.usedAt;
+        o.delivery.recipient = {
+          name: h.receipt!.recipient!,
+          relationship: h.receipt!.relationship!,
+        };
+      }
+      if (o.intakeHold && !o.intakeHold.resolvedAt)
+        o.incidents.push({
+          id: "INC-" + h.id,
+          description: o.intakeHold.description,
+          date: h.usedAt!,
+        });
+      if (
+        assignment &&
+        ["DRIVER_TO_FACILITY", "DRIVER_TO_CUSTOMER"].includes(h.type)
+      ) {
+        assignment.status = "COMPLETED";
+        assignment.completedAt = h.usedAt;
+        const driver = d.drivers.find((v) => v.id === assignment.driverId)!;
+        driver.operationalStatus = "AVAILABLE";
+      }
+      o.timeline.push({
+        id: this.id(d, "event"),
+        status: o.status,
+        actorId: actor.id,
+        timestamp: h.usedAt!,
+        notes:
+          h.receipt?.notes ??
+          "Transferencia confirmada mediante código. Validación local de demo.",
+        syncStatus: "SYNCED",
+      });
+      if (o.status === "COMPLETED") this.earnPoints(d, o);
+      this.notify(
+        d,
+        o.customerId,
+        "HANDOFF_CONFIRMED",
+        "Transferencia confirmada",
+        o.id,
+        o.id,
+      );
+    },
+  });
+  initializeWorkflow() {
+    this.data.facilities.forEach((f) => {
+      f.active ??= true;
+      f.acceptsCustomerDropoff ??= true;
+      f.allowsCustomerPickup ??= true;
+      f.openingHours ??= "Lunes a sábado, 08:00–18:00";
+      f.serviceAreaIds ??= serviceAreaService.areas
+        .filter((a) => a.facilityId === f.id)
+        .map((a) => a.id);
+    });
+    this.data.handoffs ??= [];
+    this.data.handoffAudits ??= [];
+    for (const [id, mode] of [
+      ["SOL-STORE-001", "STORE_STORE"],
+      ["SOL-HOME-001", "HOME_HOME"],
+    ] as const) {
+      if (this.data.orders.some((o) => o.id === id)) continue;
+      const template =
+        this.data.orders.find((o) => o.facilityId === "FAC-02") ??
+        this.data.orders[0];
+      if (!template) continue;
+      const o: Order = JSON.parse(JSON.stringify(template));
+      o.id = id;
+      o.status = "PICKUP_PENDING";
+      o.workflowVersion = undefined;
+      o.fulfillment = undefined;
+      o.intakeHold = undefined;
+      o.timeline = [];
+      o.pickup.completedAt = undefined;
+      o.delivery.completedAt = undefined;
+      o.delivery.recipient = undefined;
+      o.customerId = "CUST-001";
+      o.customerName = this.data.customers.find(
+        (c) => c.id === "CUST-001",
+      )!.name;
+      o.createdAt = new Date().toISOString();
+      o.updatedAt = o.createdAt;
+      o.assignments = [];
+      o.incidents = [];
+      o.payment = {
+        ...o.payment,
+        id: "PAY-" + id,
+        orderId: id,
+        transactionReference: "DEMO-" + id,
+        status: "PAID",
+      };
+      o.pickup.driverAssignmentId = undefined;
+      o.delivery.driverAssignmentId = undefined;
+      if (mode === "STORE_STORE") {
+        const f = this.data.facilities.find((f) => f.id === o.facilityId)!;
+        const a = {
+          id: f.id,
+          title: f.name,
+          fullAddress: f.address,
+          reference: "Ingreso y retiro en sede",
+          isPrimary: false,
+          coordinates: f.coordinates,
+          persistence: "demo" as const,
+        };
+        o.pickup.address = a;
+        o.delivery.address = a;
+        o.delivery.timeSlot = "Retiro al estar listo";
+      }
+      migrateOrder(o, mode);
+      if (mode === "STORE_STORE") {
+        o.pricing.deliveryFee = 0;
+        o.pricing.total = Number(
+          (
+            o.pricing.itemsSubtotal +
+            o.pricing.extrasTotal -
+            o.pricing.discount -
+            o.pricing.membershipBenefitDiscount -
+            (o.pricing.rewardDiscount ?? 0)
+          ).toFixed(2),
+        );
+      }
+      this.data.orders.unshift(o);
+    }
+    this.data.orders.forEach((o) => {
+      const legacy = o.workflowVersion !== 2;
+      migrateOrder(o);
+      for (const type of ["PICKUP", "DELIVERY"] as const) {
+        const leg =
+          type === "PICKUP" ? o.fulfillment!.inbound : o.fulfillment!.outbound;
+        const assignment = this.data.assignments.find(
+          (a) => a.id === leg.driverAssignmentId,
+        );
+        if (assignment) leg.driverId = assignment.driverId;
+      }
+      this.handoffService.initialize(
+        this.data,
+        o,
+        ["SOL-STORE-001", "SOL-HOME-001"].includes(o.id),
+        legacy,
+      );
+    });
+  }
   update(work: (next: AppData) => void) {
     const next: AppData = JSON.parse(JSON.stringify(this.data));
     work(next);
@@ -130,7 +322,8 @@ export class DomainEngine {
   ) {
     const timestamp = new Date().toISOString();
     const eventId = this.id(d, "event");
-    o.status = status;
+    advanceOperational(o, status);
+    this.handoffService.refresh(d, o);
     o.updatedAt = timestamp;
     o.timeline.push({
       id: eventId,
@@ -180,6 +373,7 @@ export class DomainEngine {
       throw new Error(
         "No pudimos procesar el pago con esta tarjeta de prueba. Cambia el método y reintenta.",
       );
+    draft = normalizeFulfillmentDraft(this.data, draft);
     const pricing = validateOrder(this.data, customer, draft);
     let created!: Order;
     this.update((d) => {
@@ -210,9 +404,12 @@ export class DomainEngine {
         pickup: draft.pickup!,
         delivery: draft.delivery!,
         rewardRedemptionId: draft.rewardRedemptionId,
-        facilityId: serviceAreaService.requireCoverage(
-          draft.pickup!.address.coordinates,
-        ).facilityId,
+        facilityId:
+          draft.fulfillmentMode === "STORE_STORE"
+            ? draft.facilityId!
+            : serviceAreaService.requireCoverage(
+                draft.pickup!.address.coordinates,
+              ).facilityId,
         assignments: [],
         incidents: [],
         timeline: [],
@@ -262,6 +459,8 @@ export class DomainEngine {
             customerSelectable: true,
           });
       }
+      migrateOrder(created, draft.fulfillmentMode ?? "HOME_HOME");
+      this.handoffService.initialize(d, created);
       this.event(d, created, "CREATED", customer.id, true);
       this.event(d, created, "PICKUP_PENDING", "mock-dispatch", true);
       d.orders.unshift(created);
@@ -285,11 +484,15 @@ export class DomainEngine {
   /** Simulated dispatch is owned by the mock service, never by the client or driver. */
   dispatch() {
     this.update((d) => {
-      for (const o of d.orders.filter((o) =>
-        ["PICKUP_PENDING", "DELIVERY_SCHEDULED"].includes(o.status),
+      for (const o of d.orders.filter(
+        (o) =>
+          o.fulfillment?.mode !== "STORE_STORE" &&
+          ["PICKUP_PENDING", "DELIVERY_SCHEDULED"].includes(
+            operationalStage(o),
+          ),
       )) {
         const destination = (
-          o.status === "DELIVERY_SCHEDULED" ? o.delivery : o.pickup
+          operationalStage(o) === "DELIVERY_SCHEDULED" ? o.delivery : o.pickup
         ).address.coordinates;
         const area = serviceAreaService.findArea(destination);
         const driver =
@@ -320,8 +523,11 @@ export class DomainEngine {
               ).length,
           );
         if (!driver) continue;
-        const delivery = o.status === "DELIVERY_SCHEDULED";
-        const id = this.id(d, "assignment");
+        const delivery = operationalStage(o) === "DELIVERY_SCHEDULED";
+        const id =
+          o.id === "SOL-HOME-001"
+            ? `${o.id}-${delivery ? "delivery" : "pickup"}`
+            : this.id(d, "assignment");
         const a: DriverAssignment = {
           id,
           orderId: o.id,
@@ -333,6 +539,9 @@ export class DomainEngine {
         d.assignments.push(a);
         o.assignments.push(id);
         (delivery ? o.delivery : o.pickup).driverAssignmentId = id;
+        const leg = delivery ? o.fulfillment!.outbound : o.fulfillment!.inbound;
+        leg.driverAssignmentId = id;
+        leg.driverId = driver.id;
         this.event(
           d,
           o,
@@ -367,11 +576,20 @@ export class DomainEngine {
   ) {
     const driver = this.driver(session);
     const current = this.order(session, orderId);
+    if (["PICKED_UP", "AT_FACILITY", "DELIVERED"].includes(target))
+      throw new Error("Verifica y confirma el código de transferencia.");
+    if (
+      target === "OUT_FOR_DELIVERY" &&
+      current.fulfillment?.outbound.milestone !== "RELEASED"
+    )
+      throw new Error(
+        "La sede debe confirmar la salida mediante código antes de iniciar navegación.",
+      );
     const a = activeAssignment(this.data, current);
     if (
       !a ||
       a.driverId !== driver.id ||
-      DRIVER_NEXT[current.status]?.status !== target
+      DRIVER_NEXT[operationalStage(current)]?.status !== target
     )
       throw new Error(
         "Esta acción no corresponde al estado actual de tu servicio.",
@@ -501,6 +719,8 @@ export class DomainEngine {
   plantTick() {
     this.update((d) => {
       for (const o of d.orders) {
+        if (o.status === "READY" || (o.intakeHold && !o.intakeHold.resolvedAt))
+          continue;
         const step = (
           {
             AT_FACILITY: "IN_PROCESS",
@@ -509,7 +729,7 @@ export class DomainEngine {
             READY_FOR_DELIVERY: "DELIVERY_SCHEDULED",
             DELIVERED: "CLOSED",
           } as Partial<Record<OrderStatus, OrderStatus>>
-        )[o.status];
+        )[operationalStage(o)];
         if (step && !d.pendingOperations.some((p) => p.orderId === o.id))
           this.event(
             d,
@@ -546,7 +766,8 @@ export class DomainEngine {
     if (!r) throw new Error("Recompensa no disponible.");
     const delivered = this.data.orders.filter(
       (o) =>
-        o.customerId === c.id && ["DELIVERED", "CLOSED"].includes(o.status),
+        o.customerId === c.id &&
+        ["DELIVERED", "CLOSED"].includes(operationalStage(o)),
     );
     if (
       c.previousPurchases + delivered.length < r.minPurchases ||
@@ -703,7 +924,11 @@ export class DomainEngine {
     let distance = 0;
     for (const a of assignments) {
       const o = this.data.orders.find((v) => v.id === a.orderId)!;
-      const target = ["PICKED_UP", "HEADING_TO_FACILITY"].includes(o.status)
+      const target = [
+        "PICKED_UP",
+        "HEADING_TO_FACILITY",
+        "ARRIVED_AT_FACILITY",
+      ].includes(operationalStage(o))
         ? this.data.facilities.find((f) => f.id === o.facilityId)!.coordinates
         : (a.type === "PICKUP" ? o.pickup : o.delivery).address.coordinates;
       distance += routeDistance(position, target);

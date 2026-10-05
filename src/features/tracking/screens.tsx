@@ -1,3 +1,4 @@
+import { operationalStage } from '../../domain/fulfillment';
 import React from "react";
 import { Text } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -31,12 +32,12 @@ export function TrackingScreen() {
   }
   const assignment = activeAssignment(data, order);
   const driver = data.drivers.find((d) => d.id === assignment?.driverId);
-  if (!trackingAvailable(order.status) || !driver)
+  if (!trackingAvailable(operationalStage(order)) || !driver)
     return (
       <Page>
         <AppHeader title="Seguimiento" />
         <Card>
-          <Text style={ui.section}>{ORDER_STATUS_LABELS[order.status]}</Text>
+          <Text style={ui.section}>{ORDER_STATUS_LABELS[operationalStage(order)]}</Text>
           <Text style={ui.muted}>
             El mapa se habilita cuando tu chofer está en camino a recogida o
             entrega.
@@ -53,13 +54,13 @@ export function TrackingScreen() {
   return (
     <Page>
       <AppHeader title="Seguimiento" subtitle={id} icon="navigate-outline" />
-      <Badge title={ORDER_STATUS_LABELS[order.status]} />
+      <Badge title={ORDER_STATUS_LABELS[operationalStage(order)]} />
       <RouteMap
         origin={driver.location}
         destination={target.coordinates}
         label={target.title}
         height={380}
-        stage={order.id + ":" + order.status}
+        stage={order.id + ":" + operationalStage(order)}
       />
       <Card>
         <Text style={ui.section}>{driver.name}</Text>

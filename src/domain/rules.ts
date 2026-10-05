@@ -1,3 +1,4 @@
+import { operationalStage } from "./fulfillment";
 import { serviceAreaService } from "../services/geo/ServiceAreaService";
 import { businessConfig as config } from "../config/business";
 import {
@@ -42,7 +43,7 @@ export const timeLabel = (date: string) =>
     timeZone: config.timezone,
   });
 export const isFinished = (status: OrderStatus) =>
-  ["DELIVERED", "CLOSED", "CANCELLED"].includes(status);
+  ["DELIVERED", "CLOSED", "COMPLETED", "CANCELLED"].includes(status);
 export const trackingAvailable = (status: OrderStatus) =>
   [
     "HEADING_TO_PICKUP",
@@ -69,8 +70,8 @@ export const DRIVER_NEXT: Partial<
   ARRIVED_FOR_PICKUP: { status: "PICKED_UP", label: "Confirmar recogida" },
   PICKED_UP: { status: "HEADING_TO_FACILITY", label: "Ir a planta" },
   HEADING_TO_FACILITY: {
-    status: "AT_FACILITY",
-    label: "Confirmar entrega en planta",
+    status: "ARRIVED_AT_FACILITY",
+    label: "Marcar llegada a planta",
   },
   DELIVERY_ASSIGNED: {
     status: "OUT_FOR_DELIVERY",
@@ -182,7 +183,8 @@ export function membershipRemaining(
       data.orders.filter(
         (o) =>
           o.customerId === customer.id &&
-          o.status !== "CANCELLED" &&
+          o.fulfillment?.mode !== "STORE_STORE" &&
+          operationalStage(o) !== "CANCELLED" &&
           o.pickup.date >= start &&
           o.pickup.date < end,
       ).length,
@@ -212,7 +214,7 @@ export function promotionFor(
     (o) =>
       o.customerId === customer.id &&
       o.promotionId === promo.id &&
-      o.status !== "CANCELLED",
+      operationalStage(o) !== "CANCELLED",
   ).length;
   if (promo.usageCount >= promo.usageLimit || uses >= promo.perCustomerLimit)
     throw new Error("Esta promoción alcanzó su límite de usos.");
@@ -359,9 +361,11 @@ export function quote(
     }
   }
   const deliveryFee =
-    membershipRemaining(data, customer, draft.pickup?.date || today()) > 0
-      ? 0
-      : config.deliveryFee;
+    draft.fulfillmentMode === "STORE_STORE"
+      ? config.storePricing.transportFee
+      : membershipRemaining(data, customer, draft.pickup?.date || today()) > 0
+        ? 0
+        : config.deliveryFee;
   return {
     itemsSubtotal,
     extrasTotal,
@@ -381,30 +385,79 @@ export function quote(
     ),
   };
 }
+export function normalizeFulfillmentDraft(data: AppData, draft: Draft): Draft {
+  if (draft.fulfillmentMode !== "STORE_STORE") return draft;
+  const f = data.facilities.find((f) => f.id === draft.facilityId);
+  if (
+    !f ||
+    f.active === false ||
+    f.acceptsCustomerDropoff === false ||
+    f.allowsCustomerPickup === false
+  )
+    throw new Error("Selecciona una sede que permita ingreso y retiro.");
+  const appointment = draft.customerDropoff ?? draft.pickup;
+  const address: Address = {
+    id: f.id,
+    title: f.name,
+    fullAddress: f.address,
+    reference: "Ingreso y retiro en sede",
+    isPrimary: false,
+    coordinates: f.coordinates,
+    persistence: "demo",
+  };
+  const date = appointment?.date ?? "";
+  return {
+    ...draft,
+    pickup: {
+      address,
+      date,
+      timeSlot: appointment?.timeSlot ?? "",
+      notes: appointment?.notes ?? "",
+    },
+    delivery: {
+      address,
+      date: deliveryDates(data, draft.items, date)[0] ?? date,
+      timeSlot: "Retiro al estar listo",
+      notes: "",
+    },
+  };
+}
 export function validateOrder(data: AppData, customer: Customer, draft: Draft) {
+  draft = normalizeFulfillmentDraft(data, draft);
   if (customer.kycStatus !== "APPROVED")
     throw new Error(
       "Necesitamos aprobar tu identidad antes de crear solicitudes.",
     );
   if (!draft.items.length) throw new Error("Agrega al menos una prenda.");
   validateSchedule(draft.pickup);
-  validateSchedule(draft.delivery);
-  serviceAreaService.requireCoverage(draft.pickup!.address.coordinates);
-  serviceAreaService.requireCoverage(draft.delivery!.address.coordinates);
-  if (
-    [draft.pickup!.address, draft.delivery!.address].some(
-      (a) => a.persistence === "temporary",
+  if (draft.fulfillmentMode === "STORE_STORE") {
+    const f = data.facilities.find((f) => f.id === draft.facilityId);
+    if (
+      !f ||
+      f.active === false ||
+      f.acceptsCustomerDropoff === false ||
+      f.allowsCustomerPickup === false
     )
-  )
-    throw new Error("Confirma una dirección que pueda guardarse.");
-  if (
-    !deliveryDates(data, draft.items, draft.pickup!.date).includes(
-      draft.delivery!.date,
+      throw new Error("Selecciona una sede que permita ingreso y retiro.");
+  } else {
+    validateSchedule(draft.delivery);
+    serviceAreaService.requireCoverage(draft.pickup!.address.coordinates);
+    serviceAreaService.requireCoverage(draft.delivery!.address.coordinates);
+    if (
+      [draft.pickup!.address, draft.delivery!.address].some(
+        (a) => a.persistence === "temporary",
+      )
     )
-  )
-    throw new Error(
-      "La fecha de entrega no permite completar el cuidado de tus prendas.",
-    );
+      throw new Error("Confirma una dirección que pueda guardarse.");
+    if (
+      !deliveryDates(data, draft.items, draft.pickup!.date).includes(
+        draft.delivery!.date,
+      )
+    )
+      throw new Error(
+        "La fecha de entrega no permite completar el cuidado de tus prendas.",
+      );
+  }
   const pricing = quote(data, customer, draft);
   if (pricing.total < config.minimumOrder)
     throw new Error(`El pedido mínimo es ${formatMoney(config.minimumOrder)}.`);
