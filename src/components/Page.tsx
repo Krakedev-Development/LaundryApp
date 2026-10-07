@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
@@ -10,31 +10,23 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation, useRoute } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import {
+  useIsFocused,
+  useNavigationState,
+  useRoute,
+} from "@react-navigation/native";
 import { useApp } from "../store/AppProvider";
 import { currentCustomer } from "../domain/repository";
 import { titles, type Routes } from "../navigation/routes";
-import { Body, Button, colors, Icon, ui, type IconName } from "./ui";
-
-type Tab = { route: keyof Routes; label: string; icon: IconName };
-const clientTabs: Tab[] = [
-  { route: "ClientHome", label: "Inicio", icon: "home-outline" },
-  { route: "ClientOrders", label: "Pedidos", icon: "receipt-outline" },
-  {
-    route: "ClientNewOrderWizard",
-    label: "Solicitar",
-    icon: "add-circle-outline",
-  },
-  { route: "ClientBenefits", label: "Beneficios", icon: "gift-outline" },
-  { route: "ClientProfile", label: "Cuenta", icon: "settings-outline" },
-];
-const driverTabs: Tab[] = [
-  { route: "DriverRoute", label: "Mi ruta", icon: "navigate-outline" },
-  { route: "DriverServices", label: "Servicios", icon: "list-outline" },
-  { route: "DriverHistory", label: "Historial", icon: "time-outline" },
-  { route: "DriverProfile", label: "Cuenta", icon: "settings-outline" },
-];
+import { Body, Button, colors, Icon, ui } from "./ui";
+import { NavigationBar } from "./NavigationBar";
+import {
+  clientTabs,
+  driverTabs,
+  primaryTabTarget,
+  type Tab,
+} from "../navigation/primaryTabs";
+import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
 const fullScreen = [
   "ClientNewOrderWizard",
   "ClientTracking",
@@ -62,7 +54,8 @@ export function Page({
   scroll?: boolean;
 }) {
   const { state, execute, reset, error, retry } = useApp();
-  const navigation = useNavigation<NativeStackNavigationProp<Routes>>();
+  const navigation = useLaundryNavigation();
+  const focused = useIsFocused();
   const route = useRoute();
   const name = route.name as keyof Routes;
   const [drawer, setDrawer] = useState(false),
@@ -70,20 +63,45 @@ export function Page({
   const isClient = state.session?.role === "CLIENT";
   const user = isClient ? currentCustomer(state) : state.driver;
   const tabs = isClient ? clientTabs : driverTabs;
+  const primary = primaryTabTarget(name);
+  const activeTab = useNavigationState((navigationState) => {
+    if (navigationState.type === "tab")
+      return navigationState.routes[navigationState.index].name;
+    const tabState = navigationState.routes.find(
+      (r) => r.name === (isClient ? "ClientTabs" : "DriverTabs"),
+    )?.state;
+    return (
+      tabState?.routes[tabState.index ?? 0]?.name ??
+      (isClient ? "ClientHome" : "DriverRoute")
+    );
+  });
+  useEffect(() => {
+    if (!focused) {
+      setDrawer(false);
+      setResetConfirm(false);
+    }
+  }, [focused]);
   const authenticated =
     !!state.session &&
     (isClient
       ? currentCustomer(state).kycStatus === "APPROVED"
       : !state.driver.mustChangePassword);
-  const navigate = (target: keyof Routes) => {
+  const navigate = (
+    target:
+      | Tab["route"]
+      | "ClientNotifications"
+      | "ClientWallet"
+      | "ClientAddresses"
+      | "ClientSupport",
+  ) => {
     setDrawer(false);
-    navigation.navigate(target as "ClientHome");
+    navigation.navigate(target);
   };
-  const showTabs = authenticated && !fullScreen.includes(name);
+  const showTabs = authenticated && !primary && !fullScreen.includes(name);
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: colors.background }}
-      edges={["top", "bottom"]}
+      edges={primary ? ["top"] : ["top", "bottom"]}
     >
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -157,7 +175,7 @@ export function Page({
           </View>
           <View style={[ui.row, { justifyContent: "space-between" }]}>
             <View style={[ui.row, { flex: 1, flexWrap: "nowrap" }]}>
-              {authenticated && !tabs.some((t) => t.route === name) && (
+              {authenticated && !primary && (
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Atrás"
@@ -225,46 +243,14 @@ export function Page({
           </View>
         )}
         {showTabs && (
-          <View
-            style={{
-              flexDirection: "row",
-              borderTopWidth: 1,
-              borderColor: colors.border,
-              backgroundColor: colors.surface,
-            }}
-          >
-            {tabs.map((tab) => (
-              <Pressable
-                key={tab.route}
-                accessibilityRole="tab"
-                accessibilityLabel={tab.label}
-                accessibilityState={{ selected: name === tab.route }}
-                onPress={() => navigate(tab.route)}
-                style={{
-                  flex: 1,
-                  alignItems: "center",
-                  gap: 3,
-                  paddingVertical: 10,
-                }}
-              >
-                <Icon
-                  name={tab.icon}
-                  color={name === tab.route ? colors.primary : colors.muted}
-                />
-                <Text
-                  style={{
-                    fontSize: 11,
-                    color: name === tab.route ? colors.primary : colors.muted,
-                  }}
-                >
-                  {tab.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+          <NavigationBar
+            tabs={tabs}
+            activeRoute={activeTab}
+            onSelect={navigate}
+          />
         )}
         <Modal
-          visible={drawer}
+          visible={focused && drawer}
           transparent
           animationType="fade"
           onRequestClose={() => setDrawer(false)}
@@ -371,7 +357,7 @@ export function Page({
           </View>
         </Modal>
         <Modal
-          visible={resetConfirm}
+          visible={focused && resetConfirm}
           transparent
           animationType="fade"
           onRequestClose={() => setResetConfirm(false)}

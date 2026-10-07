@@ -27,6 +27,7 @@ import {
   type PricingModel,
 } from "../domain/models";
 import type { ScreenProps } from "../navigation/routes";
+import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
 
 const blankLeg = (): Leg => ({
   method: "DRIVER",
@@ -80,10 +81,8 @@ export function PricingSummary({
     </Card>
   );
 }
-export function NewOrderScreen({
-  navigation,
-  route,
-}: ScreenProps<"ClientNewOrderWizard">) {
+export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
+  const navigation = useLaundryNavigation();
   const { state, execute } = useApp();
   const c = currentCustomer(state);
   const a = useAction();

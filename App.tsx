@@ -6,7 +6,8 @@ import { StatusBar } from "expo-status-bar";
 import { AppProvider, useApp } from "./src/store/AppProvider";
 import { currentCustomer } from "./src/domain/repository";
 import { Button, colors, ui } from "./src/components/ui";
-import type { Routes } from "./src/navigation/routes";
+import type { RootRoutes } from "./src/navigation/routes";
+import { ClientMainTabs, DriverMainTabs } from "./src/navigation/MainTabs";
 import {
   KycPendingScreen,
   KycRejectedScreen,
@@ -17,18 +18,11 @@ import {
   RegisterScreen,
   SplashScreen,
 } from "./src/screens/AuthScreens";
-import {
-  ClientHomeScreen,
-  ClientOrderDetailScreen,
-  ClientOrdersScreen,
-} from "./src/screens/ClientOrderScreens";
+import { ClientOrderDetailScreen } from "./src/screens/ClientOrderScreens";
 import { NewOrderScreen } from "./src/screens/NewOrderScreen";
 import {
   AddressesScreen,
-  BenefitsScreen,
   BillingScreen,
-  ClientProfileScreen,
-  DriverProfileScreen,
   NotificationsScreen,
   SupportScreen,
   WalletScreen,
@@ -40,14 +34,11 @@ import {
 } from "./src/screens/TrackingAndChatScreens";
 import {
   DriverDeliveryConfirmScreen,
-  DriverHistoryScreen,
   DriverPickupConfirmScreen,
-  DriverRouteScreen,
   DriverServiceDetailScreen,
-  DriverServicesScreen,
 } from "./src/screens/DriverScreens";
 
-const Stack = createNativeStackNavigator<Routes>();
+const Stack = createNativeStackNavigator<RootRoutes>();
 function SecurityScreen() {
   return <PasswordScreen />;
 }
@@ -97,13 +88,13 @@ function Navigation() {
       : state.driver.mustChangePassword
         ? "password"
         : "driver";
-  const initial: keyof Routes =
+  const initial: keyof RootRoutes =
     flow === "auth"
       ? "Login"
       : flow === "client"
-        ? "ClientHome"
+        ? "ClientTabs"
         : flow === "driver"
-          ? "DriverRoute"
+          ? "DriverTabs"
           : flow === "password"
             ? "DriverChangePassword"
             : c.kycStatus === "PENDING"
@@ -118,7 +109,7 @@ function Navigation() {
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: colors.background },
-          animation: "slide_from_right",
+          animation: "fade",
         }}
       >
         {flow === "auth" ? (
@@ -141,20 +132,15 @@ function Navigation() {
           />
         ) : flow === "client" ? (
           <>
-            <Stack.Screen name="ClientHome" component={ClientHomeScreen} />
-            <Stack.Screen name="ClientOrders" component={ClientOrdersScreen} />
+            <Stack.Screen name="ClientTabs" component={ClientMainTabs} />
             <Stack.Screen
               name="ClientNewOrderWizard"
               component={NewOrderScreen}
             />
-            <Stack.Screen name="ClientBenefits" component={BenefitsScreen} />
-            <Stack.Screen
-              name="ClientProfile"
-              component={ClientProfileScreen}
-            />
             <Stack.Screen
               name="ClientOrderDetail"
               component={ClientOrderDetailScreen}
+              getId={({ params }) => params.orderId}
             />
             <Stack.Screen name="ClientTracking" component={TrackingScreen} />
             <Stack.Screen name="ClientWallet" component={WalletScreen} />
@@ -170,22 +156,11 @@ function Navigation() {
           </>
         ) : (
           <>
-            <Stack.Screen name="DriverRoute" component={DriverRouteScreen} />
-            <Stack.Screen
-              name="DriverServices"
-              component={DriverServicesScreen}
-            />
-            <Stack.Screen
-              name="DriverHistory"
-              component={DriverHistoryScreen}
-            />
-            <Stack.Screen
-              name="DriverProfile"
-              component={DriverProfileScreen}
-            />
+            <Stack.Screen name="DriverTabs" component={DriverMainTabs} />
             <Stack.Screen
               name="DriverServiceDetail"
               component={DriverServiceDetailScreen}
+              getId={({ params }) => params.orderId}
             />
             <Stack.Screen name="DriverMap" component={DriverMapScreen} />
             <Stack.Screen

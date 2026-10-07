@@ -20,6 +20,118 @@ async function slot(page) {
     .last()
     .click();
 }
+test("client sections preserve filters and the bottom bar while switching tabs and menu", async ({
+  page,
+}) => {
+  await page.getByRole("tab", { name: "Pedidos", exact: true }).click();
+  await page.getByRole("radio", { name: "Historial", exact: true }).click();
+  await page
+    .getByRole("radio", { name: "Entrega y retiro en sede", exact: true })
+    .click();
+  const bar = page.getByRole("tablist");
+  const initialBounds = await bar.boundingBox();
+  for (const name of ["Beneficios", "Cuenta", "Inicio", "Pedidos"]) {
+    await page.getByRole("tab", { name, exact: true }).click();
+    await expect(page.getByRole("tab", { name, exact: true })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await expect(bar).toHaveCount(1);
+    expect(await bar.boundingBox()).toEqual(initialBounds);
+  }
+  await expect(
+    page.getByRole("radio", { name: "Historial", exact: true }),
+  ).toBeChecked();
+  await expect(
+    page.getByRole("radio", { name: "Entrega y retiro en sede", exact: true }),
+  ).toBeChecked();
+  for (let i = 0; i < 2; i++) {
+    await page
+      .getByRole("button", { name: "Abrir menú lateral", exact: true })
+      .click();
+    await page.getByRole("button", { name: "Inicio", exact: true }).click();
+    await expect(page.getByText("Ropa fresca, tiempo para ti.")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Cerrar menú", exact: true }),
+    ).not.toBeVisible();
+    await page.getByRole("tab", { name: "Pedidos", exact: true }).click();
+    await expect(
+      page.getByRole("radio", { name: "Historial", exact: true }),
+    ).toBeChecked();
+  }
+});
+
+test("driver sections retain the service filter when leaving and returning", async ({
+  page,
+}) => {
+  await switchRole(page, "chofer");
+  await page.getByRole("tab", { name: "Servicios", exact: true }).click();
+  await page.getByRole("radio", { name: "Próximos", exact: true }).click();
+  for (const name of ["Cuenta", "Historial", "Mi ruta", "Servicios"]) {
+    await page.getByRole("tab", { name, exact: true }).click();
+    await expect(page.getByRole("tab", { name, exact: true })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await expect(page.getByRole("tablist")).toHaveCount(1);
+  }
+  await expect(
+    page.getByRole("radio", { name: "Próximos", exact: true }),
+  ).toBeChecked();
+});
+
+test("returning from tracking reuses the order detail and back returns to its origin", async ({
+  page,
+}) => {
+  await page
+    .getByRole("button", { name: "Ver detalle de SOL-4587", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Seguir chofer en mapa", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Seguimiento", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Volver al detalle", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Detalle de solicitud", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Atrás", exact: true }).click();
+  await expect(page.getByText("Ropa fresca, tiempo para ti.")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Atrás", exact: true }),
+  ).not.toBeVisible();
+});
+
+test("opening addresses from a request preserves its draft and returns to the same step", async ({
+  page,
+}) => {
+  await page.getByRole("tab", { name: "Solicitar", exact: true }).click();
+  const address = page.getByRole("radio", { name: /^Casa ·/ });
+  await address.click();
+  await slot(page);
+  await page
+    .getByRole("button", { name: "Administrar direcciones", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Direcciones guardadas", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Atrás", exact: true }).click();
+  await expect(address).toBeChecked();
+  await expect(
+    page.getByRole("radio", { name: /^\d{4}-\d{2}-\d{2} ·/ }).last(),
+  ).toBeChecked();
+  await page.getByRole("button", { name: "Continuar", exact: true }).click();
+  await expect(
+    page.getByRole("radio", {
+      name: "Chofer entrega en domicilio",
+      exact: true,
+    }),
+  ).toBeVisible();
+});
+
 test("profile lives in sidebar; billing and addresses persist across reload", async ({
   page,
 }) => {

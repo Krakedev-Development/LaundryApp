@@ -38,8 +38,10 @@ import {
   type Order,
 } from "../domain/models";
 import type { ScreenProps } from "../navigation/routes";
+import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
 
-export function ClientHomeScreen({ navigation }: ScreenProps<"ClientHome">) {
+export function ClientHomeScreen() {
+  const navigation = useLaundryNavigation();
   const { state } = useApp();
   const c = currentCustomer(state);
   const orders = visibleOrders(state);
@@ -125,9 +127,8 @@ export function ClientHomeScreen({ navigation }: ScreenProps<"ClientHome">) {
     </Page>
   );
 }
-export function ClientOrdersScreen({
-  navigation,
-}: ScreenProps<"ClientOrders">) {
+export function ClientOrdersScreen() {
+  const navigation = useLaundryNavigation();
   const { state } = useApp();
   const [history, setHistory] = useState(false),
     [mode, setMode] = useState<Mode | "ALL">("ALL");
@@ -281,9 +282,9 @@ export function DemoPlantActions({ order }: { order: Order }) {
   );
 }
 export function ClientOrderDetailScreen({
-  navigation,
   route,
 }: ScreenProps<"ClientOrderDetail">) {
+  const navigation = useLaundryNavigation();
   const { state, execute } = useApp();
   const order = visibleOrders(state).find((o) => o.id === route.params.orderId);
   const a = useAction();

@@ -203,6 +203,7 @@ export function Choice({
       accessibilityRole="radio"
       accessibilityLabel={label}
       accessibilityState={{ checked: selected, disabled }}
+      aria-checked={selected}
       disabled={disabled}
       onPress={onPress}
       style={[
@@ -237,6 +238,7 @@ export function Check({
       accessibilityRole="checkbox"
       accessibilityLabel={label}
       accessibilityState={{ checked }}
+      aria-checked={checked}
       onPress={() => onChange(!checked)}
       style={ui.row}
     >

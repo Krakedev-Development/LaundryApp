@@ -23,11 +23,10 @@ import {
   type Address,
   type Customer,
 } from "../domain/models";
-import type { ScreenProps } from "../navigation/routes";
+import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
 
-export function ClientProfileScreen({
-  navigation,
-}: ScreenProps<"ClientProfile">) {
+export function ClientProfileScreen() {
+  const navigation = useLaundryNavigation();
   const { state, execute } = useApp();
   const c = currentCustomer(state);
   return (
@@ -103,7 +102,8 @@ export function ClientProfileScreen({
     </Page>
   );
 }
-export function BenefitsScreen({ navigation }: ScreenProps<"ClientBenefits">) {
+export function BenefitsScreen() {
+  const navigation = useLaundryNavigation();
   const { state, execute } = useApp();
   const c = currentCustomer(state);
   const a = useAction();
@@ -510,9 +510,8 @@ export function BillingScreen() {
     </Page>
   );
 }
-export function NotificationsScreen({
-  navigation,
-}: ScreenProps<"ClientNotifications">) {
+export function NotificationsScreen() {
+  const navigation = useLaundryNavigation();
   const { state, execute } = useApp();
   const c = currentCustomer(state);
   const notifications = state.notifications.filter(

@@ -32,13 +32,11 @@ import {
   type Order,
 } from "../domain/models";
 import type { ScreenProps } from "../navigation/routes";
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import type { Routes } from "../navigation/routes";
+import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
 
 function DriverAction({ order }: { order: Order }) {
   const { execute } = useApp();
-  const navigation = useNavigation<NativeStackNavigationProp<Routes>>();
+  const navigation = useLaundryNavigation();
   const a = useAction();
   const actions = {
     PICKUP_ASSIGNED: ["Iniciar navegación de recogida", "START_PICKUP"],
@@ -85,7 +83,8 @@ function DriverAction({ order }: { order: Order }) {
     </View>
   );
 }
-export function DriverRouteScreen({ navigation }: ScreenProps<"DriverRoute">) {
+export function DriverRouteScreen() {
+  const navigation = useLaundryNavigation();
   const { state, execute } = useApp();
   const d = state.driver;
   const orders = visibleOrders(state).filter(
@@ -167,9 +166,8 @@ export function DriverRouteScreen({ navigation }: ScreenProps<"DriverRoute">) {
     </Page>
   );
 }
-export function DriverServicesScreen({
-  navigation,
-}: ScreenProps<"DriverServices">) {
+export function DriverServicesScreen() {
+  const navigation = useLaundryNavigation();
   const { state } = useApp();
   const [upcoming, setUpcoming] = useState(false);
   const active = (o: Order) =>
@@ -208,9 +206,9 @@ export function DriverServicesScreen({
   );
 }
 export function DriverServiceDetailScreen({
-  navigation,
   route,
 }: ScreenProps<"DriverServiceDetail">) {
+  const navigation = useLaundryNavigation();
   const { state } = useApp();
   const o = visibleOrders(state).find((o) => o.id === route.params.orderId);
   if (!o)
@@ -289,9 +287,9 @@ export function DriverServiceDetailScreen({
   );
 }
 export function DriverPickupConfirmScreen({
-  navigation,
   route,
 }: ScreenProps<"DriverPickupConfirm">) {
+  const navigation = useLaundryNavigation();
   const { state, execute } = useApp();
   const o = visibleOrders(state).find((o) => o.id === route.params.orderId);
   const a = useAction();
@@ -376,9 +374,9 @@ export function DriverPickupConfirmScreen({
   );
 }
 export function DriverDeliveryConfirmScreen({
-  navigation,
   route,
 }: ScreenProps<"DriverDeliveryConfirm">) {
+  const navigation = useLaundryNavigation();
   const { state, execute } = useApp();
   const o = visibleOrders(state).find((o) => o.id === route.params.orderId);
   const a = useAction();
@@ -460,9 +458,8 @@ export function DriverDeliveryConfirmScreen({
     </Page>
   );
 }
-export function DriverHistoryScreen({
-  navigation,
-}: ScreenProps<"DriverHistory">) {
+export function DriverHistoryScreen() {
+  const navigation = useLaundryNavigation();
   const { state } = useApp();
   const [filter, setFilter] = useState("Todos");
   const orders = visibleOrders(state)

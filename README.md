@@ -56,7 +56,11 @@ El identificador Android se conserva: `com.aistudio.applet.mpsvkf`. La firma y l
 
 ## Repositorio
 
-El punto de entrada es `index.js` → `App.tsx`. `src/domain` contiene el dominio migrado, `src/store` la persistencia, `src/screens` las pantallas y `src/components` los controles reutilizables. El registro de navegación vive en `src/navigation/routes.ts` y `App.tsx`.
+El punto de entrada es `index.js` → `App.tsx`. `src/domain` contiene el dominio migrado, `src/store` la persistencia, `src/screens` las pantallas y `src/components` los controles reutilizables. El registro de navegación vive en `src/navigation/routes.ts`, `src/navigation/MainTabs.tsx` y `App.tsx`.
+
+Las secciones principales usan pestañas persistentes: cambiar de sección conserva sus filtros y posición sin agregar pantallas al historial. Solicitar, detalles, mapas y confirmaciones usan una pila separada con transiciones de fundido. Los accesos del menú vuelven a la pestaña existente; regresar desde seguimiento reutiliza el detalle del mismo pedido. En Android, «Atrás» desde una pestaña secundaria vuelve a Inicio o Mi ruta.
+
+Esta estructura usa el [navegador oficial de pestañas](https://reactnavigation.org/docs/bottom-tab-navigator/) y la [navegación anidada de React Navigation](https://reactnavigation.org/docs/nesting-navigators/).
 
 La estructura contiene únicamente el proyecto React Native con Expo. Se eliminaron el código Kotlin original, `app/`, `gradle/`, `.gradle/` y los archivos raíz del proyecto Android Studio. La configuración Android de Expo en `app.json`, `app.config.ts` y `eas.json` permite ejecutar y compilar la aplicación para esa plataforma.
 

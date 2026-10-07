@@ -10,9 +10,7 @@ import {
 } from "../domain/repository";
 import type { Leg } from "../domain/models";
 import { Badge, Body, Button, Card, Choice, Title } from "./ui";
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import type { Routes } from "../navigation/routes";
+import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
 export function FulfillmentPicker({
   leg,
   value,
@@ -24,7 +22,7 @@ export function FulfillmentPicker({
 }) {
   const { state } = useApp();
   const c = currentCustomer(state);
-  const nav = useNavigation<NativeStackNavigationProp<Routes>>();
+  const nav = useLaundryNavigation();
   const slots = state.timeSlots.filter(
     (s) => s.context === slotContext(leg, value.method) && s.date >= today(),
   );

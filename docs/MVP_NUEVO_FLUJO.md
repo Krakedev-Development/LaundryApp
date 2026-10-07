@@ -1,6 +1,6 @@
 # Migración Android a Expo
 
-La migración tomó como referencia el prototipo Kotlin recibido. Sus 30 rutas tienen una ruta correspondiente en `src/navigation/routes.ts` y un registro en `App.tsx`. El proyecto Android Studio original se eliminó después de la migración; las tablas siguientes conservan el inventario de pantallas y acciones implementadas en Expo. La aplicación y sus pruebas usan únicamente el código React Native de este repositorio.
+La migración tomó como referencia el prototipo Kotlin recibido. Sus 30 rutas tienen una ruta correspondiente en `src/navigation/routes.ts` y un registro en `App.tsx` o `src/navigation/MainTabs.tsx`. El proyecto Android Studio original se eliminó después de la migración; las tablas siguientes conservan el inventario de pantallas y acciones implementadas en Expo. La aplicación y sus pruebas usan únicamente el código React Native de este repositorio.
 
 ## Pantallas y navegación
 
@@ -37,7 +37,7 @@ La migración tomó como referencia el prototipo Kotlin recibido. Sus 30 rutas t
 | DriverDeliveryConfirm | DriverScreens.tsx / DriverDeliveryConfirmScreen  | Nombre, relación, observaciones, evidencia y aceptación                              |
 | DriverChangePassword  | AuthScreens.tsx / PasswordScreen forced          | Cambio obligatorio antes de ingresar a la ruta                                       |
 
-La navegación reinicia la pila al cambiar cuenta, rol o estado de verificación, para impedir regresar a un flujo que ya no corresponda a la sesión. El botón físico de Android y los controles «Atrás» usan la pila nativa. Las pestañas conservan Inicio/Pedidos/Solicitar/Beneficios/Cuenta para cliente y Ruta/Servicios/Historial/Cuenta para chofer.
+La navegación reinicia la pila al cambiar cuenta, rol o estado de verificación, para impedir regresar a un flujo que ya no corresponda a la sesión. Las secciones principales usan el navegador oficial de pestañas de React Navigation con cambios sin animación lateral y estado persistente. El botón físico de Android vuelve a Inicio o Mi ruta desde una pestaña secundaria; los controles «Atrás» de detalles, mapas y formularios vuelven a su pantalla de origen. Abrir un destino existente reutiliza esa pantalla y evita duplicar el historial. Las pestañas conservan Inicio/Pedidos/Solicitar/Beneficios/Cuenta para cliente y Ruta/Servicios/Historial/Cuenta para chofer; Solicitar abre el asistente sobre la sección actual. Los detalles usan un fundido y los menús se cierran al perder foco.
 
 ## Repositorio y reglas de negocio
 
@@ -88,7 +88,9 @@ La migración completa los controles que el prototipo solo simulaba: login y reg
 
 ## Validación y límites
 
-Resultado de revisión de la migración: 19 pruebas de dominio y persistencia aprobadas, 7 recorridos de interfaz aprobados en Microsoft Edge a 412 × 915, tipos correctos, 21/21 comprobaciones de Expo Doctor y exportaciones web y Android correctas. Auditoría de las 30 rutas nativas sin rutas faltantes y de exclusiones Git sin dependencias, secretos ni resultados generados entre los archivos nuevos del repositorio.
+Resultado de revisión después del ajuste de navegación: 19 pruebas de dominio y persistencia aprobadas, 11 recorridos de interfaz aprobados en Microsoft Edge a 412 × 915, tipos correctos y exportaciones web y Android correctas. Las pruebas cubren las cuatro modalidades, el recorrido del chofer, KYC, persistencia, filtros al cambiar de pestaña, barra inferior estable, retorno desde seguimiento sin duplicar detalles y borrador conservado al abrir direcciones. Auditoría de las 30 rutas sin rutas faltantes y de exclusiones Git sin dependencias, secretos ni resultados generados entre los archivos nuevos del repositorio.
+
+Expo Doctor completó 20 de 21 comprobaciones. La validación remota del esquema de configuración falló por una conexión TLS interrumpida con la API de Expo, también al reintentar. La configuración Expo no cambió durante este ajuste.
 
 `npm run typecheck` revisa los tipos. `npm test` comprueba los recorridos de dominio, operaciones atómicas, pagos únicos, códigos, agenda renovable y persistencia. `npm run export:web` seguido de `npm run test:ui` comprueba los controles visibles a tamaño de teléfono. `npm run doctor` usa las APIs oficiales de Expo para verificar configuración y dependencias. `npm run export:android` genera el bundle Hermes Android.
 

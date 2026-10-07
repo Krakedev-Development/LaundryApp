@@ -17,11 +17,12 @@ import {
 import { PhotoAttachment } from "../components/PhotoAttachment";
 import { useApp } from "../store/AppProvider";
 import { currentCustomer } from "../domain/repository";
-import type { ScreenProps } from "../navigation/routes";
+import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
 
 export const passwordHash = (password: string) =>
   Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, password);
-export function SplashScreen({ navigation }: ScreenProps<"Splash">) {
+export function SplashScreen() {
+  const navigation = useLaundryNavigation();
   return (
     <Page>
       <Card>
@@ -33,7 +34,8 @@ export function SplashScreen({ navigation }: ScreenProps<"Splash">) {
     </Page>
   );
 }
-export function LoginScreen({ navigation }: ScreenProps<"Login">) {
+export function LoginScreen() {
+  const navigation = useLaundryNavigation();
   const { execute } = useApp();
   const a = useAction();
   const [email, setEmail] = useState("maria.torres@gmail.com"),
@@ -168,7 +170,8 @@ export function RegisterScreen() {
     </Page>
   );
 }
-export function KycUploadScreen({ navigation }: ScreenProps<"KycUpload">) {
+export function KycUploadScreen() {
+  const navigation = useLaundryNavigation();
   const { state, execute } = useApp();
   const c = currentCustomer(state);
   const a = useAction();
@@ -296,7 +299,8 @@ export function KycPendingScreen() {
     </Page>
   );
 }
-export function KycRejectedScreen({ navigation }: ScreenProps<"KycRejected">) {
+export function KycRejectedScreen() {
+  const navigation = useLaundryNavigation();
   const { state, execute } = useApp();
   const c = currentCustomer(state);
   return (

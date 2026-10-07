@@ -1,4 +1,7 @@
-import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import type {
+  NavigatorScreenParams,
+  RouteProp,
+} from "@react-navigation/native";
 export type Routes = {
   Splash: undefined;
   Login: undefined;
@@ -31,10 +34,22 @@ export type Routes = {
   DriverDeliveryConfirm: { orderId: string };
   DriverChangePassword: undefined;
 };
-export type ScreenProps<T extends keyof Routes> = NativeStackScreenProps<
+export type ClientTabRoutes = Pick<
   Routes,
-  T
+  "ClientHome" | "ClientOrders" | "ClientBenefits" | "ClientProfile"
 >;
+export type DriverTabRoutes = Pick<
+  Routes,
+  "DriverRoute" | "DriverServices" | "DriverHistory" | "DriverProfile"
+>;
+export type PrimaryRoute = keyof ClientTabRoutes | keyof DriverTabRoutes;
+export type RootRoutes = Omit<Routes, PrimaryRoute> & {
+  ClientTabs: NavigatorScreenParams<ClientTabRoutes> | undefined;
+  DriverTabs: NavigatorScreenParams<DriverTabRoutes> | undefined;
+};
+export type ScreenProps<T extends keyof Routes> = {
+  route: RouteProp<Routes, T>;
+};
 export const titles: Record<keyof Routes, string> = {
   Splash: "Laundry Clean & Fresh",
   Login: "Iniciar sesión",

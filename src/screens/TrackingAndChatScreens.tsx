@@ -19,6 +19,7 @@ import { visibleOrders } from "../domain/repository";
 import { pickupStatuses, statusLabels, type Order } from "../domain/models";
 import { facilities } from "../domain/catalog";
 import type { ScreenProps } from "../navigation/routes";
+import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
 
 function destinationFor(order: Order) {
   if (["PICKED_UP", "HEADING_TO_FACILITY"].includes(order.status)) {
@@ -34,10 +35,8 @@ function destinationFor(order: Order) {
     ? order.fulfillmentPlan.inbound
     : order.fulfillmentPlan.outbound;
 }
-export function TrackingScreen({
-  navigation,
-  route,
-}: ScreenProps<"ClientTracking">) {
+export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
+  const navigation = useLaundryNavigation();
   const { state } = useApp();
   const o = visibleOrders(state).find((o) => o.id === route.params.orderId);
   const [progress, setProgress] = useState(0.05);
@@ -109,10 +108,8 @@ export function TrackingScreen({
     </Page>
   );
 }
-export function DriverMapScreen({
-  navigation,
-  route,
-}: ScreenProps<"DriverMap">) {
+export function DriverMapScreen({ route }: ScreenProps<"DriverMap">) {
+  const navigation = useLaundryNavigation();
   const { state } = useApp();
   const o = visibleOrders(state).find((o) => o.id === route.params.orderId);
   const a = useAction();
