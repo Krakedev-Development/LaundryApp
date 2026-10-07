@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
+import { Ionicons } from '@expo/vector-icons';
 
 // Coordenadas de la Sede (Matriz)
 const MATRIZ = {
@@ -17,6 +18,12 @@ export interface Stop {
 }
 
 export interface TrackingMapProps {
+  onCoordinateSelected?: (coordinate: {
+    latitude: number;
+    longitude: number;
+  }) => void;
+  center?: { latitude: number; longitude: number };
+  routeCoordinates?: { latitude: number; longitude: number }[];
   stops?: Stop[];
   currentPosition?: { latitude: number; longitude: number } | null;
   highlightedStopId?: string;
@@ -26,34 +33,46 @@ const TrackingMap: React.FC<TrackingMapProps> = ({
   stops = [],
   currentPosition = null,
   highlightedStopId,
+  center = MATRIZ,
+  routeCoordinates,
+  onCoordinateSelected,
 }) => {
   const mapRef = useRef<MapView>(null);
+
+  useEffect(() => {
+    if (!currentPosition)
+      mapRef.current?.animateToRegion(
+        { ...center, latitudeDelta: 0.03, longitudeDelta: 0.03 },
+        500,
+      );
+  }, [center.latitude, center.longitude]);
 
   // Sigue al chofer cuando su posición cambia
   useEffect(() => {
     if (currentPosition && mapRef.current) {
-      mapRef.current.animateToRegion({
-        ...currentPosition,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      }, 800);
+      mapRef.current.animateToRegion(
+        {
+          ...currentPosition,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        },
+        800,
+      );
     }
   }, [currentPosition]);
 
   // Puntos para la polyline: Matriz → paradas
-  const routeCoords = [
-    MATRIZ,
-    ...stops.map((s) => s.coordinates),
-  ];
+  const routeCoords = [center, ...stops.map((s) => s.coordinates)];
 
   return (
     <MapView
       ref={mapRef}
       style={styles.map}
       provider={PROVIDER_DEFAULT}
+      onPress={(e) => onCoordinateSelected?.(e.nativeEvent.coordinate)}
       initialRegion={{
-        latitude: MATRIZ.latitude,
-        longitude: MATRIZ.longitude,
+        latitude: center.latitude,
+        longitude: center.longitude,
         latitudeDelta: 0.05,
         longitudeDelta: 0.05,
       }}
@@ -61,16 +80,16 @@ const TrackingMap: React.FC<TrackingMapProps> = ({
       {/* Polyline de ruta */}
       {routeCoords.length >= 2 && (
         <Polyline
-          coordinates={routeCoords}
+          coordinates={routeCoordinates ?? routeCoords}
           strokeColor="#3B82F6"
           strokeWidth={4}
         />
       )}
 
       {/* Marcador Sede */}
-      <Marker coordinate={MATRIZ} title="Sede Principal">
+      <Marker coordinate={center} title="Sede de servicio">
         <View style={styles.markerMatriz}>
-          <Text style={styles.markerIcon}>🏠</Text>
+          <Ionicons name="business-outline" size={20} color="#0F4C81" />
         </View>
       </Marker>
 
@@ -83,15 +102,21 @@ const TrackingMap: React.FC<TrackingMapProps> = ({
             coordinate={stop.coordinates}
             title={`Parada ${stop.label}`}
           >
-            <View style={[
-              styles.markerStop,
-              stop.completed && styles.markerCompleted,
-              isHighlighted && styles.markerHighlighted,
-            ]}>
+            <View
+              style={[
+                styles.markerStop,
+                stop.completed && styles.markerCompleted,
+                isHighlighted && styles.markerHighlighted,
+              ]}
+            >
               {stop.hasIncident ? (
-                <Text style={styles.markerIcon}>⚠️</Text>
+                <Ionicons name="alert-circle-outline" size={20} color="#FFF" />
               ) : stop.completed ? (
-                <Text style={styles.markerIcon}>✅</Text>
+                <Ionicons
+                  name="checkmark-circle-outline"
+                  size={20}
+                  color="#FFF"
+                />
               ) : (
                 <Text style={styles.markerLabel}>{stop.label}</Text>
               )}
@@ -104,7 +129,7 @@ const TrackingMap: React.FC<TrackingMapProps> = ({
       {currentPosition && (
         <Marker coordinate={currentPosition} title="Chofer">
           <View style={styles.markerDriver}>
-            <Text style={styles.markerIcon}>🚚</Text>
+            <Ionicons name="car-outline" size={20} color="#FFF" />
           </View>
         </Marker>
       )}
@@ -115,19 +140,33 @@ const TrackingMap: React.FC<TrackingMapProps> = ({
 const styles = StyleSheet.create({
   map: { flex: 1 },
   markerMatriz: {
-    backgroundColor: '#fff', borderRadius: 20, padding: 4,
-    borderWidth: 2, borderColor: '#3B82F6',
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 4,
+    borderWidth: 2,
+    borderColor: '#3B82F6',
   },
   markerStop: {
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: '#6B7280', alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: '#fff',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#6B7280',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
   },
   markerCompleted: { backgroundColor: '#10B981' },
-  markerHighlighted: { backgroundColor: '#F59E0B', transform: [{ scale: 1.2 }] },
+  markerHighlighted: {
+    backgroundColor: '#F59E0B',
+    transform: [{ scale: 1.2 }],
+  },
   markerDriver: {
-    backgroundColor: '#1D4ED8', borderRadius: 20, padding: 4,
-    borderWidth: 2, borderColor: '#fff',
+    backgroundColor: '#1D4ED8',
+    borderRadius: 20,
+    padding: 4,
+    borderWidth: 2,
+    borderColor: '#fff',
   },
   markerLabel: { color: '#fff', fontWeight: '700', fontSize: 13 },
   markerIcon: { fontSize: 18 },

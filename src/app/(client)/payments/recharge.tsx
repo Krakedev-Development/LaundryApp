@@ -2,12 +2,15 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { MOCK_CLIENT, MOCK_PAYMENT_METHODS, RECHARGE_AMOUNTS } from '../../../data/mockData';
+import { MOCK_PAYMENT_METHODS, RECHARGE_AMOUNTS } from '../../../data/mockData';
 import { BRAND_COLORS } from '../../../theme/brand';
+import {useBusinessStore,currentActor,rechargeWallet,flushBusiness} from '../../../store/useBusinessStore';
 import AppHeader from '../../../components/layout/AppHeader';
 
 export default function RechargeScreen() {
   const router = useRouter();
+  const state=useBusinessStore(s=>s.state)!,customer=state.customers.find(c=>c.id===currentActor().id)!;
+  const [busy,setBusy]=useState(false);
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState('');
   const [selectedCard, setSelectedCard] = useState(MOCK_PAYMENT_METHODS[0].id);
@@ -15,13 +18,14 @@ export default function RechargeScreen() {
   const amount = selectedAmount ?? (customAmount ? parseFloat(customAmount) : 0);
   const bonus = amount >= 30 ? amount * 0.1 : 0;
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!amount || amount < 5) {
       Alert.alert('Monto inválido', 'El monto mínimo de recarga es $5');
       return;
     }
+    setBusy(true);try{rechargeWallet(Math.round((amount+bonus)*100)/100);await flushBusiness();}catch(e){Alert.alert('No se pudo recargar',e instanceof Error?e.message:'Reintenta.');return;}finally{setBusy(false);}
     Alert.alert(
-      'Recarga exitosa',
+      'Recarga demo confirmada',
       `Se acreditaron $${(amount + bonus).toFixed(2)} a tu saldo.${bonus > 0 ? `\n(Incluye $${bonus.toFixed(2)} de bono)` : ''}`,
       [{ text: 'Listo', onPress: () => router.back() }]
     );
@@ -43,7 +47,7 @@ export default function RechargeScreen() {
         {/* Saldo actual */}
         <View style={styles.currentBalance}>
           <Text style={styles.currentLabel}>Saldo actual</Text>
-          <Text style={styles.currentAmount}>${MOCK_CLIENT.balance.toFixed(2)}</Text>
+          <Text style={styles.currentAmount}>${customer.walletBalance.toFixed(2)}</Text>
         </View>
 
         {/* Montos rápidos */}
@@ -132,7 +136,7 @@ export default function RechargeScreen() {
           <TouchableOpacity
             style={[styles.confirmBtn, (!amount || amount < 5) && styles.confirmBtnDisabled]}
             onPress={handleConfirm}
-            disabled={!amount || amount < 5}
+            disabled={busy || !amount || amount < 5}
           >
             <Ionicons name="wallet-outline" size={20} color="#fff" />
             <Text style={styles.confirmBtnText}>

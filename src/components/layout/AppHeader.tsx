@@ -14,7 +14,7 @@ export default function AppHeader({ title, subtitle, rightText, onBack }: AppHea
   return (
     <View style={styles.header}>
       {onBack ? (
-        <TouchableOpacity onPress={onBack} style={styles.backBtn}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Volver" onPress={onBack} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={20} color="#111827" />
         </TouchableOpacity>
       ) : (

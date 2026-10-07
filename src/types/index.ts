@@ -1,8 +1,11 @@
-export type UserRole = 'client' | 'admin' | 'driver';
+export type UserRole = 'client' | 'admin' | 'driver' | 'supervisor';
 
 export type AccountStatus = 'pending' | 'approved' | 'rejected';
 
 export interface User {
+  customerId?:string;
+  driverId?:string;
+  facilityId?:string;
   id: string;
   name: string;
   email: string;

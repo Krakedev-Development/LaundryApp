@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { MOCK_PAYMENT_METHODS, MOCK_CLIENT, PaymentMethod } from '../../../data/mockData';
+import { MOCK_PAYMENT_METHODS, PaymentMethod } from '../../../data/mockData';
 import { BRAND_COLORS } from '../../../theme/brand';
+import {useBusinessStore,currentActor,savePaymentMethods,flushBusiness} from '../../../store/useBusinessStore';
 import AppHeader from '../../../components/layout/AppHeader';
 
 const CARD_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -45,12 +46,14 @@ function CardItem({ card, onDelete }: { card: PaymentMethod; onDelete: () => voi
 
 export default function PaymentsScreen() {
   const router = useRouter();
-  const [cards, setCards] = useState(MOCK_PAYMENT_METHODS);
+  const state=useBusinessStore(s=>s.state)!,actor=currentActor();
+  const customer=state.customers.find(c=>c.id===actor.id)!;
+  const cards=state.paymentMethods?.[actor.id]??[];
 
   const handleDelete = (id: string) => {
     Alert.alert('Eliminar tarjeta', '¿Estás seguro?', [
       { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: () => setCards(c => c.filter(x => x.id !== id)) },
+      { text: 'Eliminar', style: 'destructive', onPress: async () => {try{savePaymentMethods(cards.filter(x=>x.id!==id));await flushBusiness();}catch(e){Alert.alert('No se pudo guardar',e instanceof Error?e.message:'Reintenta.');}}  },
     ]);
   };
 
@@ -65,7 +68,7 @@ export default function PaymentsScreen() {
             <Ionicons name="wallet-outline" size={24} color="#3B82F6" />
             <View>
               <Text style={styles.balanceLabel}>Saldo disponible</Text>
-              <Text style={styles.balanceAmount}>${MOCK_CLIENT.balance.toFixed(2)}</Text>
+              <Text style={styles.balanceAmount}>${customer.walletBalance.toFixed(2)}</Text>
             </View>
           </View>
           <TouchableOpacity
@@ -78,7 +81,7 @@ export default function PaymentsScreen() {
         </View>
 
         {/* Tarjetas */}
-        <Text style={styles.sectionTitle}>Mis tarjetas</Text>
+        <Text style={styles.sectionTitle}>Mis tarjetas · Simulación local</Text>
         {cards.map(card => (
           <CardItem key={card.id} card={card} onDelete={() => handleDelete(card.id)} />
         ))}

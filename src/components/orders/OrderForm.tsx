@@ -5,16 +5,16 @@ import {
 import { GarmentType, ServiceType } from '../../types';
 
 const GARMENTS: { label: string; value: GarmentType }[] = [
-  { label: '👕 Ropa normal', value: 'ropa_normal' },
-  { label: '👗 Ropa delicada', value: 'ropa_delicada' },
-  { label: '🛏 Sábanas', value: 'sabanas' },
-  { label: '🛌 Edredón', value: 'edredon' },
+  { label: 'Ropa normal', value: 'ropa_normal' },
+  { label: 'Ropa delicada', value: 'ropa_delicada' },
+  { label: 'Sábanas', value: 'sabanas' },
+  { label: 'Edredón', value: 'edredon' },
 ];
 
 const SERVICES: { label: string; value: ServiceType }[] = [
-  { label: '🫧 Solo lavado', value: 'lavado' },
-  { label: '🫧🔥 Lavado + planchado', value: 'lavado_planchado' },
-  { label: '🔥 Solo planchado', value: 'solo_planchado' },
+  { label: 'Solo lavado', value: 'lavado' },
+  { label: 'Lavado + planchado', value: 'lavado_planchado' },
+  { label: 'Solo planchado', value: 'solo_planchado' },
 ];
 
 interface OrderFormProps {

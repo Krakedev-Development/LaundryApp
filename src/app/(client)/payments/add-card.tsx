@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView,
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { BRAND_COLORS } from '../../../theme/brand';
+import {savePaymentMethods,useBusinessStore,currentActor,flushBusiness} from '../../../store/useBusinessStore';
 import AppHeader from '../../../components/layout/AppHeader';
 
 function formatCardNumber(val: string) {
@@ -23,8 +24,10 @@ export default function AddCardScreen() {
 
   const canSave = number.replace(/\s/g, '').length === 16 && holder.length > 2 && expiry.length === 5 && cvv.length >= 3;
 
-  const handleSave = () => {
-    Alert.alert('Tarjeta agregada', 'Tu tarjeta fue guardada correctamente.', [
+  const handleSave = async () => {
+    if(!canSave)return;
+    try{const cards=useBusinessStore.getState().state!.paymentMethods?.[currentActor().id]??[];savePaymentMethods([...cards,{id:String(Date.now()),type:number.startsWith('4')?'visa':'mastercard',last4:number.replace(/\s/g,'').slice(-4),holder,expiry,isDefault:cards.length===0}]);await flushBusiness();}catch(e){Alert.alert('No se pudo guardar',e instanceof Error?e.message:'Reintenta.');return;}
+    Alert.alert('Tarjeta agregada', 'Método de demostración guardado. Solo se conservan los últimos cuatro dígitos; no se procesa un pago real.', [
       { text: 'Listo', onPress: () => router.back() }
     ]);
   };

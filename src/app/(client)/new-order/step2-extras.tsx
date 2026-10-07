@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import {useBusinessStore} from '../../../store/useBusinessStore';
 import { useOrderStore, WASH_PRICES } from '../../../store/useOrderStore';
 import AppHeader from '../../../components/layout/AppHeader';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,7 +18,8 @@ const EXTRAS = [
 export default function Step2Extras() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { extras, setExtras, garments } = useOrderStore();
+  const { extras, setExtras, garments,pricingModel } = useOrderStore();
+  const minimum=useBusinessStore(s=>s.state?.businessPolicy.minimumOrderAmount)??0;
   const [selected, setSelected] = useState<string[]>(extras);
 
   const toggle = (id: string) => {
@@ -42,8 +44,8 @@ export default function Step2Extras() {
     if (selected.includes('Tratamiento manchas')) total += 2.5;
     if (selected.includes('Suavizante premium')) total += 1;
 
-    return Math.max(total, 5);
-  }, [garments, selected]);
+    return Math.max(total, minimum);
+  }, [garments, selected,minimum]);
 
   return (
     <View style={styles.container}>
@@ -96,7 +98,7 @@ export default function Step2Extras() {
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
         <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>Subtotal estimado</Text>
-          <Text style={styles.totalAmount}>${subtotalPreview.toFixed(2)}</Text>
+          <Text style={styles.totalAmount}>{pricingModel==='PER_WEIGHT'?'Pendiente de pesaje':`${subtotalPreview.toFixed(2)}`}</Text>
         </View>
         <TouchableOpacity style={styles.nextBtn} onPress={handleNext}>
           <Text style={styles.nextBtnText}>Continuar</Text>

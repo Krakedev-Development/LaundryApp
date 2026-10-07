@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'rea
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../../store/useAuthStore';
-import { MOCK_ORDERS, MOCK_CLIENT } from '../../../data/mockData';
+import {useBusinessStore,currentActor} from '../../../store/useBusinessStore';
 import { BRAND_ASSETS, BRAND_COLORS } from '../../../theme/brand';
 
 const MENU_SECTIONS = [
@@ -31,7 +31,9 @@ export default function ClientProfile() {
   const { user, logout } = useAuthStore();
   const displayName = user?.name?.trim() || 'Cliente';
   const displayEmail = user?.email?.trim() || 'sin-correo@laundryapp.app';
-  const active = MOCK_ORDERS.filter((o) => o.status !== 'delivered').length;
+  const state=useBusinessStore(s=>s.state)!,actor=currentActor();
+  const customer=state.customers.find(c=>c.id===actor.id)!,orders=state.orders.filter(o=>o.customerId===actor.id);
+  const active=orders.filter(o=>!['COMPLETED','CANCELLED'].includes(o.status)).length;
 
   const handleLogout = () => {
     logout();
@@ -56,7 +58,7 @@ export default function ClientProfile() {
       {/* Stats */}
       <View style={styles.statsRow}>
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{MOCK_ORDERS.length}</Text>
+          <Text style={styles.statNumber}>{orders.length}</Text>
           <Text style={styles.statLabel}>Pedidos</Text>
         </View>
         <View style={styles.statDivider} />
@@ -66,7 +68,7 @@ export default function ClientProfile() {
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{MOCK_CLIENT.points}</Text>
+          <Text style={styles.statNumber}>{customer.points}</Text>
           <Text style={styles.statLabel}>Puntos</Text>
         </View>
       </View>
@@ -82,7 +84,7 @@ export default function ClientProfile() {
           </View>
           <View>
             <Text style={styles.balanceLabel}>Saldo disponible</Text>
-            <Text style={styles.balanceAmount}>${MOCK_CLIENT.balance.toFixed(2)}</Text>
+            <Text style={styles.balanceAmount}>${customer.walletBalance.toFixed(2)}</Text>
           </View>
         </View>
         <View style={styles.balanceRight}>

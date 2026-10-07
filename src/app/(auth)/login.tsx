@@ -16,13 +16,18 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/useAuthStore';
+import {useOrderStore} from '../../store/useOrderStore';
 import { MOCK_USERS } from '../../data/mockUsers';
+import {Ionicons} from '@expo/vector-icons';
+import {useBusinessStore} from '../../store/useBusinessStore';
 import { BRAND_ASSETS, BRAND_COLORS } from '../../theme/brand';
 
 export default function LoginScreen() {
   const router = useRouter();
   const { setUser, setLoading, isLoading } = useAuthStore();
 
+  const business=useBusinessStore(s=>s.state);
+  const accounts=[...MOCK_USERS,...(business?.accounts??[])];
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showForgotModal, setShowForgotModal] = useState(false);
@@ -38,14 +43,16 @@ export default function LoginScreen() {
     setLoading(true);
 
     // Mock login — busca el usuario en la lista
-    const found = MOCK_USERS.find(
+    const found = accounts.find(
       (u) => u.email === email.trim().toLowerCase() && u.password === password
     );
 
     setTimeout(() => {
       setLoading(false);
       if (found) {
-        setUser(found.user, 'mock-token-123');
+        if(found.user.role==='client'){const draft=useOrderStore.getState(),owner=found.user.customerId??'c1';if(draft.customerId!==owner)draft.reset();draft.setBusinessDraft({customerId:owner});}
+        const c=business?.customers.find(c=>c.id===(found.user.customerId??'c1'));
+        setUser({...found.user,facilityId:found.user.role==='admin'?(found.user.facilityId??'FAC-02'):found.user.facilityId,status:found.user.role==='client'&&c?(c.kycStatus==='APPROVED'?'approved':c.kycStatus==='REJECTED'?'rejected':'pending'):found.user.status}, 'mock-token-123');
         router.replace('/');
       } else {
         Alert.alert('Error', 'Credenciales incorrectas');
@@ -81,6 +88,7 @@ export default function LoginScreen() {
       >
         <Image source={BRAND_ASSETS.logoName} style={styles.logo} />
         <Text style={styles.subtitle}>Inicia sesión</Text>
+        <View style={{flexDirection:'row',flexWrap:'wrap',gap:8,justifyContent:'center',marginBottom:16}}>{MOCK_USERS.filter(a=>['cliente@demo.laundry','chofer@demo.laundry','admin@test.com','supervisor@demo.laundry'].includes(a.email)).map(a=><TouchableOpacity key={a.email} style={{borderRadius:10,borderWidth:1,borderColor:'#CADDEC',padding:9}} onPress={()=>{setEmail(a.email);setPassword(a.password);}}><Text style={{fontSize:12,color:'#0F4C81'}}>{a.user.role==='client'?'Cliente':a.user.role==='driver'?'Chofer':a.user.role==='supervisor'?'Supervisor':'Administrador'} demo</Text></TouchableOpacity>)}</View>
 
         <TextInput
           style={styles.input}
@@ -122,7 +130,7 @@ export default function LoginScreen() {
               <View style={styles.modalCard}>
                 <View style={styles.modalHeader}>
                   <View style={styles.modalIconWrap}>
-                    <Text style={styles.modalIcon}>🔐</Text>
+                    <Ionicons name="lock-closed-outline" size={32} color="#0F4C81"/>
                   </View>
                   <Text style={styles.modalTitle}>¿Olvidaste tu contraseña?</Text>
                   <Text style={styles.modalText}>

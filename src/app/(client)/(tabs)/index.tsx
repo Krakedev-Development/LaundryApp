@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import {BusinessHomeCard} from '../../../components/mvp/BusinessHomeCard';
+import {useBusinessStore,currentActor} from '../../../store/useBusinessStore';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,17 +14,20 @@ import { BRAND_ASSETS, BRAND_COLORS } from '../../../theme/brand';
 export default function ClientHome() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const { setPromo } = useOrderStore();
+  const business=useBusinessStore(s=>s.state);
+  const actor=currentActor();
+  const customer=business?.customers.find(c=>c.id===actor.id);
+  const ownOrders=business?.orders.filter(o=>o.customerId===actor.id)??[];
+  const promotions:Promotion[]=(business?.promotions??[]).filter(p=>p.status==='ACTIVE'&&p.startDate<=new Date().toISOString().slice(0,10)&&p.endDate>=new Date().toISOString().slice(0,10)).map(p=>({id:p.code,title:p.name,description:p.description,discount:p.discountType==='PERCENTAGE'?p.discountValue:0,type:'package',badge:p.discountType==='PERCENTAGE'?p.discountValue+'%':String(p.discountValue)+' USD',color:'#0F4C81'}));
+  const {setPromo}=useOrderStore();
   const firstName = user?.name?.trim()?.split(/\s+/)[0] ?? 'Cliente';
   const [showRewards, setShowRewards] = useState(false);
   const [selectedPromo, setSelectedPromo] = useState<Promotion | null>(null);
-  const activeOrder = MOCK_ORDERS.find((o) => o.status === 'delivering' || o.status === 'picked_up');
+  const activeOrder = undefined as typeof MOCK_ORDERS[number]|undefined;
 
   const handlePromoAccept = (promo: Promotion) => {
     setSelectedPromo(null);
-    if (promo.discount > 0) {
-      setPromo(promo.id.toUpperCase(), promo.discount / 100);
-    }
+    setPromo(promo.id.toUpperCase(),0);
     router.push('/(client)/new-order/step1-garments');
   };
 
@@ -47,11 +52,11 @@ export default function ClientHome() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.pointsChip}
-            onPress={() => setShowRewards(true)}
+            onPress={() => router.push('/(client)/rewards')}
             activeOpacity={0.75}
           >
             <Ionicons name="star" size={15} color="#F59E0B" />
-            <Text style={styles.pointsText}>{MOCK_CLIENT.points}</Text>
+            <Text style={styles.pointsText}>{customer?.points??0}</Text>
             <Text style={styles.pointsUnit}>pts</Text>
           </TouchableOpacity>
         </View>
@@ -65,23 +70,26 @@ export default function ClientHome() {
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <Ionicons name="wallet-outline" size={20} color={BRAND_COLORS.primary} />
-            <Text style={styles.statAmount}>${MOCK_CLIENT.balance.toFixed(2)}</Text>
+            <Text style={styles.statAmount}>${(customer?.walletBalance??0).toFixed(2)}</Text>
             <Text style={styles.statLabel}>Saldo</Text>
           </View>
           <View style={styles.statDivider} />
-          <TouchableOpacity style={styles.statCard} onPress={() => setShowRewards(true)}>
+          <TouchableOpacity style={styles.statCard} onPress={() => router.push('/(client)/rewards')}>
             <Ionicons name="star-outline" size={20} color="#F59E0B" />
-            <Text style={styles.statAmount}>{MOCK_CLIENT.points}</Text>
+            <Text style={styles.statAmount}>{customer?.points??0}</Text>
             <Text style={styles.statLabel}>Puntos</Text>
           </TouchableOpacity>
           <View style={styles.statDivider} />
           <View style={styles.statCard}>
             <Ionicons name="receipt-outline" size={20} color={BRAND_COLORS.accentDark} />
-            <Text style={styles.statAmount}>{MOCK_ORDERS.length}</Text>
+            <Text style={styles.statAmount}>{ownOrders.length}</Text>
             <Text style={styles.statLabel}>Pedidos</Text>
           </View>
         </View>
 
+        <BusinessHomeCard/>
+        <TouchableOpacity onPress={()=>router.push('/(client)/wallet')}><Text style={styles.sectionTitle}>Mi billetera y movimientos</Text></TouchableOpacity>
+        <TouchableOpacity onPress={()=>router.push('/(client)/promotions')}><Text style={styles.sectionTitle}>Ver promociones disponibles</Text></TouchableOpacity>
         {activeOrder && (
           <TouchableOpacity
             style={styles.activeOrderCard}
@@ -105,7 +113,7 @@ export default function ClientHome() {
           onPress={() => router.push('/(client)/new-order/step1-garments')}
         >
           <Ionicons name="add-circle" size={22} color="#fff" />
-          <Text style={styles.newOrderBtnText}>Solicitar recogida</Text>
+          <Text style={styles.newOrderBtnText}>Nueva solicitud</Text>
         </TouchableOpacity>
 
         <View style={styles.promoHeader}>
@@ -113,26 +121,26 @@ export default function ClientHome() {
           <Text style={styles.promoSubtitle}>Toca para ver detalles</Text>
         </View>
 
-        <TouchableOpacity
-          style={[styles.promoFeatured, { backgroundColor: MOCK_PROMOTIONS[0].color }]}
-          onPress={() => setSelectedPromo(MOCK_PROMOTIONS[0])}
+        {promotions[0]&&<TouchableOpacity
+          style={[styles.promoFeatured, { backgroundColor: promotions[0].color }]}
+          onPress={() => setSelectedPromo(promotions[0])}
           activeOpacity={0.85}
         >
-          {MOCK_PROMOTIONS[0].badge && (
+          {promotions[0].badge && (
             <View style={styles.featuredBadge}>
-              <Text style={styles.featuredBadgeText}>{MOCK_PROMOTIONS[0].badge}</Text>
+              <Text style={styles.featuredBadgeText}>{promotions[0].badge}</Text>
             </View>
           )}
-          <Text style={styles.featuredTitle}>{MOCK_PROMOTIONS[0].title}</Text>
-          <Text style={styles.featuredDesc}>{MOCK_PROMOTIONS[0].description}</Text>
+          <Text style={styles.featuredTitle}>{promotions[0].title}</Text>
+          <Text style={styles.featuredDesc}>{promotions[0].description}</Text>
           <View style={styles.featuredCta}>
             <Text style={styles.featuredCtaText}>Ver oferta</Text>
             <Ionicons name="arrow-forward" size={16} color="#fff" />
           </View>
-        </TouchableOpacity>
+        </TouchableOpacity>}
 
         <View style={styles.promoGrid}>
-          {MOCK_PROMOTIONS.slice(1).map((promo) => (
+          {promotions.slice(1).map((promo) => (
             <TouchableOpacity
               key={promo.id}
               style={[styles.promoCard, { backgroundColor: promo.color }]}

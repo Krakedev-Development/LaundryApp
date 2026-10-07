@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useMemo } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { MAPBOX_ACCESS_TOKEN, USE_MAPBOX } from '../../config/mapbox';
+import TrackingMap from './TrackingMap';
 
 export interface DriverMarker {
   id: string;
@@ -41,7 +42,8 @@ const MapViewCustom: React.FC<MapViewCustomProps> = ({
   const webViewRef = useRef<WebView>(null);
 
   // HTML se construye UNA SOLA VEZ — nunca cambia
-  const htmlContent = useMemo(() => `
+  const htmlContent = useMemo(
+    () => `
 <!DOCTYPE html>
 <html>
 <head>
@@ -56,7 +58,7 @@ const MapViewCustom: React.FC<MapViewCustomProps> = ({
     .mk-stop.done { background:#10B981; }
     .mk-stop.warn { background:#F59E0B; }
     .mk-driver { background:#1D4ED8; border:2.5px solid #fff; border-radius:50%; width:34px; height:34px; display:flex; align-items:center; justify-content:center; font-size:17px; box-shadow:0 2px 8px rgba(0,0,0,.3); }
-    .mapboxgl-ctrl-logo, .mapboxgl-ctrl-attrib { display:none !important; }
+
   </style>
 </head>
 <body>
@@ -70,18 +72,19 @@ const MapViewCustom: React.FC<MapViewCustomProps> = ({
     style: 'mapbox://styles/mapbox/streets-v12',
     center: [${center.longitude}, ${center.latitude}],
     zoom: ${zoom},
-    attributionControl: false,
+    attributionControl: true,
   });
 
   map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
 
   const driverMarkers = {};
+  let stopMarkers=[];
 
   // ── Sede ──
   const sedeEl = document.createElement('div');
   sedeEl.className = 'mk-sede';
-  sedeEl.textContent = '🏠';
-  new mapboxgl.Marker({ element: sedeEl })
+  sedeEl.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F4C81" stroke-width="2"><path d="M4 22V3h16v19M8 7h2m4 0h2M8 11h2m4 0h2M9 22v-6h6v6"/></svg>';
+  const facilityMarker = new mapboxgl.Marker({ element: sedeEl })
     .setLngLat([${center.longitude}, ${center.latitude}])
     .setPopup(new mapboxgl.Popup({ offset:25 }).setText('Sede Principal'))
     .addTo(map);
@@ -131,14 +134,15 @@ const MapViewCustom: React.FC<MapViewCustomProps> = ({
     try { msg = JSON.parse(event.data); } catch(e) { return; }
 
     if (msg.type === 'setStops') {
+      stopMarkers.forEach(marker=>marker.remove());stopMarkers=[];
       msg.stops.forEach(stop => {
         const el = document.createElement('div');
         el.className = 'mk-stop' + (stop.completed ? ' done' : '') + (stop.hasIncident ? ' warn' : '');
         el.textContent = stop.hasIncident ? '!' : stop.completed ? '✓' : stop.label;
-        new mapboxgl.Marker({ element: el })
+        stopMarkers.push(new mapboxgl.Marker({ element: el })
           .setLngLat([stop.longitude, stop.latitude])
           .setPopup(new mapboxgl.Popup({ offset:25 }).setText('Parada ' + stop.label))
-          .addTo(map);
+          .addTo(map));
       });
     }
 
@@ -153,7 +157,7 @@ const MapViewCustom: React.FC<MapViewCustomProps> = ({
       } else {
         const el = document.createElement('div');
         el.className = 'mk-driver';
-        el.textContent = '🚚';
+        el.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M1 3h14v14H1zM15 8h4l3 4v5h-7"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg>';
         driverMarkers[d.id] = new mapboxgl.Marker({ element: el })
           .setLngLat([d.longitude, d.latitude])
           .setPopup(new mapboxgl.Popup({ offset:25 }).setText(d.label || 'Chofer'))
@@ -161,7 +165,9 @@ const MapViewCustom: React.FC<MapViewCustomProps> = ({
       }
     }
 
+    if(msg.type==='setDrivers'){for(const id of Object.keys(driverMarkers))if(!msg.ids.includes(id)){driverMarkers[id].remove();delete driverMarkers[id];}}
     if (msg.type === 'flyTo') {
+      facilityMarker.setLngLat([msg.longitude,msg.latitude]);
       map.flyTo({ center:[msg.longitude, msg.latitude], zoom: msg.zoom || 14, duration:800 });
     }
   }
@@ -171,33 +177,62 @@ const MapViewCustom: React.FC<MapViewCustomProps> = ({
 </script>
 </body>
 </html>
-  `, []); // [] = nunca se reconstruye el HTML
+  `,
+    [],
+  ); // [] = nunca se reconstruye el HTML
 
   // Envía stops al mapa cuando estén listos
   useEffect(() => {
-    if (stops.length > 0) {
-      webViewRef.current?.postMessage(JSON.stringify({ type: 'setStops', stops }));
-    }
+    webViewRef.current?.postMessage(
+      JSON.stringify({ type: 'setStops', stops }),
+    );
   }, [JSON.stringify(stops)]);
 
   // Envía waypoints para calcular ruta por calles
   useEffect(() => {
     if (routeWaypoints.length >= 2) {
-      webViewRef.current?.postMessage(JSON.stringify({ type: 'setRoute', waypoints: routeWaypoints }));
+      webViewRef.current?.postMessage(
+        JSON.stringify({ type: 'setRoute', waypoints: routeWaypoints }),
+      );
     }
   }, [JSON.stringify(routeWaypoints)]);
 
+  useEffect(() => {
+    webViewRef.current?.postMessage(
+      JSON.stringify({ type: 'flyTo', ...center, zoom }),
+    );
+  }, [center.latitude, center.longitude, zoom]);
   // Actualiza posición del chofer SIN reconstruir el HTML
   useEffect(() => {
+    webViewRef.current?.postMessage(
+      JSON.stringify({ type: 'setDrivers', ids: drivers.map((d) => d.id) }),
+    );
     drivers.forEach((driver) => {
-      webViewRef.current?.postMessage(JSON.stringify({ type: 'updateDriver', driver }));
+      webViewRef.current?.postMessage(
+        JSON.stringify({ type: 'updateDriver', driver }),
+      );
     });
   }, [drivers]);
 
   if (!USE_MAPBOX) {
     return (
-      <View style={[styles.placeholder, style]}>
-        <Text style={styles.placeholderText}>Configura EXPO_PUBLIC_MAPBOX_TOKEN en .env.local</Text>
+      <View style={[styles.map, style]}>
+        <TrackingMap
+          center={center}
+          stops={stops.map((s) => ({
+            id: s.id,
+            label: s.label,
+            coordinates: { latitude: s.latitude, longitude: s.longitude },
+          }))}
+          currentPosition={
+            drivers[0]
+              ? {
+                  latitude: drivers[0].latitude,
+                  longitude: drivers[0].longitude,
+                }
+              : null
+          }
+        />
       </View>
     );
   }
@@ -215,15 +250,24 @@ const MapViewCustom: React.FC<MapViewCustomProps> = ({
         try {
           const msg = JSON.parse(event.nativeEvent.data);
           if (msg.type === 'mapReady') {
+            webViewRef.current?.postMessage(
+              JSON.stringify({ type: 'flyTo', ...center, zoom }),
+            );
             // Envía datos iniciales cuando el mapa está listo
             if (stops.length > 0) {
-              webViewRef.current?.postMessage(JSON.stringify({ type: 'setStops', stops }));
+              webViewRef.current?.postMessage(
+                JSON.stringify({ type: 'setStops', stops }),
+              );
             }
             if (routeWaypoints.length >= 2) {
-              webViewRef.current?.postMessage(JSON.stringify({ type: 'setRoute', waypoints: routeWaypoints }));
+              webViewRef.current?.postMessage(
+                JSON.stringify({ type: 'setRoute', waypoints: routeWaypoints }),
+              );
             }
             drivers.forEach((driver) => {
-              webViewRef.current?.postMessage(JSON.stringify({ type: 'updateDriver', driver }));
+              webViewRef.current?.postMessage(
+                JSON.stringify({ type: 'updateDriver', driver }),
+              );
             });
           }
         } catch (e) {}
@@ -234,8 +278,18 @@ const MapViewCustom: React.FC<MapViewCustomProps> = ({
 
 const styles = StyleSheet.create({
   map: { flex: 1 },
-  placeholder: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F4F6' },
-  placeholderText: { fontSize: 13, color: '#6B7280', textAlign: 'center', paddingHorizontal: 24 },
+  placeholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F3F4F6',
+  },
+  placeholderText: {
+    fontSize: 13,
+    color: '#6B7280',
+    textAlign: 'center',
+    paddingHorizontal: 24,
+  },
 });
 
 export default MapViewCustom;

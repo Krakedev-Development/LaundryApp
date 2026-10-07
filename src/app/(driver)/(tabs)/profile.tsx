@@ -3,13 +3,14 @@ import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'rea
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../../store/useAuthStore';
-import { MOCK_DRIVER } from '../../../data/mockData';
+import {useBusinessStore,currentActor} from '../../../store/useBusinessStore';
 import { BRAND_ASSETS, BRAND_COLORS } from '../../../theme/brand';
 import AppHeader from '../../../components/layout/AppHeader';
 
 export default function DriverProfileTab() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
+  const state=useBusinessStore(s=>s.state)!,driver=state.drivers.find(d=>d.id===currentActor().id)!;
   const displayName = user?.name?.trim() || 'Chofer';
   const displayEmail = user?.email?.trim() || 'chofer@laundryapp.app';
 
@@ -38,9 +39,9 @@ export default function DriverProfileTab() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Datos del vehículo</Text>
           <View style={styles.sectionCard}>
-            <Row icon="car-outline" label="Vehículo" value={MOCK_DRIVER.vehicle} />
-            <Row icon="pricetag-outline" label="Placa" value={MOCK_DRIVER.plate} />
-            <Row icon="call-outline" label="Teléfono interno" value={MOCK_DRIVER.phone} last />
+            <Row icon="car-outline" label="Vehículo" value={driver.vehicleType==='MOTO'?'Moto':driver.vehicleType==='VAN'?'Van':'Camioneta'} />
+            <Row icon="pricetag-outline" label="Placa" value={driver.vehiclePlate} />
+            <Row icon="call-outline" label="Teléfono interno" value={driver.phone} last />
           </View>
         </View>
 
@@ -48,7 +49,7 @@ export default function DriverProfileTab() {
           <Text style={styles.sectionTitle}>Cuenta</Text>
           <View style={styles.sectionCard}>
             <Row icon="shield-checkmark-outline" label="Privacidad" value="Sin WhatsApp personal" />
-            <Row icon="time-outline" label="Estado" value="Disponible" last />
+            <Row icon="time-outline" label="Estado" value={driver.status==='AVAILABLE'?'Disponible':driver.status==='ON_SERVICE'?'En servicio':driver.status} last />
           </View>
         </View>
 

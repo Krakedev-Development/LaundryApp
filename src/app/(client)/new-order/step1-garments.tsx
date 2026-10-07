@@ -8,6 +8,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useOrderStore, GarmentItem, WashType } from '../../../store/useOrderStore';
 import AppHeader from '../../../components/layout/AppHeader';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {useBusinessStore} from '../../../store/useBusinessStore';
+import {ui} from '../../../components/mvp/ui';
 
 const GARMENT_TYPES = [
   { name: 'Camisas', icon: 'shirt-outline' as const },
@@ -39,7 +41,9 @@ const WASH_TYPES: { id: WashType; label: string; desc: string; price: string; co
 export default function Step1Garments() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { garments, setGarments } = useOrderStore();
+  const { garments, setGarments,pricingModel,setBusinessDraft } = useOrderStore();
+  const businessState=useBusinessStore(s=>s.state);
+  const weightServices=businessState?.catalog.filter(c=>c.status==='ACTIVE'&&c.customerSelectable!==false&&c.pricingModel==='PER_WEIGHT')??[];
   const [items, setItems] = useState<GarmentItem[]>(garments.length > 0 ? garments : []);
   const [showModal, setShowModal] = useState(false);
   const [editIndex, setEditIndex] = useState<number | null>(null);
@@ -133,6 +137,7 @@ export default function Step1Garments() {
       <View style={styles.progressBar}><View style={[styles.progressFill, { width: '20%' }]} /></View>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+        <View style={ui.card}><Text style={ui.subtitle}>Modelo del servicio</Text><TouchableOpacity style={[ui.outline,pricingModel==='FIXED'&&ui.selected]} onPress={()=>setBusinessDraft({pricingModel:'FIXED'})}><Text style={ui.text}>Por prenda · precio fijo del catálogo</Text></TouchableOpacity>{weightServices.map(service=><TouchableOpacity key={service.id} style={[ui.outline,pricingModel==='PER_WEIGHT'&&ui.selected]} onPress={()=>setBusinessDraft({pricingModel:'PER_WEIGHT',catalogServiceId:service.id})}><Text style={ui.text}>{service.name} · ${service.pricePerWeightUnit}/{service.weightUnit}</Text><Text style={ui.muted}>Importe pendiente hasta pesar en planta.</Text>{service.restrictions?.map((r:string)=><Text key={r} style={ui.muted}>{r}</Text>)}</TouchableOpacity>)}</View>
         {items.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="shirt-outline" size={56} color="#D1D5DB" />

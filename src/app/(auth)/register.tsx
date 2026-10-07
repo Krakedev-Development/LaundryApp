@@ -1,3 +1,4 @@
+import {registerLocalClient,flushBusiness} from '../../store/useBusinessStore';
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
@@ -66,20 +67,11 @@ export default function RegisterScreen() {
       Alert.alert('Error', 'Todos los campos y fotos son obligatorios');
       return;
     }
-    // TODO: llamar a authService.register({ name, email, password, cedulaPhoto, selfiePhoto })
-    // La cuenta queda en estado 'pending' hasta aprobación del admin
-    setUser(
-      {
-        id: Date.now().toString(),
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
-        role: 'client',
-        status: 'pending',
-        cedula_photo: cedulaPhoto,
-        selfie_photo: selfiePhoto,
-      },
-      'mock-pending-token'
-    );
+    try {
+      const user=registerLocalClient({name,email,password,documentUri:cedulaPhoto,selfieUri:selfiePhoto});
+      await flushBusiness();
+      setUser(user,'mock-pending-token');
+    } catch(error) { Alert.alert('No se pudo registrar',error instanceof Error?error.message:'Revisa tus datos.');return; }
     Alert.alert('Registro enviado', 'Tu cuenta quedó pendiente de aprobación.');
     router.replace('/');
   };
@@ -108,7 +100,7 @@ export default function RegisterScreen() {
       <Text style={styles.label}>Foto de cédula</Text>
       <TouchableOpacity style={styles.photoButton} onPress={() => pickImage('cedula')}>
         <Text style={styles.photoButtonText}>
-          {cedulaPhoto ? '✅ Cédula cargada' : '📷 Subir foto de cédula'}
+                  {cedulaPhoto ? 'Cédula cargada' : 'Subir foto de cédula'}
         </Text>
       </TouchableOpacity>
       {cedulaPhoto && <Image source={{ uri: cedulaPhoto }} style={styles.preview} />}
@@ -117,7 +109,7 @@ export default function RegisterScreen() {
       <Text style={styles.label}>Selfie de verificación</Text>
       <TouchableOpacity style={styles.photoButton} onPress={takeSelfie}>
         <Text style={styles.photoButtonText}>
-          {selfiePhoto ? '✅ Selfie tomada' : '🤳 Tomar selfie'}
+                  {selfiePhoto ? 'Selfie tomada' : 'Tomar selfie'}
         </Text>
       </TouchableOpacity>
       {selfiePhoto && <Image source={{ uri: selfiePhoto }} style={styles.preview} />}
