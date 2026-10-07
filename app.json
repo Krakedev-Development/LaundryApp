@@ -1,46 +1,50 @@
 {
   "expo": {
-    "name": "LaundryApp",
+    "name": "Laundry Clean & Fresh",
     "slug": "LaundryApp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/app-icon.png",
     "userInterfaceStyle": "light",
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "scheme": "laundryapp",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.aistudio.applet.mpsvkf"
     },
     "android": {
+      "package": "com.aistudio.applet.mpsvkf",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon-laundry.png",
         "backgroundColor": "#143F73"
       }
     },
-    "web": {
-      "bundler": "metro",
-      "favicon": "./assets/icono-App.png"
-    },
-    "scheme": "laundryapp",
+    "web": { "bundler": "metro", "favicon": "./assets/icono-App.png" },
     "plugins": [
       [
         "expo-splash-screen",
         {
           "image": "./assets/logo-laundry-lav.png",
-          "imageWidth": 200,
+          "imageWidth": 160,
           "resizeMode": "contain",
-          "backgroundColor": "#143F73"
+          "backgroundColor": "#FFFFFF"
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Permite acceso a tus fotos para subir documentos.",
-          "cameraPermission": "Permite acceso a la camara para tomar selfie de verificacion."
+          "photosPermission": "Laundry necesita acceso a las fotos que elijas para documentos y evidencias.",
+          "cameraPermission": "Laundry necesita la cámara para capturar tu verificación y evidencias.",
+          "microphonePermission": false
         }
       ],
-      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Laundry necesita la cámara para leer los códigos de transferencia.",
+          "recordAudioAndroid": false
+        }
+      ],
       "expo-font"
     ]
   }

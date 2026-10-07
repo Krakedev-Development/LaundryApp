@@ -10,10 +10,10 @@ dist-mvp-check/
 web-build/
 expo-env.d.ts
 
-# Native
-.kotlin/
+# Native signing artifacts
 *.orig.*
 *.jks
+*.keystore
 *.p8
 *.p12
 *.key
@@ -31,12 +31,42 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
-.env*.local
+# local env files and credentials
+.env
+.env.*
+!.env.example
+google-services.json
+GoogleService-Info.plist
+credentials.json
 
 # typescript
 *.tsbuildinfo
 
-# generated native folders
-/ios
-/android
+# generated native folders (Expo prebuild)
+/ios/
+/android/
+
+# Android Studio and Gradle artifacts
+/.kotlin/
+/gradle/
+/.gradle/
+/build/
+/build.gradle.kts
+/settings.gradle.kts
+/gradle.properties
+/gradlew
+/gradlew.bat
+/local.properties
+
+# Editors, logs, exports and test artifacts
+.idea/
+.vscode/
+*.log
+*.apk
+*.aab
+coverage/
+playwright-report/
+test-results/
+.cache/
+.eas/
+tmp/
