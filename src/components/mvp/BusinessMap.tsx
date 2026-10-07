@@ -36,14 +36,11 @@ export function BusinessMap() {
     order &&
     (actor.role === "CLIENT"
       ? order.customerId === actor.id
-      : actor.role === "SUPERVISOR"
-        ? order.facilityId === actor.facilityId
-        : actor.role === "DRIVER"
-          ? [
-              order.fulfillment?.inbound.driverId,
-              order.fulfillment?.outbound.driverId,
-            ].includes(actor.id)
-          : actor.role === "ADMIN");
+      : actor.role === "DRIVER" &&
+        [
+          order.fulfillment?.inbound.driverId,
+          order.fulfillment?.outbound.driverId,
+        ].includes(actor.id));
   const facility =
     state.facilities.find((f) => f.id === order?.facilityId) ??
     state.facilities[0];
@@ -225,9 +222,7 @@ export function BusinessMap() {
                     pathname:
                       actor.role === "CLIENT"
                         ? "/(client)/order-detail"
-                        : actor.role === "DRIVER"
-                          ? "/(driver)/order"
-                          : "/(admin)/business-order",
+                        : "/(driver)/order",
                     params: { id: order.id },
                   })
                 }

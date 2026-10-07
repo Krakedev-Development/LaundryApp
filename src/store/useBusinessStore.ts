@@ -2,6 +2,7 @@ import { create } from "zustand";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Crypto from "expo-crypto";
 import demo from "../domain/demo.json";
+import { prepareMobileDemo } from "../data/prepareMobileDemo";
 import type { Actor } from "../services/domain/fulfillment";
 import { migrateOrder } from "../services/domain/fulfillment";
 import {
@@ -27,7 +28,7 @@ import {
   MOCK_ORDERS,
   MOCK_PAYMENT_METHODS,
 } from "../data/mockData";
-import { useAuthStore } from "./useAuthStore";
+import { isMobileUser, useAuthStore } from "./useAuthStore";
 import { MOCK_USERS } from "../data/mockUsers";
 import { WASH_PRICES } from "./useOrderStore";
 import { SERVICE_AREAS } from "../services/geo/demo";
@@ -85,6 +86,7 @@ export const useBusinessStore = create<{
           handoffService,
           state.catalog as any,
         );
+        prepareMobileDemo(state);
         await AsyncStorage.setItem(KEY, JSON.stringify(state));
         durableState = state;
         set({ state, error: null });
@@ -131,25 +133,15 @@ export async function flushBusiness() {
     throw Error(useBusinessStore.getState().error ?? "No se pudo guardar.");
   }
 }
-export function currentActor(): Actor {
+export function currentActor(): Actor & { role: "CLIENT" | "DRIVER" } {
   const u = useAuthStore.getState().user;
   if (!u) throw Error("Inicia sesión para continuar.");
+  if (!isMobileUser(u))
+    throw Error("Los perfiles administrativos pertenecen a LaundryWeb.");
   return {
-    id:
-      u.role === "client"
-        ? (u.customerId ?? "c1")
-        : u.role === "driver"
-          ? (u.driverId ?? "d1")
-          : u.id,
+    id: u.role === "client" ? (u.customerId ?? "c1") : (u.driverId ?? "d1"),
     name: u.name,
-    role:
-      u.role === "client"
-        ? "CLIENT"
-        : u.role === "driver"
-          ? "DRIVER"
-          : u.role === "supervisor"
-            ? "SUPERVISOR"
-            : "ADMIN",
+    role: u.role === "client" ? "CLIENT" : "DRIVER",
     facilityId: u.facilityId,
   };
 }
@@ -201,7 +193,7 @@ export const handoffService = new HandoffService({
         evidences: [],
         assignedTo: "Operaciones",
         reportedBy: actor.name,
-        reportedRole: actor.role === "SUPERVISOR" ? "SUPERVISOR" : "ADMIN",
+        reportedRole: actor.role,
         createdAt: h.usedAt!,
         internalNotes: [],
       });
@@ -521,56 +513,6 @@ export function reservedRewardPoints(s: AppBusinessState, customerId: string) {
     .filter((r) => r.customerId === customerId && r.status === "PENDING")
     .reduce((total, r) => total + r.pointsSpent, 0);
 }
-export function reviewReward(
-  id: string,
-  status: "APPROVED" | "DELIVERED" | "REJECTED",
-  reason: string,
-) {
-  transaction((s) => {
-    const actor = currentActor();
-    if (actor.role !== "ADMIN")
-      throw Error("Solo el administrador revisa canjes.");
-    if (!reason.trim())
-      throw Error("Registra el motivo o comprobante de la revisión.");
-    const redemption = s.redemptions.find((r) => r.id === id);
-    if (!redemption) throw Error("Canje no encontrado.");
-    if (redemption.status === status) return;
-    if (
-      (status === "DELIVERED" && redemption.status !== "APPROVED") ||
-      (status !== "DELIVERED" && redemption.status !== "PENDING")
-    )
-      throw Error("El canje ya fue revisado o aún no está aprobado.");
-    if (status === "APPROVED") {
-      const customer = s.customers.find((c) => c.id === redemption.customerId);
-      if (!customer || customer.points < reservedRewardPoints(s, customer.id))
-        throw Error("El saldo no cubre los canjes pendientes.");
-      customer.points -= redemption.pointsSpent;
-      s.pointsLedger.push({
-        id: redemption.id,
-        customerId: customer.id,
-        type: "REDEMPTION",
-        points: -redemption.pointsSpent,
-        reason:
-          s.rewards.find((r) => r.id === redemption.rewardId)?.name ??
-          redemption.rewardId,
-        date: new Date().toISOString(),
-      });
-    }
-    redemption.status = status;
-    redemption.reviewedBy = actor.id;
-    redemption.reviewedAt = new Date().toISOString();
-    redemption.reason = reason.trim();
-    s.businessAudits.push({
-      id: Crypto.randomUUID(),
-      actorId: actor.id,
-      actorRole: actor.role,
-      action: "Canje " + status + " · " + id,
-      reason: reason.trim(),
-      at: redemption.reviewedAt,
-    });
-  });
-}
-
 export function rechargeWallet(amount: number) {
   transaction((s) => {
     const actor = currentActor();
@@ -583,39 +525,6 @@ export function rechargeWallet(amount: number) {
       actorRole: actor.role,
       action: "Recarga simulada de billetera",
       reason: String(amount),
-      at: new Date().toISOString(),
-    });
-  });
-}
-export function updateKyc(
-  customerId: string,
-  status: "APPROVED" | "REJECTED",
-  reason: string,
-) {
-  transaction((s) => {
-    const a = currentActor();
-    if (a.role !== "ADMIN") throw Error("Solo el Administrador revisa KYC.");
-    const c = s.customers.find((c) => c.id === customerId);
-    if (!c) throw Error("Cliente no encontrado.");
-    if (status === "REJECTED" && !reason.trim())
-      throw Error("Indica el motivo de rechazo.");
-    c.kycStatus = status;
-    s.accounts
-      .filter((account) => account.user.customerId === customerId)
-      .forEach(
-        (account) =>
-          (account.user.status =
-            status === "APPROVED" ? "approved" : "rejected"),
-      );
-    c.kycRejectionReason = status === "REJECTED" ? reason : undefined;
-    c.kycReviewedAt = new Date().toISOString();
-    c.kycReviewedBy = a.name;
-    s.businessAudits.push({
-      id: Crypto.randomUUID(),
-      actorId: a.id,
-      actorRole: a.role,
-      action: "KYC " + status,
-      reason,
       at: new Date().toISOString(),
     });
   });
@@ -643,76 +552,6 @@ export function publishDriverLocation(
       lastUpdated: new Date().toISOString(),
       simulated: true,
     };
-  });
-}
-export function createDriverAccount(
-  name: string,
-  email: string,
-  plate: string,
-  facilityId: string,
-) {
-  return transaction((s) => {
-    const a = currentActor();
-    if (a.role !== "ADMIN")
-      throw Error("Solo el administrador puede crear choferes.");
-    const normalized = email.trim().toLowerCase(),
-      f = s.facilities.find((f) => f.id === facilityId);
-    if (
-      !name.trim() ||
-      !plate.trim() ||
-      !/^\S+@\S+\.\S+$/.test(normalized) ||
-      !f ||
-      MOCK_USERS.some((a) => a.email.toLowerCase() === normalized) ||
-      s.accounts.some((a) => a.email === normalized) ||
-      s.drivers.some((d) => d.email.toLowerCase() === normalized)
-    )
-      throw Error("Revisa los campos o utiliza otro correo.");
-    const template =
-      s.drivers.find((d) => d.facilityId === f.id) ?? s.drivers[0];
-    const id = "DRV-" + Crypto.randomUUID();
-    s.drivers.push({
-      ...clone(template),
-      id,
-      name: name.trim(),
-      email: normalized,
-      vehiclePlate: plate.trim(),
-      facilityId: f.id,
-      facilityName: f.name,
-      activeOrders: 0,
-      status: "AVAILABLE",
-      rating: 5,
-      completedTripsToday: 0,
-      avatar: "",
-      location: {
-        lat: f.coordinates.lat,
-        lng: f.coordinates.lng,
-        address: f.address,
-        lastUpdated: new Date().toISOString(),
-        simulated: true,
-      },
-    });
-    s.accounts.push({
-      email: normalized,
-      password: "123456",
-      user: {
-        id: "ACCOUNT-" + id,
-        name: name.trim(),
-        email: normalized,
-        role: "driver",
-        status: "approved",
-        driverId: id,
-        facilityId: f.id,
-      },
-    });
-    s.businessAudits.push({
-      id: Crypto.randomUUID(),
-      actorId: a.id,
-      actorRole: a.role,
-      action: "Cuenta de chofer creada",
-      reason: normalized,
-      at: new Date().toISOString(),
-    });
-    return id;
   });
 }
 export function registerLocalClient(input: {
@@ -797,32 +636,5 @@ export function savePaymentMethods(
       throw Error("Método de pago inválido.");
     s.paymentMethods ??= {};
     s.paymentMethods[a.id] = clone(cards);
-  });
-}
-
-export function refreshDemoDriverPositions(facilityId: string) {
-  transaction((s) => {
-    const a = currentActor();
-    if (
-      !["ADMIN", "SUPERVISOR"].includes(a.role) ||
-      (a.role === "SUPERVISOR" && a.facilityId !== facilityId)
-    )
-      throw Error("No puedes actualizar posiciones de esta sede.");
-    s.drivers
-      .filter(
-        (d) => d.facilityId === facilityId && d.location.simulated !== false,
-      )
-      .forEach((d) => {
-        d.location.lastUpdated = new Date().toISOString();
-        d.location.simulated = true;
-      });
-    s.businessAudits.push({
-      id: Crypto.randomUUID(),
-      actorId: a.id,
-      actorRole: a.role,
-      action: "Posiciones de demostración actualizadas",
-      reason: facilityId,
-      at: new Date().toISOString(),
-    });
   });
 }

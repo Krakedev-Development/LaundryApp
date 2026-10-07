@@ -1,11 +1,11 @@
-export type UserRole = 'client' | 'admin' | 'driver' | 'supervisor';
+export type UserRole = "client" | "driver";
 
-export type AccountStatus = 'pending' | 'approved' | 'rejected';
+export type AccountStatus = "pending" | "approved" | "rejected";
 
 export interface User {
-  customerId?:string;
-  driverId?:string;
-  facilityId?:string;
+  customerId?: string;
+  driverId?: string;
+  facilityId?: string;
   id: string;
   name: string;
   email: string;
@@ -16,15 +16,11 @@ export interface User {
 }
 
 export type OrderStatus =
-  | 'pending'
-  | 'picked_up'
-  | 'in_process'
-  | 'ready'
-  | 'delivering'
-  | 'delivered';
+  "pending" | "picked_up" | "in_process" | "ready" | "delivering" | "delivered";
 
-export type GarmentType = 'ropa_normal' | 'ropa_delicada' | 'sabanas' | 'edredon';
-export type ServiceType = 'lavado' | 'lavado_planchado' | 'solo_planchado';
+export type GarmentType =
+  "ropa_normal" | "ropa_delicada" | "sabanas" | "edredon";
+export type ServiceType = "lavado" | "lavado_planchado" | "solo_planchado";
 
 export interface Order {
   id: string;

@@ -24,7 +24,6 @@ import {
 import { MODE_LABELS, nextAction } from "../../services/domain/BusinessService";
 import type { Verification } from "../../services/domain/HandoffService";
 import { Screen, Card, Action, ui } from "./ui";
-import { DriverCandidates } from "./DriverCandidates";
 import { CustomerActions } from "./CustomerActions";
 import type { Order } from "../../domain/models";
 
@@ -67,8 +66,7 @@ export function BusinessOrderDetail() {
       ![
         raw.fulfillment?.inbound.driverId,
         raw.fulfillment?.outbound.driverId,
-      ].includes(actor.id)) ||
-    (actor.role === "SUPERVISOR" && raw.facilityId !== actor.facilityId)
+      ].includes(actor.id))
   )
     return (
       <Screen title="Solicitud">
@@ -95,16 +93,7 @@ export function BusinessOrderDetail() {
       ? active.filter((h) =>
           ["CUSTOMER_TO_DRIVER", "DRIVER_TO_CUSTOMER"].includes(h.type),
         )
-      : ["ADMIN", "SUPERVISOR"].includes(actor.role)
-        ? active.filter((h) =>
-            [
-              "CUSTOMER_TO_FACILITY",
-              "DRIVER_TO_FACILITY",
-              "FACILITY_TO_DRIVER",
-              "FACILITY_TO_CUSTOMER",
-            ].includes(h.type),
-          )
-        : [];
+      : [];
   const leg = order.status === "READY" ? "outbound" : "inbound";
   const f = order.fulfillment![leg];
   const target =
@@ -161,9 +150,7 @@ export function BusinessOrderDetail() {
               pathname:
                 actor.role === "CLIENT"
                   ? "/(client)/tracking"
-                  : actor.role === "DRIVER"
-                    ? "/(driver)/map"
-                    : "/(admin)/business-map",
+                  : "/(driver)/map",
               params: { id },
             })
           }
@@ -246,17 +233,6 @@ export function BusinessOrderDetail() {
           {verifier.map((h) => (
             <View key={h.id} style={{ gap: 10 }}>
               <Text style={ui.text}>{HANDOFF_LABELS[h.type]}</Text>
-              {actor.role === "ADMIN" && (
-                <View style={ui.warning}>
-                  <Text style={ui.muted}>
-                    Código para demostrar el papel de la contraparte en esta
-                    instalación:
-                  </Text>
-                  <Text selectable style={ui.code}>
-                    {h.fallbackCode}
-                  </Text>
-                </View>
-              )}
               <TextInput
                 accessibilityLabel="Código de transferencia"
                 style={ui.input}
@@ -353,16 +329,6 @@ export function BusinessOrderDetail() {
           />
         </Card>
       )}
-      {["ADMIN", "SUPERVISOR"].includes(actor.role) && (
-        <StaffOrderActions
-          order={raw}
-          run={(fn) => void run(fn)}
-          onOverride={(v) => {
-            setTicket(v);
-            setCount(String(order.itemCount));
-          }}
-        />
-      )}
       <Card>
         <Text style={ui.subtitle}>Desglose del servicio</Text>
         {order.pricing.pricingModel === "PER_WEIGHT" && (
@@ -447,10 +413,7 @@ export function BusinessOrderDetail() {
             (m) =>
               m.orderId === id &&
               m.channel === channel &&
-              (actor.role === "ADMIN" ||
-                actor.role === "SUPERVISOR" ||
-                m.senderId === actor.id ||
-                m.recipientId === actor.id),
+              (m.senderId === actor.id || m.recipientId === actor.id),
           )
           .map((m) => (
             <Text key={m.id} style={ui.text}>
@@ -502,185 +465,5 @@ export function BusinessOrderDetail() {
         </View>
       </Modal>
     </Screen>
-  );
-}
-
-function StaffOrderActions({
-  order,
-  run,
-  onOverride,
-}: {
-  order: Order;
-  run: (fn: () => unknown) => void;
-  onOverride: (verification: Verification) => void;
-}) {
-  const state = useBusinessStore((s) => s.state)!,
-    actor = currentActor();
-  const [weight, setWeight] = useState("22.5"),
-    [message, setMessage] = useState(""),
-    [amount, setAmount] = useState(""),
-    [reason, setReason] = useState("");
-  return (
-    <Card>
-      <Text style={ui.subtitle}>Operación en esta instalación</Text>
-      <Text style={ui.muted}>
-        Para demostrar un ciclo completo, cambia entre las cuentas de cliente,
-        chofer y operador en el mismo dispositivo.
-      </Text>
-      {(["inbound", "outbound"] as const)
-        .filter(
-          (leg) =>
-            order.fulfillment![leg].method === "DRIVER" &&
-            !order.fulfillment![leg].driverId,
-        )
-        .map((leg) => (
-          <DriverCandidates key={leg} order={order} leg={leg} run={run} />
-        ))}
-      {order.pricing.pricingModel === "PER_WEIGHT" && (
-        <>
-          <TextInput
-            style={ui.input}
-            accessibilityLabel="Peso recibido"
-            keyboardType="decimal-pad"
-            value={weight}
-            onChangeText={setWeight}
-          />
-          <Action
-            label={`Registrar peso ${order.pricing.weightUnit}`}
-            onPress={() =>
-              run(() =>
-                businessService.weigh(
-                  order.id,
-                  Number(weight.replace(",", ".")),
-                  order.pricing.weightUnit ?? "LB",
-                ),
-              )
-            }
-          />
-        </>
-      )}
-      <TextInput
-        style={ui.input}
-        placeholder="Mensaje visible para el cliente"
-        value={message}
-        onChangeText={setMessage}
-      />
-      <Action
-        label="Confirmar inspección"
-        onPress={() => run(() => businessService.inspect(order.id, message))}
-      />
-      <TextInput
-        style={ui.input}
-        placeholder="Importe de ajuste"
-        keyboardType="decimal-pad"
-        value={amount}
-        onChangeText={setAmount}
-      />
-      <TextInput
-        style={ui.input}
-        placeholder="Motivo interno del ajuste o resolución"
-        value={reason}
-        onChangeText={setReason}
-      />
-      <Action
-        label="Proponer ajuste al cliente"
-        onPress={() =>
-          run(() =>
-            businessService.proposeAdjustment(
-              order.id,
-              Number(amount.replace(",", ".")),
-              reason,
-              message,
-            ),
-          )
-        }
-      />
-      {(["IN_PROCESS", "QUALITY_CONTROL", "READY"] as const).map((t, i) => (
-        <Action
-          key={t}
-          label={
-            [
-              "Iniciar procesamiento",
-              "Pasar a control de calidad",
-              "Marcar listo",
-            ][i]
-          }
-          onPress={() => run(() => businessService.process(order.id, t))}
-        />
-      ))}
-      {state.incidents.some(
-        (i) =>
-          i.orderId === order.id &&
-          i.type === "CLIENTE_AUSENTE" &&
-          i.status !== "RESOLVED",
-      ) && (
-        <Action
-          label="Resolver recogida fallida y habilitar agenda"
-          onPress={() =>
-            run(() =>
-              businessService.resolveFailedPickup(order.id, reason, message),
-            )
-          }
-        />
-      )}{" "}
-      {order.intakeHold && !order.intakeHold.resolvedAt && (
-        <Action
-          label="Resolver diferencia de prendas con motivo"
-          onPress={() =>
-            run(() => handoffService.resolve(order.id, actor.id, reason))
-          }
-        />
-      )}
-      <Text style={ui.subtitle}>Handoffs</Text>
-      {state.handoffs
-        .filter((h) => h.orderId === order.id)
-        .map((h) => (
-          <View key={h.id} style={{ gap: 8 }}>
-            <Text style={ui.text}>
-              {HANDOFF_LABELS[h.type]} · {h.status}
-            </Text>
-            {actor.role === "ADMIN" &&
-              ["ACTIVE", "LOCKED", "EXPIRED"].includes(h.status) && (
-                <>
-                  <Action
-                    label="Regenerar código con motivo"
-                    onPress={() =>
-                      run(() =>
-                        handoffService.regenerate(h.id, actor.id, reason),
-                      )
-                    }
-                  />
-                  <Action
-                    label="Revocar código con motivo"
-                    onPress={() =>
-                      run(() => handoffService.revoke(h.id, actor.id, reason))
-                    }
-                  />
-                  <Action
-                    label="Verificar excepción administrativa"
-                    onPress={() =>
-                      run(() =>
-                        onOverride(
-                          handoffService.verifyAdministrativeOverride(
-                            h.id,
-                            actor.id,
-                            reason,
-                          ),
-                        ),
-                      )
-                    }
-                  />
-                </>
-              )}
-          </View>
-        ))}
-      {state.businessAudits
-        .filter((a) => a.orderId === order.id)
-        .map((a) => (
-          <Text key={a.id} style={ui.muted}>
-            {a.at} · {a.action} · {a.actorRole}
-          </Text>
-        ))}
-    </Card>
   );
 }
