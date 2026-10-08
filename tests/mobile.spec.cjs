@@ -11,10 +11,16 @@ async function switchRole(page, role) {
     .getByRole("button", { name: "Abrir menú lateral", exact: true })
     .click();
   await page
+    .getByRole("button", { name: "Herramientas de demostración", exact: true })
+    .click();
+  await page
     .getByRole("button", { name: `Cambiar a ${role} demo`, exact: true })
     .click();
 }
 async function slot(page) {
+  await page
+    .getByRole("button", { name: "Elegir fecha y horario", exact: true })
+    .click();
   await page
     .getByRole("radio", { name: /^\d{4}-\d{2}-\d{2} ·/ })
     .last()
@@ -25,6 +31,9 @@ test("client sections preserve filters and the bottom bar while switching tabs a
 }) => {
   await page.getByRole("tab", { name: "Pedidos", exact: true }).click();
   await page.getByRole("radio", { name: "Historial", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Filtrar modalidad", exact: true })
+    .click();
   await page
     .getByRole("radio", { name: "Entrega y retiro en sede", exact: true })
     .click();
@@ -43,8 +52,15 @@ test("client sections preserve filters and the bottom bar while switching tabs a
     page.getByRole("radio", { name: "Historial", exact: true }),
   ).toBeChecked();
   await expect(
+    page.getByRole("button", { name: "Entrega y retiro en sede", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Entrega y retiro en sede", exact: true })
+    .click();
+  await expect(
     page.getByRole("radio", { name: "Entrega y retiro en sede", exact: true }),
   ).toBeChecked();
+  await page.getByRole("button", { name: "Cerrar panel", exact: true }).click();
   for (let i = 0; i < 2; i++) {
     await page
       .getByRole("button", { name: "Abrir menú lateral", exact: true })
@@ -52,7 +68,7 @@ test("client sections preserve filters and the bottom bar while switching tabs a
     await page.getByRole("button", { name: "Inicio", exact: true }).click();
     await expect(page.getByText("Ropa fresca, tiempo para ti.")).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Cerrar menú", exact: true }),
+      page.getByRole("button", { name: "Cerrar panel", exact: true }),
     ).not.toBeVisible();
     await page.getByRole("tab", { name: "Pedidos", exact: true }).click();
     await expect(
@@ -110,8 +126,14 @@ test("opening addresses from a request preserves its draft and returns to the sa
 }) => {
   await page.getByRole("tab", { name: "Solicitar", exact: true }).click();
   const address = page.getByRole("radio", { name: /^Casa ·/ });
+  await page
+    .getByRole("button", { name: "Elegir dirección", exact: true })
+    .click();
   await address.click();
   await slot(page);
+  await page
+    .getByRole("button", { name: "Elegir dirección", exact: true })
+    .click();
   await page
     .getByRole("button", { name: "Administrar direcciones", exact: true })
     .click();
@@ -119,10 +141,18 @@ test("opening addresses from a request preserves its draft and returns to the sa
     page.getByRole("heading", { name: "Direcciones guardadas", exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Atrás", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Elegir dirección", exact: true })
+    .click();
   await expect(address).toBeChecked();
+  await page.getByRole("button", { name: "Cerrar panel", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Elegir fecha y horario", exact: true })
+    .click();
   await expect(
     page.getByRole("radio", { name: /^\d{4}-\d{2}-\d{2} ·/ }).last(),
   ).toBeChecked();
+  await page.getByRole("button", { name: "Cerrar panel", exact: true }).click();
   await page.getByRole("button", { name: "Continuar", exact: true }).click();
   await expect(
     page.getByRole("radio", {
@@ -199,6 +229,12 @@ for (const inbound of ["domicilio", "sede"])
         })
         .click();
       await page
+        .getByRole("button", {
+          name: inbound === "domicilio" ? "Elegir dirección" : "Elegir sede",
+          exact: true,
+        })
+        .click();
+      await page
         .getByRole("radio", {
           name:
             inbound === "domicilio"
@@ -216,6 +252,12 @@ for (const inbound of ["domicilio", "sede"])
             outbound === "domicilio"
               ? "Chofer entrega en domicilio"
               : "Retiro en sede",
+          exact: true,
+        })
+        .click();
+      await page
+        .getByRole("button", {
+          name: outbound === "domicilio" ? "Elegir dirección" : "Elegir sede",
           exact: true,
         })
         .click();
@@ -244,6 +286,9 @@ for (const inbound of ["domicilio", "sede"])
         .getByRole("button", { name: "Aplicar promoción", exact: true })
         .click();
       await page
+        .getByRole("button", { name: "Elegir método de pago", exact: true })
+        .click();
+      await page
         .getByRole("radio", { name: "Tarjeta · Demo", exact: true })
         .click();
       await page
@@ -266,6 +311,10 @@ for (const inbound of ["domicilio", "sede"])
           .filter({ visible: true })
           .first(),
       ).toBeVisible();
+      await page
+        .getByRole("button", { name: /^Mostrar código ·/ })
+        .first()
+        .click();
       await expect(
         page.getByRole("heading", { name: /^Código manual:/ }),
       ).toBeVisible();
@@ -284,6 +333,12 @@ test("driver pickup, plant, delivery, recipient and history form a complete rout
   await expect(
     page.getByRole("button", { name: "Confirmar recogida", exact: true }),
   ).toBeDisabled();
+  await page
+    .getByRole("button", {
+      name: "Observaciones y evidencia (opcional)",
+      exact: true,
+    })
+    .click();
   await page
     .getByRole("textbox", { name: "Observaciones de recogida", exact: true })
     .fill("Bolsa sellada");
@@ -312,6 +367,9 @@ test("driver pickup, plant, delivery, recipient and history form a complete rout
   await page
     .getByRole("button", { name: "Ver detalle de SOL-4587", exact: true })
     .click();
+  await page
+    .getByRole("button", { name: "Herramientas de planta · Demo", exact: true })
+    .click();
   for (const action of [
     "Simular ingreso a lavado",
     "Simular control de calidad",
@@ -338,6 +396,9 @@ test("driver pickup, plant, delivery, recipient and history form a complete rout
   await page
     .getByRole("textbox", { name: "Nombre de quien recibe", exact: true })
     .fill("Ana Torres");
+  await page
+    .getByRole("button", { name: "Relación con el cliente", exact: true })
+    .click();
   await page.getByRole("radio", { name: "Familiar", exact: true }).click();
   await page
     .getByRole("checkbox", {
@@ -351,6 +412,9 @@ test("driver pickup, plant, delivery, recipient and history form a complete rout
   await page.getByRole("tab", { name: "Historial", exact: true }).click();
   await page
     .getByRole("button", { name: "Ver detalle de SOL-4587", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Constancia de entrega", exact: true })
     .click();
   await expect(
     page.getByText("Ana Torres · Familiar", { exact: true }),
@@ -386,6 +450,9 @@ test("registration verification rejection and resubmission unlock the new client
     .getByRole("button", { name: "Continuar a verificación", exact: true })
     .click();
   await page
+    .getByRole("button", { name: "Documento de demostración", exact: true })
+    .click();
+  await page
     .getByRole("button", {
       name: "Adjuntar documento simulado · Demo",
       exact: true,
@@ -395,6 +462,9 @@ test("registration verification rejection and resubmission unlock the new client
     .getByRole("button", { name: "Continuar a selfie", exact: true })
     .click();
   await page
+    .getByRole("button", { name: "Selfie de demostración", exact: true })
+    .click();
+  await page
     .getByRole("button", {
       name: "Adjuntar selfie simulada · Demo",
       exact: true,
@@ -402,6 +472,12 @@ test("registration verification rejection and resubmission unlock the new client
     .click();
   await page
     .getByRole("button", { name: "Enviar verificación", exact: true })
+    .click();
+  await page
+    .getByRole("button", {
+      name: "Herramientas de verificación · Demo",
+      exact: true,
+    })
     .click();
   await page
     .getByRole("button", { name: "Simular rechazo · Demo", exact: true })
@@ -413,6 +489,9 @@ test("registration verification rejection and resubmission unlock the new client
     .getByRole("button", { name: "Continuar a selfie", exact: true })
     .click();
   await page
+    .getByRole("button", { name: "Selfie de demostración", exact: true })
+    .click();
+  await page
     .getByRole("button", {
       name: "Adjuntar selfie simulada · Demo",
       exact: true,
@@ -420,6 +499,12 @@ test("registration verification rejection and resubmission unlock the new client
     .click();
   await page
     .getByRole("button", { name: "Enviar verificación", exact: true })
+    .click();
+  await page
+    .getByRole("button", {
+      name: "Herramientas de verificación · Demo",
+      exact: true,
+    })
     .click();
   await page
     .getByRole("button", { name: "Simular aprobación · Demo", exact: true })

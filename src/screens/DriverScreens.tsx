@@ -1,3 +1,13 @@
+import {
+  Accordion,
+  ListItem,
+  SegmentedControl,
+  SearchField,
+  StatusChip,
+  useSearch,
+} from "../components/presentation";
+import { BottomSheet } from "../components/overlay/OverlayPortal";
+import { OrderList } from "../components/OrderList";
 import { useState } from "react";
 import { View } from "react-native";
 import { Page } from "../components/Page";
@@ -12,7 +22,6 @@ import {
   Field,
   Icon,
   Title,
-  ui,
   useAction,
 } from "../components/ui";
 import { PhotoAttachment } from "../components/PhotoAttachment";
@@ -26,7 +35,6 @@ import {
   garmentCount,
   operationalLabels,
   pickupStatuses,
-  statusLabels,
   terminalStatuses,
   type OperationalStatus,
   type Order,
@@ -87,6 +95,7 @@ export function DriverRouteScreen() {
   const navigation = useLaundryNavigation();
   const { state, execute } = useApp();
   const d = state.driver;
+  const [statusPanel, setStatusPanel] = useState(false);
   const orders = visibleOrders(state).filter(
     (o) =>
       pickupStatuses.includes(o.status) || deliveryStatuses.includes(o.status),
@@ -101,18 +110,31 @@ export function DriverRouteScreen() {
         <Body>
           {d.zoneName} · {orders.length} paradas activas
         </Body>
-        {(Object.keys(operationalLabels) as OperationalStatus[]).map(
-          (status) => (
-            <Choice
-              key={status}
-              label={operationalLabels[status]}
-              selected={d.operationalStatus === status}
-              onPress={() =>
-                execute((r) => r.setDriverOperationalStatus(status))
-              }
-            />
-          ),
-        )}
+        <ListItem
+          title="Cambiar disponibilidad"
+          subtitle={operationalLabels[d.operationalStatus]}
+          icon="toggle-outline"
+          onPress={() => setStatusPanel(true)}
+        />
+        <BottomSheet
+          title="Disponibilidad"
+          visible={statusPanel}
+          onClose={() => setStatusPanel(false)}
+        >
+          {(Object.keys(operationalLabels) as OperationalStatus[]).map(
+            (status) => (
+              <Choice
+                key={status}
+                label={operationalLabels[status]}
+                selected={d.operationalStatus === status}
+                onPress={() => {
+                  execute((r) => r.setDriverOperationalStatus(status));
+                  setStatusPanel(false);
+                }}
+              />
+            ),
+          )}
+        </BottomSheet>
       </Card>
       <Title>Siguiente servicio</Title>
       {next ? (
@@ -120,7 +142,7 @@ export function DriverRouteScreen() {
           <Title>
             {next.id} · {next.customerName}
           </Title>
-          <Badge>{statusLabels[next.status]}</Badge>
+          <StatusChip status={next.status} />
           <Body>
             {pickupStatuses.includes(next.status)
               ? next.pickup.addressFull
@@ -167,41 +189,52 @@ export function DriverRouteScreen() {
   );
 }
 export function DriverServicesScreen() {
-  const navigation = useLaundryNavigation();
-  const { state } = useApp();
-  const [upcoming, setUpcoming] = useState(false);
+  const navigation = useLaundryNavigation(),
+    { state } = useApp();
+  const [upcoming, setUpcoming] = useState(false),
+    [search, setSearch] = useState("");
+  const query = useSearch(search);
   const active = (o: Order) =>
     pickupStatuses.includes(o.status) || deliveryStatuses.includes(o.status);
   const orders = visibleOrders(state).filter(
-    (o) => !terminalStatuses.includes(o.status) && active(o) !== upcoming,
+    (o) =>
+      !terminalStatuses.includes(o.status) &&
+      active(o) !== upcoming &&
+      (
+        o.id +
+        " " +
+        o.customerName +
+        " " +
+        o.pickup.addressFull +
+        " " +
+        o.delivery.addressFull
+      )
+        .toLocaleLowerCase()
+        .includes(query),
   );
   return (
-    <Page>
-      <View style={ui.row}>
-        <Choice
-          label="Activos"
-          selected={!upcoming}
-          onPress={() => setUpcoming(false)}
-        />
-        <Choice
-          label="Próximos"
-          selected={upcoming}
-          onPress={() => setUpcoming(true)}
-        />
-      </View>
-      {orders.length ? (
-        orders.map((o) => (
-          <OrderCard
-            key={o.id}
-            order={o}
-            onDetail={() =>
-              navigation.navigate("DriverServiceDetail", { orderId: o.id })
-            }
-          />
-        ))
-      ) : (
-        <Empty text="No hay servicios en esta categoría." />
-      )}
+    <Page scroll={false}>
+      <Title>Mis servicios</Title>
+      <SegmentedControl
+        value={upcoming ? "next" : "active"}
+        onChange={(v) => setUpcoming(v === "next")}
+        options={[
+          { value: "active", label: "Activos" },
+          { value: "next", label: "Próximos" },
+        ]}
+      />
+      <SearchField
+        value={search}
+        onChange={setSearch}
+        placeholder="Buscar servicios"
+      />
+      <OrderList
+        orders={orders}
+        onDetail={(o) =>
+          navigation.navigate("DriverServiceDetail", { orderId: o.id })
+        }
+        onClear={() => setSearch("")}
+      />
     </Page>
   );
 }
@@ -225,7 +258,7 @@ export function DriverServiceDetailScreen({
         <Title>
           {o.id} · {pickup ? "Recogida" : "Entrega"}
         </Title>
-        <Badge>{statusLabels[o.status]}</Badge>
+        <StatusChip status={o.status} />
         <Body>{o.customerName}</Body>
         <Button
           label="Abrir chat con el cliente"
@@ -246,11 +279,11 @@ export function DriverServiceDetailScreen({
         <Button
           label="Ver mapa y navegación"
           icon="map-outline"
+          secondary
           onPress={() => navigation.navigate("DriverMap", { orderId: o.id })}
         />
       </Card>
-      <Card>
-        <Title>Prendas esperadas ({garmentCount(o)})</Title>
+      <Accordion title={"Prendas esperadas (" + garmentCount(o) + ")"}>
         {o.items.map((i) => (
           <Body key={i.id}>
             {i.quantity} × {i.garmentType} · {i.serviceType}
@@ -259,28 +292,26 @@ export function DriverServiceDetailScreen({
         {o.pricingModel === "PER_WEIGHT" && (
           <Body>Servicio por peso. Confirma el conteo real al recoger.</Body>
         )}
-      </Card>
+      </Accordion>
       <DriverAction order={o} />
       {o.pickup.garmentCountConfirmed !== undefined && (
-        <Card>
-          <Title>Constancia de recogida</Title>
+        <Accordion title="Constancia de recogida">
           <Body>
             {o.pickup.garmentCountConfirmed} prendas · {o.pickup.pickedUpAt}
           </Body>
           <Body>{o.pickup.notes}</Body>
           {o.pickup.evidencePhotoUri && <Badge>Evidencia adjunta</Badge>}
-        </Card>
+        </Accordion>
       )}
       {o.delivery.recipientName && (
-        <Card>
-          <Title>Constancia de entrega</Title>
+        <Accordion title="Constancia de entrega">
           <Body>
             {o.delivery.recipientName} · {o.delivery.recipientRelationship}
           </Body>
           <Body muted>{o.delivery.deliveredAt}</Body>
           <Body>{o.delivery.deliveryNotes}</Body>
           {o.delivery.evidencePhotoUri && <Badge>Evidencia adjunta</Badge>}
-        </Card>
+        </Accordion>
       )}
       <DemoPlantActions order={o} />
     </Page>
@@ -305,7 +336,36 @@ export function DriverPickupConfirmScreen({
       </Page>
     );
   return (
-    <Page>
+    <Page
+      footer={
+        <>
+          <Button
+            label="Confirmar recogida"
+            disabled={
+              !checked || !Number.isInteger(Number(count)) || Number(count) < 1
+            }
+            onPress={() => {
+              if (
+                a.run(
+                  () =>
+                    execute((r) =>
+                      r.driverConfirmPickup(
+                        o.id,
+                        Number(count),
+                        notes,
+                        photo,
+                        code.trim() || undefined,
+                      ),
+                    ),
+                  "Recogida confirmada.",
+                )
+              )
+                navigation.popTo("DriverRoute");
+            }}
+          />
+        </>
+      }
+    >
       <Badge>{o.id}</Badge>
       <Card>
         <Title>Recepción de prendas</Title>
@@ -319,6 +379,11 @@ export function DriverPickupConfirmScreen({
         ))}
         <Field
           label="Cantidad de prendas recibidas"
+          validate={(value) =>
+            !Number.isInteger(Number(value)) || Number(value) < 1
+              ? "Ingresa una cantidad entera mayor a cero."
+              : undefined
+          }
           value={count}
           onChangeText={setCount}
           keyboardType="number-pad"
@@ -328,47 +393,29 @@ export function DriverPickupConfirmScreen({
           checked={checked}
           onChange={setChecked}
         />
-        <Field
-          label="Observaciones de recogida"
-          value={notes}
-          onChangeText={setNotes}
-          multiline
-        />
-        <PhotoAttachment
-          label="Evidencia de recogida (opcional)"
-          uri={photo}
-          onChange={setPhoto}
-        />
-        <Field
-          label="Código de transferencia (opcional)"
-          value={code}
-          onChangeText={setCode}
-        />
-        <QrScanner onScan={setCode} />
-        <Body muted>
-          Si introduces un código, debe corresponder a esta recogida.
-        </Body>
+        <Accordion title="Observaciones y evidencia (opcional)">
+          <Field
+            label="Observaciones de recogida"
+            value={notes}
+            onChangeText={setNotes}
+            multiline
+          />
+          <PhotoAttachment
+            label="Evidencia de recogida (opcional)"
+            uri={photo}
+            onChange={setPhoto}
+          />
+          <Field
+            label="Código de transferencia (opcional)"
+            value={code}
+            onChangeText={setCode}
+          />
+          <QrScanner onScan={setCode} />
+          <Body muted>
+            Si introduces un código, debe corresponder a esta recogida.
+          </Body>
+        </Accordion>
         {a.feedback}
-        <Button
-          label="Confirmar recogida"
-          disabled={!checked}
-          onPress={() => {
-            if (
-              a.run(() =>
-                execute((r) =>
-                  r.driverConfirmPickup(
-                    o.id,
-                    Number(count),
-                    notes,
-                    photo,
-                    code.trim() || undefined,
-                  ),
-                ),
-              )
-            )
-              navigation.popTo("DriverRoute");
-          }}
-        />
       </Card>
     </Page>
   );
@@ -380,6 +427,7 @@ export function DriverDeliveryConfirmScreen({
   const { state, execute } = useApp();
   const o = visibleOrders(state).find((o) => o.id === route.params.orderId);
   const a = useAction();
+  const [relationshipPanel, setRelationshipPanel] = useState(false);
   const [name, setName] = useState(o?.customerName ?? ""),
     [relationship, setRelationship] = useState("Cliente"),
     [notes, setNotes] = useState(""),
@@ -393,7 +441,35 @@ export function DriverDeliveryConfirmScreen({
       </Page>
     );
   return (
-    <Page>
+    <Page
+      footer={
+        <>
+          <Button
+            label="Confirmar entrega"
+            disabled={!checked || !name.trim()}
+            onPress={() => {
+              if (
+                a.run(
+                  () =>
+                    execute((r) =>
+                      r.driverConfirmDelivery(
+                        o.id,
+                        name,
+                        relationship,
+                        notes,
+                        photo,
+                        code.trim() || undefined,
+                      ),
+                    ),
+                  "Entrega confirmada.",
+                )
+              )
+                navigation.popTo("DriverRoute");
+            }}
+          />
+        </>
+      }
+    >
       <Badge>{o.id}</Badge>
       <Card>
         <Title>Confirma quién recibe</Title>
@@ -402,58 +478,54 @@ export function DriverDeliveryConfirmScreen({
           value={name}
           onChangeText={setName}
         />
-        {["Cliente", "Familiar", "Conserje", "Otro autorizado"].map((rel) => (
-          <Choice
-            key={rel}
-            label={rel}
-            selected={relationship === rel}
-            onPress={() => setRelationship(rel)}
+        <ListItem
+          title="Relación con el cliente"
+          subtitle={relationship}
+          icon="people-outline"
+          onPress={() => setRelationshipPanel(true)}
+        />
+        <BottomSheet
+          title="Quién recibe"
+          visible={relationshipPanel}
+          onClose={() => setRelationshipPanel(false)}
+        >
+          {["Cliente", "Familiar", "Conserje", "Otro autorizado"].map((rel) => (
+            <Choice
+              key={rel}
+              label={rel}
+              selected={relationship === rel}
+              onPress={() => {
+                setRelationship(rel);
+                setRelationshipPanel(false);
+              }}
+            />
+          ))}
+        </BottomSheet>
+        <Accordion title="Observaciones y evidencia (opcional)">
+          <Field
+            label="Observaciones de entrega"
+            value={notes}
+            onChangeText={setNotes}
+            multiline
           />
-        ))}
-        <Field
-          label="Observaciones de entrega"
-          value={notes}
-          onChangeText={setNotes}
-          multiline
-        />
-        <PhotoAttachment
-          label="Evidencia de entrega (opcional)"
-          uri={photo}
-          onChange={setPhoto}
-        />
-        <Field
-          label="Código de entrega (opcional)"
-          value={code}
-          onChangeText={setCode}
-        />
-        <QrScanner onScan={setCode} />
+          <PhotoAttachment
+            label="Evidencia de entrega (opcional)"
+            uri={photo}
+            onChange={setPhoto}
+          />
+          <Field
+            label="Código de entrega (opcional)"
+            value={code}
+            onChangeText={setCode}
+          />
+          <QrScanner onScan={setCode} />
+        </Accordion>
         <Check
           label="Confirmo la entrega completa a la persona indicada"
           checked={checked}
           onChange={setChecked}
         />
         {a.feedback}
-        <Button
-          label="Confirmar entrega"
-          disabled={!checked || !name.trim()}
-          onPress={() => {
-            if (
-              a.run(() =>
-                execute((r) =>
-                  r.driverConfirmDelivery(
-                    o.id,
-                    name,
-                    relationship,
-                    notes,
-                    photo,
-                    code.trim() || undefined,
-                  ),
-                ),
-              )
-            )
-              navigation.popTo("DriverRoute");
-          }}
-        />
       </Card>
     </Page>
   );
@@ -461,9 +533,15 @@ export function DriverDeliveryConfirmScreen({
 export function DriverHistoryScreen() {
   const navigation = useLaundryNavigation();
   const { state } = useApp();
-  const [filter, setFilter] = useState("Todos");
+  const [filter, setFilter] = useState("Todos"),
+    [search, setSearch] = useState("");
+  const query = useSearch(search);
   const orders = visibleOrders(state)
-    .filter((o) => terminalStatuses.includes(o.status))
+    .filter(
+      (o) =>
+        terminalStatuses.includes(o.status) &&
+        (o.id + " " + o.customerName).toLocaleLowerCase().includes(query),
+    )
     .filter((o) => {
       if (filter === "Todos") return true;
       const stamp =
@@ -477,30 +555,31 @@ export function DriverHistoryScreen() {
         : age >= 0 && age < 7 * 86400000;
     });
   return (
-    <Page>
-      <Card>
-        {["Hoy", "Esta semana", "Todos"].map((f) => (
-          <Choice
-            key={f}
-            label={f}
-            selected={filter === f}
-            onPress={() => setFilter(f)}
-          />
-        ))}
-      </Card>
-      {orders.length ? (
-        orders.map((o) => (
-          <OrderCard
-            key={o.id}
-            order={o}
-            onDetail={() =>
-              navigation.navigate("DriverServiceDetail", { orderId: o.id })
-            }
-          />
-        ))
-      ) : (
-        <Empty text="No tienes servicios finalizados en este período." />
-      )}
+    <Page scroll={false}>
+      <Title>Historial de servicios</Title>
+      <SegmentedControl
+        value={filter}
+        onChange={setFilter}
+        options={["Hoy", "Esta semana", "Todos"].map((f) => ({
+          value: f,
+          label: f,
+        }))}
+      />
+      <SearchField
+        value={search}
+        onChange={setSearch}
+        placeholder="Buscar en historial"
+      />
+      <OrderList
+        orders={orders}
+        onDetail={(o) =>
+          navigation.navigate("DriverServiceDetail", { orderId: o.id })
+        }
+        onClear={() => {
+          setSearch("");
+          setFilter("Todos");
+        }}
+      />
     </Page>
   );
 }

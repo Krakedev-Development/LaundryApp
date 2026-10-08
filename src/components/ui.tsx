@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -7,56 +7,48 @@ import {
   TextInput,
   View,
   type TextInputProps,
+  type StyleProp,
+  type ViewStyle,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-export const colors = {
-  primary: "#143F73",
-  dark: "#0F315A",
-  soft: "#E8EEF5",
-  lime: "#A5CD39",
-  aqua: "#61BFC7",
-  background: "#F8FAFC",
-  surface: "#FFFFFF",
-  border: "#E2E8F0",
-  text: "#0F172A",
-  muted: "#64748B",
-  danger: "#B42335",
-  success: "#087F5B",
-};
+import { theme } from "../design-system/tokens";
+import { tactile, friendlyError } from "../design-system/interaction";
+import { useFeedback } from "./overlay/OverlayContext";
+export const colors = theme.colors;
 export const ui = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.lg,
+    gap: theme.spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 18,
-    gap: 12,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: theme.spacing.sm,
     flexWrap: "wrap",
   },
-  title: { color: colors.dark, fontWeight: "800", fontSize: 24 },
-  subtitle: { color: colors.dark, fontWeight: "700", fontSize: 17 },
-  text: { color: colors.text, fontSize: 14, lineHeight: 21 },
-  muted: { color: colors.muted, fontSize: 13, lineHeight: 20 },
+  title: { color: colors.dark, ...theme.typography.title },
+  subtitle: { color: colors.dark, ...theme.typography.section },
+  text: { color: colors.text, ...theme.typography.body },
+  muted: { color: colors.muted, ...theme.typography.secondary },
   input: {
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
-    borderRadius: 10,
+    borderRadius: theme.radius.md,
     paddingHorizontal: 14,
     paddingVertical: 12,
     color: colors.text,
-    minHeight: 46,
-    fontSize: 14,
+    minHeight: theme.layout.button,
+    fontSize: 16,
   },
   action: {
     backgroundColor: colors.primary,
-    borderRadius: 10,
-    minHeight: 46,
+    borderRadius: theme.radius.md,
+    minHeight: theme.layout.button,
     padding: 12,
     alignItems: "center",
     justifyContent: "center",
@@ -70,20 +62,20 @@ export const ui = StyleSheet.create({
   },
   badge: {
     alignSelf: "flex-start",
-    borderRadius: 7,
+    borderRadius: theme.radius.sm,
     backgroundColor: colors.soft,
     paddingVertical: 5,
     paddingHorizontal: 9,
     color: colors.primary,
-    fontSize: 12,
+    ...theme.typography.caption,
     fontWeight: "600",
   },
   error: {
     color: colors.danger,
-    backgroundColor: "#FFF1F2",
+    backgroundColor: colors.dangerSoft,
     padding: 12,
-    borderRadius: 8,
-    fontSize: 13,
+    borderRadius: theme.radius.md,
+    ...theme.typography.secondary,
   },
 });
 export type IconName = React.ComponentProps<typeof Ionicons>["name"];
@@ -98,8 +90,14 @@ export function Icon({
 }) {
   return <Ionicons name={name} size={size} color={color} />;
 }
-export function Card({ children }: { children: React.ReactNode }) {
-  return <View style={ui.card}>{children}</View>;
+export function Card({
+  children,
+  style,
+}: {
+  children: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
+  return <View style={[ui.card, style]}>{children}</View>;
 }
 export function Title({ children }: { children: React.ReactNode }) {
   return (
@@ -128,6 +126,7 @@ export function Button({
   disabled = false,
   busy = false,
   testID,
+  variant,
 }: {
   label: string;
   onPress(): void;
@@ -136,37 +135,49 @@ export function Button({
   disabled?: boolean;
   busy?: boolean;
   testID?: string;
+  variant?: "primary" | "secondary" | "ghost" | "danger";
 }) {
+  const kind = variant ?? (secondary ? "secondary" : "primary");
+  const soft = kind === "secondary" || kind === "ghost";
+  const ink = soft ? colors.primary : colors.onPrimary;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ disabled: disabled || busy }}
+      accessibilityState={{ disabled: disabled || busy, busy }}
       testID={testID}
-      onPress={onPress}
+      onPress={() => {
+        tactile("selection");
+        onPress();
+      }}
       disabled={disabled || busy}
       style={({ pressed }) => [
         ui.action,
-        secondary && ui.outline,
-        { opacity: disabled || busy ? 0.45 : pressed ? 0.8 : 1 },
+        soft && {
+          backgroundColor: kind === "ghost" ? colors.transparent : colors.soft,
+        },
+        kind === "danger" && { backgroundColor: colors.danger },
+        {
+          opacity:
+            disabled || busy
+              ? theme.opacity.disabled
+              : pressed
+                ? theme.opacity.pressed
+                : 1,
+        },
       ]}
     >
       {busy ? (
-        <ActivityIndicator color={secondary ? colors.primary : "#FFF"} />
+        <ActivityIndicator color={ink} />
       ) : (
-        icon && (
-          <Icon
-            name={icon}
-            color={secondary ? colors.primary : "#FFF"}
-            size={19}
-          />
-        )
+        icon && <Icon name={icon} color={ink} size={19} />
       )}
       <Text
         style={{
-          color: secondary ? colors.primary : "#FFF",
-          fontWeight: "700",
+          color: ink,
+          ...theme.typography.button,
           textAlign: "center",
+          flexShrink: 1,
         }}
       >
         {label}
@@ -174,16 +185,136 @@ export function Button({
     </Pressable>
   );
 }
-export function Field({ label, ...props }: TextInputProps & { label: string }) {
+export function IconButton({
+  label,
+  icon,
+  onPress,
+  disabled = false,
+}: {
+  label: string;
+  icon: IconName;
+  onPress(): void;
+  disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={() => {
+        tactile("selection");
+        onPress();
+      }}
+      style={({ pressed }) => ({
+        minWidth: theme.layout.touch,
+        minHeight: theme.layout.touch,
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: theme.radius.md,
+        opacity: disabled
+          ? theme.opacity.disabled
+          : pressed
+            ? theme.opacity.pressed
+            : 1,
+        backgroundColor: pressed ? colors.soft : colors.transparent,
+      })}
+    >
+      <Icon name={icon} />
+    </Pressable>
+  );
+}
+export function Field({
+  label,
+  help,
+  error,
+  validate,
+  onBlur,
+  onFocus,
+  onChangeText,
+  ...props
+}: TextInputProps & {
+  label: string;
+  help?: string;
+  error?: string;
+  validate?: (value: string) => string | undefined;
+}) {
+  const [focused, setFocused] = useState(false),
+    [touched, setTouched] = useState(false),
+    [reveal, setReveal] = useState(false);
+  const automatic = (value: string): string | undefined => {
+    if (
+      /correo/i.test(label) &&
+      value &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+    )
+      return "Revisa el formato del correo.";
+    if (
+      /contraseña nueva|nueva contraseña/i.test(label) &&
+      !/^(?=.*[A-Z])(?=.*\d).{8,}$/.test(value)
+    )
+      return "Usa 8 caracteres, una mayúscula y un número.";
+    return undefined;
+  };
+  const problem =
+    error ||
+    (touched ? (validate ?? automatic)(String(props.value ?? "")) : undefined);
   return (
     <View style={{ gap: 6 }}>
-      <Text style={ui.muted}>{label}</Text>
-      <TextInput
-        accessibilityLabel={label}
-        placeholderTextColor={colors.muted}
-        {...props}
-        style={[ui.input, props.style]}
-      />
+      <Text
+        style={[
+          ui.muted,
+          { fontWeight: "600", color: problem ? colors.danger : colors.text },
+        ]}
+      >
+        {label}
+      </Text>
+      <View style={{ position: "relative" }}>
+        <TextInput
+          accessibilityLabel={label}
+          accessibilityHint={problem || help}
+          placeholderTextColor={colors.muted}
+          {...props}
+          secureTextEntry={props.secureTextEntry && !reveal}
+          onFocus={(e) => {
+            setFocused(true);
+            onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setFocused(false);
+            setTouched(true);
+            onBlur?.(e);
+          }}
+          onChangeText={onChangeText}
+          style={[
+            ui.input,
+            props.secureTextEntry && { paddingRight: 58 },
+            focused && { borderColor: colors.focus, borderWidth: 2 },
+            problem && { borderColor: colors.danger },
+            props.editable === false && { backgroundColor: colors.soft },
+            props.style,
+          ]}
+        />
+        {props.secureTextEntry && (
+          <View style={{ position: "absolute", right: 2, top: 2 }}>
+            <IconButton
+              label={
+                (reveal ? "Ocultar " : "Mostrar ") + label.toLocaleLowerCase()
+              }
+              icon={reveal ? "eye-off-outline" : "eye-outline"}
+              onPress={() => setReveal(!reveal)}
+            />
+          </View>
+        )}
+      </View>
+      {(problem || help) && (
+        <Text
+          accessibilityRole={problem ? "alert" : undefined}
+          style={[ui.muted, problem && { color: colors.danger }]}
+        >
+          {problem || help}
+        </Text>
+      )}
     </View>
   );
 }
@@ -205,20 +336,30 @@ export function Choice({
       accessibilityState={{ checked: selected, disabled }}
       aria-checked={selected}
       disabled={disabled}
-      onPress={onPress}
-      style={[
+      onPress={() => {
+        tactile("selection");
+        onPress();
+      }}
+      style={({ pressed }) => [
         ui.action,
         ui.outline,
+        { justifyContent: "flex-start" },
         selected && {
           backgroundColor: colors.soft,
           borderColor: colors.primary,
         },
-        { opacity: disabled ? 0.45 : 1 },
+        {
+          opacity: disabled
+            ? theme.opacity.disabled
+            : pressed
+              ? theme.opacity.pressed
+              : 1,
+        },
       ]}
     >
       <Icon
         name={selected ? "radio-button-on" : "radio-button-off"}
-        size={18}
+        size={20}
       />
       <Text style={[ui.text, { flexShrink: 1 }]}>{label}</Text>
     </Pressable>
@@ -239,55 +380,86 @@ export function Check({
       accessibilityLabel={label}
       accessibilityState={{ checked }}
       aria-checked={checked}
-      onPress={() => onChange(!checked)}
-      style={ui.row}
+      onPress={() => {
+        tactile("selection");
+        onChange(!checked);
+      }}
+      style={[ui.row, { minHeight: theme.layout.touch }]}
     >
       <Icon name={checked ? "checkbox" : "square-outline"} />
       <Text style={[ui.text, { flex: 1 }]}>{label}</Text>
     </Pressable>
   );
 }
-export function Empty({ text }: { text: string }) {
+export function Empty({
+  text,
+  title = "Todavía no hay resultados",
+  action,
+}: {
+  text: string;
+  title?: string;
+  action?: React.ReactNode;
+}) {
   return (
-    <Card>
+    <Card style={{ alignItems: "center", paddingVertical: 32 }}>
       <Icon name="file-tray-outline" size={32} />
-      <Body>{text}</Body>
+      <Title>{title}</Title>
+      <Body muted>{text}</Body>
+      {action}
     </Card>
   );
 }
 export function useAction() {
+  const notify = useFeedback();
   const [message, setMessage] = useState<string | null>(null),
     [error, setError] = useState<string | null>(null),
     [busy, setBusy] = useState(false);
+  const locked = useRef(false);
+  const succeeded = (success?: string) => {
+    if (success) {
+      tactile("success");
+      if (notify) notify(success, "success");
+      else setMessage(success);
+    }
+  };
+  const failed = (e: unknown) => {
+    setError(friendlyError(e));
+    tactile("error");
+  };
   const run = (action: () => unknown, success?: string): boolean => {
+    if (locked.current) return false;
+    locked.current = true;
+    setError(null);
+    setMessage(null);
     try {
-      setError(null);
       action();
-      if (success) setMessage(success);
+      succeeded(success);
       return true;
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "No se pudo completar la acción.",
-      );
+      failed(e);
       return false;
+    } finally {
+      locked.current = false;
     }
   };
   const asyncRun = async (
     action: () => Promise<unknown>,
     success?: string,
   ): Promise<boolean> => {
+    if (locked.current) return false;
+    locked.current = true;
     setBusy(true);
+    setError(null);
+    setMessage(null);
     try {
-      setError(null);
       await action();
-      if (success) setMessage(success);
+      succeeded(success);
       return true;
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "No se pudo completar la acción.",
-      );
+      failed(e);
       return false;
     } finally {
+      locked.current = false;
       setBusy(false);
     }
   };

@@ -16,6 +16,7 @@ export type Routes = {
   ClientBenefits: undefined;
   ClientProfile: undefined;
   ClientOrderDetail: { orderId: string };
+  ClientSchedule: { orderId: string };
   ClientTracking: { orderId: string };
   Chat: { orderId: string };
   ClientWallet: undefined;
@@ -64,6 +65,7 @@ export const titles: Record<keyof Routes, string> = {
   ClientBenefits: "Beneficios",
   ClientProfile: "Mi cuenta",
   ClientOrderDetail: "Detalle de solicitud",
+  ClientSchedule: "Reprogramar solicitud",
   ClientTracking: "Seguimiento",
   Chat: "Chat del pedido",
   ClientWallet: "Billetera Laundry",

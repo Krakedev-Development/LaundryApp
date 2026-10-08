@@ -1,4 +1,4 @@
-import { View } from "react-native";
+﻿import { View } from "react-native";
 import { useState } from "react";
 import { useApp } from "../store/AppProvider";
 import { facilities } from "../domain/catalog";
@@ -10,6 +10,8 @@ import {
 } from "../domain/repository";
 import type { Leg } from "../domain/models";
 import { Badge, Body, Button, Card, Choice, Title } from "./ui";
+import { ListItem, SegmentedControl } from "./presentation";
+import { BottomSheet } from "./overlay/OverlayPortal";
 import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
 export function FulfillmentPicker({
   leg,
@@ -20,9 +22,10 @@ export function FulfillmentPicker({
   value: Leg;
   onChange(value: Leg): void;
 }) {
-  const { state } = useApp();
-  const c = currentCustomer(state);
-  const nav = useLaundryNavigation();
+  const { state } = useApp(),
+    c = currentCustomer(state),
+    nav = useLaundryNavigation();
+  const [panel, setPanel] = useState<"place" | "time">();
   const slots = state.timeSlots.filter(
     (s) => s.context === slotContext(leg, value.method) && s.date >= today(),
   );
@@ -41,47 +44,67 @@ export function FulfillmentPicker({
       timeSlotText: "",
       scheduledDate: "",
     });
+  const driverLabel =
+    leg === "INBOUND"
+      ? "Chofer recoge en domicilio"
+      : "Chofer entrega en domicilio";
+  const customerLabel =
+    leg === "INBOUND" ? "Entrego en sede" : "Retiro en sede";
   return (
     <View style={{ gap: 16 }}>
       <Card>
         <Title>
           {leg === "INBOUND" ? "Cómo entregas tu ropa" : "Cómo recibes tu ropa"}
         </Title>
-        <Choice
-          label={
-            leg === "INBOUND"
-              ? "Chofer recoge en domicilio"
-              : "Chofer entrega en domicilio"
-          }
-          selected={value.method === "DRIVER"}
-          onPress={() => changeMethod("DRIVER")}
+        <SegmentedControl
+          options={[
+            { value: "DRIVER", label: driverLabel },
+            { value: "CUSTOMER", label: customerLabel },
+          ]}
+          value={value.method}
+          onChange={changeMethod}
         />
-        <Choice
-          label={leg === "INBOUND" ? "Entrego en sede" : "Retiro en sede"}
-          selected={value.method === "CUSTOMER"}
-          onPress={() => changeMethod("CUSTOMER")}
+        <ListItem
+          title={value.method === "DRIVER" ? "Elegir dirección" : "Elegir sede"}
+          subtitle={value.addressFull || "Selecciona dónde"}
+          icon={
+            value.method === "DRIVER" ? "location-outline" : "business-outline"
+          }
+          onPress={() => setPanel("place")}
+        />
+        <ListItem
+          title="Elegir fecha y horario"
+          subtitle={
+            value.timeSlotId
+              ? value.scheduledDate + " · " + value.timeSlotText
+              : "Selecciona una franja con cupo"
+          }
+          icon="calendar-outline"
+          onPress={() => setPanel("time")}
         />
       </Card>
-      <Card>
-        <Title>
-          {value.method === "DRIVER" ? "Dirección" : "Sede Laundry"}
-        </Title>
+      <BottomSheet
+        title={value.method === "DRIVER" ? "Dirección" : "Sede Laundry"}
+        visible={panel === "place"}
+        onClose={() => setPanel(undefined)}
+      >
         {value.method === "DRIVER" ? (
           <>
             {c.addresses.map((address) => (
               <Choice
                 key={address.id}
-                label={`${address.title} · ${address.fullAddress}`}
+                label={address.title + " · " + address.fullAddress}
                 selected={value.addressId === address.id}
-                onPress={() =>
+                onPress={() => {
                   onChange({
                     ...value,
                     addressId: address.id,
                     addressFull: address.fullAddress,
                     latitude: address.latitude,
                     longitude: address.longitude,
-                  })
-                }
+                  });
+                  setPanel(undefined);
+                }}
               />
             ))}
             {!c.addresses.length && (
@@ -90,7 +113,10 @@ export function FulfillmentPicker({
             <Button
               label="Administrar direcciones"
               secondary
-              onPress={() => nav.navigate("ClientAddresses")}
+              onPress={() => {
+                setPanel(undefined);
+                nav.navigate("ClientAddresses");
+              }}
             />
           </>
         ) : (
@@ -101,9 +127,9 @@ export function FulfillmentPicker({
             .map((f) => (
               <View key={f.id} style={{ gap: 4 }}>
                 <Choice
-                  label={`${f.name} · ${f.address}`}
+                  label={f.name + " · " + f.address}
                   selected={value.facilityId === f.id}
-                  onPress={() =>
+                  onPress={() => {
                     onChange({
                       ...value,
                       facilityId: f.id,
@@ -111,19 +137,21 @@ export function FulfillmentPicker({
                       addressFull: f.address,
                       latitude: f.latitude,
                       longitude: f.longitude,
-                    })
-                  }
+                    });
+                    setPanel(undefined);
+                  }}
                 />
                 <Body muted>{f.openingHours}</Body>
               </View>
             ))
         )}
-      </Card>
-      <Card>
-        <Title>Fecha y franja horaria</Title>
-        <Body muted>
-          Selecciona una franja con cupo. La reserva se confirma al guardar.
-        </Body>
+      </BottomSheet>
+      <BottomSheet
+        title="Fecha y franja horaria"
+        visible={panel === "time"}
+        onClose={() => setPanel(undefined)}
+      >
+        <Body muted>La reserva se confirma al guardar.</Body>
         {dates.map((d) => (
           <Choice
             key={d}
@@ -141,37 +169,41 @@ export function FulfillmentPicker({
           />
         ))}
         {slots
-          .filter((slot) => slot.date === selectedDate)
+          .filter((s) => s.date === selectedDate)
           .map((slot) => {
             const available =
               slot.active &&
               slot.reservedCount < slot.capacity &&
-              new Date(`${slot.date}T${slot.endTime}:00-05:00`).getTime() >
+              new Date(slot.date + "T" + slot.endTime + ":00-05:00").getTime() >
                 Date.now();
             return (
               <View key={slot.id} style={{ gap: 4 }}>
                 <Choice
-                  label={`${slot.date} · ${slotRange(slot)}`}
+                  label={slot.date + " · " + slotRange(slot)}
                   disabled={!available && slot.id !== value.timeSlotId}
                   selected={value.timeSlotId === slot.id}
-                  onPress={() =>
+                  onPress={() => {
                     onChange({
                       ...value,
                       timeSlotId: slot.id,
                       scheduledDate: slot.date,
                       timeSlotText: slotRange(slot),
-                    })
-                  }
+                    });
+                    setPanel(undefined);
+                  }}
                 />
                 <Badge>
                   {available
-                    ? `${slot.capacity - slot.reservedCount} cupos disponibles`
+                    ? slot.capacity - slot.reservedCount + " cupos disponibles"
                     : "Completo"}
                 </Badge>
               </View>
             );
           })}
-      </Card>
+        {!slots.length && (
+          <Body>No hay horarios disponibles para este tramo.</Body>
+        )}
+      </BottomSheet>
     </View>
   );
 }

@@ -1,6 +1,6 @@
 # LaundryApp
 
-Aplicación en React Native 0.86.3, TypeScript y Expo SDK 57. Conserva las 30 rutas, los dos roles móviles, el catálogo, los estados y los escenarios migrados del prototipo. La [matriz de migración y guía del MVP](docs/MVP_NUEVO_FLUJO.md) documenta cada pantalla, acción y recorrido.
+Aplicación en React Native 0.86.3, TypeScript y Expo SDK 57. Conserva las 30 rutas originales, los dos roles móviles, el catálogo, los estados y los escenarios migrados del prototipo. Agrega una pantalla dedicada para reprogramar. La [matriz de migración y guía del MVP](docs/MVP_NUEVO_FLUJO.md) documenta cada pantalla, acción y recorrido; el [Design System](docs/DESIGN_SYSTEM.md) y la [auditoría UX](docs/UX_AUDIT.md) documentan el rediseño.
 
 ## Ejecutar
 
@@ -31,7 +31,7 @@ Los pagos, la revisión KYC y las operaciones de planta son simulaciones locales
 
 La agenda conserva los cupos y agrega fechas de la siguiente semana al abrir la app o volver al primer plano. Las reglas de cambio y cancelación usan un corte de 60 minutos; la cancelación tardía genera un cargo de $5 que impide crear solicitudes hasta pagarlo. El saldo insuficiente y los códigos incorrectos muestran errores sin aplicar cambios parciales.
 
-El perfil con nombre, rol y correo se muestra únicamente en el menú lateral. La interfaz conserva los logos oficiales y usa íconos para personas, documentos y evidencias. El botón de restablecer demo del header y los controles de simulación son exclusivos del MVP.
+El perfil con nombre, rol y correo se muestra únicamente en el menú lateral. La interfaz conserva los logos oficiales y usa íconos para personas, documentos y evidencias. El reset está en Menú → Herramientas de demostración; ese control y las simulaciones son exclusivos del MVP. Los accesos rápidos del login y la simulación de planta/KYC están agrupados en secciones desplegables.
 
 ## Verificar
 
@@ -59,6 +59,8 @@ El identificador Android se conserva: `com.aistudio.applet.mpsvkf`. La firma y l
 El punto de entrada es `index.js` → `App.tsx`. `src/domain` contiene el dominio migrado, `src/store` la persistencia, `src/screens` las pantallas y `src/components` los controles reutilizables. El registro de navegación vive en `src/navigation/routes.ts`, `src/navigation/MainTabs.tsx` y `App.tsx`.
 
 Las secciones principales usan pestañas persistentes: cambiar de sección conserva sus filtros y posición sin agregar pantallas al historial. Solicitar, detalles, mapas y confirmaciones usan una pila separada con transiciones de fundido. Los accesos del menú vuelven a la pestaña existente; regresar desde seguimiento reutiliza el detalle del mismo pedido. En Android, «Atrás» desde una pestaña secundaria vuelve a Inicio o Mi ruta.
+
+El rediseño usa búsqueda y listas virtualizadas, información complementaria desplegable, selección mediante paneles contextuales, formularios con acciones fijas y confirmaciones destructivas. Un solo host evita apilar modales. El wizard conserva sus cinco pasos y su borrador; Atrás retrocede de paso. Las animaciones respetan movimiento reducido y Expo Haptics da feedback en dispositivos compatibles.
 
 Esta estructura usa el [navegador oficial de pestañas](https://reactnavigation.org/docs/bottom-tab-navigator/) y la [navegación anidada de React Navigation](https://reactnavigation.org/docs/nesting-navigators/).
 

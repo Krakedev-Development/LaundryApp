@@ -1,5 +1,19 @@
+import {
+  Accordion,
+  ListItem,
+  SegmentedControl,
+  SearchField,
+  StatusChip,
+  Timeline,
+  useSearch,
+} from "../components/presentation";
+import {
+  BottomSheet,
+  ConfirmDialog,
+} from "../components/overlay/OverlayPortal";
+import { OrderList } from "../components/OrderList";
 import { useState } from "react";
-import { Modal, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { Page } from "../components/Page";
 import {
   Badge,
@@ -53,11 +67,13 @@ export function ClientHomeScreen() {
     <Page>
       <Text style={ui.title}>Ropa fresca, tiempo para ti.</Text>
       <Body muted>Agenda tu servicio y sigue cada etapa de tus prendas.</Body>
-      <Button
-        label="Nueva solicitud"
-        icon="add-circle-outline"
-        onPress={() => navigation.navigate("ClientNewOrderWizard")}
-      />
+      {charges.length === 0 && (
+        <Button
+          label="Nueva solicitud"
+          icon="add-circle-outline"
+          onPress={() => navigation.navigate("ClientNewOrderWizard")}
+        />
+      )}
       {charges.length > 0 && (
         <Card>
           <Icon name="alert-circle-outline" />
@@ -72,32 +88,20 @@ export function ClientHomeScreen() {
           />
         </Card>
       )}
-      <View style={ui.row}>
-        <View style={{ flex: 1 }}>
-          <Card>
-            <Icon name="wallet-outline" />
-            <Title>{money(c.walletBalance)}</Title>
-            <Body muted>Billetera Laundry</Body>
-            <Button
-              label="Ver billetera"
-              secondary
-              onPress={() => navigation.navigate("ClientWallet")}
-            />
-          </Card>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Card>
-            <Icon name="gift-outline" />
-            <Title>{c.loyaltyPoints} puntos</Title>
-            <Body muted>Beneficios Laundry</Body>
-            <Button
-              label="Ver beneficios"
-              secondary
-              onPress={() => navigation.navigate("ClientBenefits")}
-            />
-          </Card>
-        </View>
-      </View>
+      <Card>
+        <ListItem
+          title="Ver billetera"
+          subtitle={money(c.walletBalance) + " disponibles"}
+          icon="wallet-outline"
+          onPress={() => navigation.navigate("ClientWallet")}
+        />
+        <ListItem
+          title="Ver beneficios"
+          subtitle={c.loyaltyPoints + " puntos · " + c.membershipTier}
+          icon="gift-outline"
+          onPress={() => navigation.navigate("ClientBenefits")}
+        />
+      </Card>
       <Title>Tu solicitud activa</Title>
       {active ? (
         <OrderCard
@@ -117,104 +121,153 @@ export function ClientHomeScreen() {
         secondary
         onPress={() => navigation.navigate("ClientOrders")}
       />
-      <Card>
-        <Title>Cuidado a tu medida</Title>
-        <Body>
-          Lavado por prenda o por peso. Elige recogida y entrega a domicilio, o
-          visita una de nuestras sedes.
-        </Body>
-      </Card>
     </Page>
   );
 }
 export function ClientOrdersScreen() {
-  const navigation = useLaundryNavigation();
-  const { state } = useApp();
+  const navigation = useLaundryNavigation(),
+    { state } = useApp();
   const [history, setHistory] = useState(false),
-    [mode, setMode] = useState<Mode | "ALL">("ALL");
+    [mode, setMode] = useState<Mode | "ALL">("ALL"),
+    [search, setSearch] = useState(""),
+    [filters, setFilters] = useState(false);
+  const query = useSearch(search);
   const orders = visibleOrders(state).filter(
     (o) =>
       terminalStatuses.includes(o.status) === history &&
-      (mode === "ALL" || o.fulfillmentPlan.mode === mode),
+      (mode === "ALL" || o.fulfillmentPlan.mode === mode) &&
+      (
+        o.id +
+        " " +
+        modeLabels[o.fulfillmentPlan.mode] +
+        " " +
+        statusLabels[o.status]
+      )
+        .toLocaleLowerCase()
+        .includes(query),
   );
   return (
-    <Page>
-      <View style={ui.row}>
-        <Choice
-          label="Activos"
-          selected={!history}
-          onPress={() => setHistory(false)}
-        />
-        <Choice
-          label="Historial"
-          selected={history}
-          onPress={() => setHistory(true)}
-        />
-      </View>
-      <Card>
-        <Title>Filtrar modalidad</Title>
+    <Page scroll={false}>
+      <Title>Mis solicitudes</Title>
+      <SegmentedControl
+        value={history ? "history" : "active"}
+        onChange={(v) => setHistory(v === "history")}
+        options={[
+          { value: "active", label: "Activos" },
+          { value: "history", label: "Historial" },
+        ]}
+      />
+      <SearchField
+        value={search}
+        onChange={setSearch}
+        placeholder="Buscar solicitudes"
+      />
+      <Button
+        label={mode === "ALL" ? "Filtrar modalidad" : modeLabels[mode]}
+        icon="options-outline"
+        secondary
+        onPress={() => setFilters(true)}
+      />
+      <OrderList
+        orders={orders}
+        onDetail={(o) =>
+          navigation.navigate("ClientOrderDetail", { orderId: o.id })
+        }
+        onTrack={(o) =>
+          navigation.navigate("ClientTracking", { orderId: o.id })
+        }
+        onClear={() => {
+          setSearch("");
+          setMode("ALL");
+        }}
+      />
+      <BottomSheet
+        title="Filtrar modalidad"
+        visible={filters}
+        onClose={() => setFilters(false)}
+      >
         <Choice
           label="Todas las modalidades"
           selected={mode === "ALL"}
-          onPress={() => setMode("ALL")}
+          onPress={() => {
+            setMode("ALL");
+            setFilters(false);
+          }}
         />
         {Object.entries(modeLabels).map(([key, label]) => (
           <Choice
             key={key}
             label={label}
             selected={mode === key}
-            onPress={() => setMode(key as Mode)}
+            onPress={() => {
+              setMode(key as Mode);
+              setFilters(false);
+            }}
           />
         ))}
-      </Card>
-      {orders.length ? (
-        orders.map((o) => (
-          <OrderCard
-            key={o.id}
-            order={o}
-            onDetail={() =>
-              navigation.navigate("ClientOrderDetail", { orderId: o.id })
-            }
-            onTrack={() =>
-              navigation.navigate("ClientTracking", { orderId: o.id })
-            }
-          />
-        ))
-      ) : (
-        <Empty text="No hay solicitudes para este filtro." />
-      )}
-      <Button
-        label="Nueva solicitud"
-        icon="add-circle-outline"
-        onPress={() => navigation.navigate("ClientNewOrderWizard")}
-      />
+      </BottomSheet>
+    </Page>
+  );
+}
+export function ClientScheduleScreen({ route }: ScreenProps<"ClientSchedule">) {
+  const { state } = useApp();
+  const navigation = useLaundryNavigation();
+  const order = visibleOrders(state).find((o) => o.id === route.params.orderId);
+  return order ? (
+    <ScheduleEditor
+      order={order}
+      onClose={() =>
+        navigation.popTo("ClientOrderDetail", { orderId: order.id })
+      }
+    />
+  ) : (
+    <Page>
+      <Empty text="Solicitud no disponible." />
     </Page>
   );
 }
 function ScheduleEditor({ order, onClose }: { order: Order; onClose(): void }) {
-  const { execute } = useApp();
-  const a = useAction();
-  const [legName, setLegName] = useState<"INBOUND" | "OUTBOUND">("OUTBOUND");
-  const [leg, setLeg] = useState<Leg>(() =>
-    clone(order.fulfillmentPlan.outbound),
-  );
+  const { execute } = useApp(),
+    a = useAction();
+  const [legName, setLegName] = useState<"INBOUND" | "OUTBOUND">("OUTBOUND"),
+    [leg, setLeg] = useState<Leg>(() => clone(order.fulfillmentPlan.outbound));
   return (
-    <Card>
-      <Title>Cambiar modalidad o reprogramar</Title>
-      <Choice
-        label="Entrada · recogida o entrega en sede"
-        selected={legName === "INBOUND"}
-        onPress={() => {
-          setLegName("INBOUND");
-          setLeg(clone(order.fulfillmentPlan.inbound));
-        }}
-      />
-      <Choice
-        label="Salida · entrega o retiro en sede"
-        selected={legName === "OUTBOUND"}
-        onPress={() => {
-          setLegName("OUTBOUND");
-          setLeg(clone(order.fulfillmentPlan.outbound));
+    <Page
+      footer={
+        <>
+          <Button
+            label="Guardar nueva agenda"
+            disabled={!leg.addressFull || !leg.timeSlotId}
+            onPress={() => {
+              if (
+                a.run(
+                  () => execute((r) => r.changeLeg(order.id, legName, leg)),
+                  "Agenda actualizada.",
+                )
+              )
+                onClose();
+            }}
+          />
+          <Button label="Cerrar cambios" secondary onPress={onClose} />
+        </>
+      }
+    >
+      <Badge>{order.id}</Badge>
+      <SegmentedControl
+        value={legName}
+        options={[
+          { value: "INBOUND", label: "Entrada · recogida o entrega en sede" },
+          { value: "OUTBOUND", label: "Salida · entrega o retiro en sede" },
+        ]}
+        onChange={(value) => {
+          setLegName(value);
+          setLeg(
+            clone(
+              value === "INBOUND"
+                ? order.fulfillmentPlan.inbound
+                : order.fulfillmentPlan.outbound,
+            ),
+          );
         }}
       />
       <Body muted>
@@ -222,15 +275,7 @@ function ScheduleEditor({ order, onClose }: { order: Order; onClose(): void }) {
       </Body>
       <FulfillmentPicker leg={legName} value={leg} onChange={setLeg} />
       {a.feedback}
-      <Button
-        label="Guardar nueva agenda"
-        onPress={() => {
-          if (a.run(() => execute((r) => r.changeLeg(order.id, legName, leg))))
-            onClose();
-        }}
-      />
-      <Button label="Cerrar cambios" secondary onPress={onClose} />
-    </Card>
+    </Page>
   );
 }
 export function DemoPlantActions({ order }: { order: Order }) {
@@ -255,7 +300,7 @@ export function DemoPlantActions({ order }: { order: Order }) {
   )
     return null;
   return (
-    <Card>
+    <Accordion title="Herramientas de planta · Demo">
       <Badge>Simulación del prototipo</Badge>
       <Body muted>
         Avanza la operación de planta local para recorrer el flujo completo.
@@ -278,7 +323,7 @@ export function DemoPlantActions({ order }: { order: Order }) {
           )
         }
       />
-    </Card>
+    </Accordion>
   );
 }
 export function ClientOrderDetailScreen({
@@ -288,8 +333,8 @@ export function ClientOrderDetailScreen({
   const { state, execute } = useApp();
   const order = visibleOrders(state).find((o) => o.id === route.params.orderId);
   const a = useAction();
-  const [editing, setEditing] = useState(false),
-    [cancel, setCancel] = useState(false);
+  const [cancel, setCancel] = useState(false),
+    [options, setOptions] = useState(false);
   if (!order)
     return (
       <Page>
@@ -301,7 +346,7 @@ export function ClientOrderDetailScreen({
     <Page>
       <Card>
         <Title>{order.id}</Title>
-        <Badge>{statusLabels[order.status]}</Badge>
+        <StatusChip status={order.status} />
         <Body>{modeLabels[order.fulfillmentPlan.mode]}</Body>
         <Badge>{pricingLabels[order.pricingStatus]}</Badge>
         <Body>
@@ -401,14 +446,11 @@ export function ClientOrderDetailScreen({
             key={h.id}
             handoff={h}
             onRegenerate={() =>
-              a.run(
-                () => execute((r) => r.regenerateHandoffCode(order.id, h.id)),
-                "Código actualizado.",
-              )
+              execute((r) => r.regenerateHandoffCode(order.id, h.id))
             }
           />
         ))}
-      <Card>
+      <Accordion title="Agenda, direcciones y constancias">
         <Title>Entrada</Title>
         <Body>
           {order.fulfillmentPlan.inbound.method === "DRIVER"
@@ -448,9 +490,8 @@ export function ClientOrderDetailScreen({
         {order.delivery.evidencePhotoUri && (
           <Body muted>Evidencia de entrega adjunta.</Body>
         )}
-      </Card>
-      <Card>
-        <Title>Prendas y cuidado ({garmentCount(order)})</Title>
+      </Accordion>
+      <Accordion title={"Prendas y cuidado (" + garmentCount(order) + ")"}>
         {order.items.map((i) => (
           <View key={i.id}>
             <Body>
@@ -468,11 +509,13 @@ export function ClientOrderDetailScreen({
             {e.name} · {money(e.price)}
           </Body>
         ))}
-      </Card>
-      <PricingSummary
-        pricing={order.pricing}
-        unknown={order.pricingStatus === "PENDING_WEIGHT"}
-      />
+      </Accordion>
+      <Accordion title="Pago y valor">
+        <PricingSummary
+          pricing={order.pricing}
+          unknown={order.pricingStatus === "PENDING_WEIGHT"}
+        />
+      </Accordion>
       {order.assignedDriverId && (
         <Card>
           <Icon name="car-outline" />
@@ -497,30 +540,11 @@ export function ClientOrderDetailScreen({
           />
         </Card>
       )}
-      <Card>
-        <Title>Historial de la solicitud</Title>
-        {order.timeline.map((event, i) => (
-          <View
-            key={`${event.status}-${i}`}
-            style={[ui.row, { alignItems: "flex-start", flexWrap: "nowrap" }]}
-          >
-            <Icon
-              name={
-                event.completed ? "checkmark-circle-outline" : "ellipse-outline"
-              }
-              size={20}
-            />
-            <View style={{ flex: 1 }}>
-              <Body>{event.title}</Body>
-              {event.description && <Body muted>{event.description}</Body>}
-              <Body muted>{event.timestamp}</Body>
-            </View>
-          </View>
-        ))}
-      </Card>
+      <Accordion title="Historial de la solicitud">
+        <Timeline events={order.timeline} />
+      </Accordion>
       {order.handoffs.some((h) => h.status === "USED") && (
-        <Card>
-          <Title>Transferencias realizadas</Title>
+        <Accordion title="Transferencias realizadas">
           {order.handoffs
             .filter((h) => h.status === "USED")
             .map((h) => (
@@ -528,53 +552,50 @@ export function ClientOrderDetailScreen({
                 {h.title} · {h.usedAt}
               </Body>
             ))}
-        </Card>
+        </Accordion>
       )}
       {!closed && (
         <>
           <Button
-            label="Cambiar modalidad o reprogramar"
+            label="Opciones de solicitud"
+            icon="ellipsis-horizontal"
             secondary
-            onPress={() => setEditing(!editing)}
+            onPress={() => setOptions(true)}
           />
-          {editing && (
-            <ScheduleEditor
-              key={order.id}
-              order={order}
-              onClose={() => setEditing(false)}
+          <BottomSheet
+            title="Opciones de solicitud"
+            visible={options}
+            onClose={() => setOptions(false)}
+          >
+            <ListItem
+              title="Cambiar modalidad o reprogramar"
+              icon="calendar-outline"
+              onPress={() => {
+                setOptions(false);
+                navigation.navigate("ClientSchedule", { orderId: order.id });
+              }}
             />
-          )}
-          <Button
-            label="Cancelar solicitud"
-            secondary
-            onPress={() => setCancel(true)}
-          />
+            <ListItem
+              title="Cancelar solicitud"
+              icon="close-circle-outline"
+              onPress={() => {
+                setOptions(false);
+                setCancel(true);
+              }}
+            />
+          </BottomSheet>
           <DemoPlantActions order={order} />
         </>
       )}
-      <Modal
+      <ConfirmDialog
+        title={"Cancelar " + order.id}
         visible={cancel}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setCancel(false)}
-      >
-        <View
-          style={{
-            flex: 1,
-            justifyContent: "center",
-            padding: 24,
-            backgroundColor: "#0F172A66",
-          }}
-        >
-          <Card>
-            <Title>Cancelar {order.id}</Title>
-            <Body>
-              {isLateCancellation(order)
-                ? "La recogida inició o faltan menos de 60 minutos. Se generará un cargo de $5.00, que bloqueará nuevas solicitudes hasta regularizarlo."
-                : "Cancelación sin cargo. Se liberarán tus franjas y códigos. Los reembolsos se revisan con operaciones."}
-            </Body>
+        onClose={() => setCancel(false)}
+        footer={
+          <>
             <Button
               label="Confirmar cancelación"
+              variant="danger"
               onPress={() => {
                 setCancel(false);
                 a.run(
@@ -588,9 +609,15 @@ export function ClientOrderDetailScreen({
               secondary
               onPress={() => setCancel(false)}
             />
-          </Card>
-        </View>
-      </Modal>
+          </>
+        }
+      >
+        <Body>
+          {isLateCancellation(order)
+            ? "La recogida inició o faltan menos de 60 minutos. Se generará un cargo de $5.00, que bloqueará nuevas solicitudes hasta regularizarlo."
+            : "Cancelación sin cargo. Se liberarán tus franjas y códigos. Los reembolsos se revisan con operaciones."}
+        </Body>
+      </ConfirmDialog>
     </Page>
   );
 }

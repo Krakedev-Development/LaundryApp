@@ -1,14 +1,18 @@
+import { theme } from "../design-system/tokens";
 import Svg, { Circle, Line, Rect, Text as SvgText } from "react-native-svg";
 import { View } from "react-native";
 import type { RouteMapProps } from "./RouteMap";
-export default function RouteMap({ destination }: RouteMapProps) {
+export default function RouteMap({
+  destination,
+  height = theme.layout.map,
+}: RouteMapProps) {
   return (
     <View
       accessibilityLabel={`Esquema de ruta demo a ${destination.addressFull}`}
       style={{
-        height: 260,
-        backgroundColor: "#E8EEF5",
-        borderRadius: 14,
+        height,
+        backgroundColor: theme.colors.soft,
+        borderRadius: theme.radius.lg,
         overflow: "hidden",
       }}
     >
@@ -41,16 +45,16 @@ export default function RouteMap({ destination }: RouteMapProps) {
           y1={190}
           x2={320}
           y2={65}
-          stroke="#143F73"
+          stroke={theme.colors.primary}
           strokeWidth={5}
           strokeDasharray="8 5"
         />
-        <Circle cx={80} cy={190} r={13} fill="#143F73" />
+        <Circle cx={80} cy={190} r={13} fill={theme.colors.primary} />
         <Circle cx={320} cy={65} r={13} fill="#7CA024" />
-        <SvgText x={50} y={224} fontSize={14} fill="#143F73">
+        <SvgText x={50} y={224} fontSize={14} fill={theme.colors.primary}>
           Chofer
         </SvgText>
-        <SvgText x={288} y={40} fontSize={14} fill="#143F73">
+        <SvgText x={288} y={40} fontSize={14} fill={theme.colors.primary}>
           Destino
         </SvgText>
       </Svg>

@@ -1,16 +1,16 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useRef, useState } from "react";
 import {
+  BackHandler,
   Image,
   KeyboardAvoidingView,
-  Modal,
   Platform,
-  Pressable,
   ScrollView,
   Text,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
+  useFocusEffect,
   useIsFocused,
   useNavigationState,
   useRoute,
@@ -18,7 +18,9 @@ import {
 import { useApp } from "../store/AppProvider";
 import { currentCustomer } from "../domain/repository";
 import { titles, type Routes } from "../navigation/routes";
-import { Body, Button, colors, Icon, ui } from "./ui";
+import { Body, Button, colors, Icon, IconButton, ui } from "./ui";
+import { Accordion, ListItem } from "./presentation";
+import { Drawer, ConfirmDialog } from "./overlay/OverlayPortal";
 import { NavigationBar } from "./NavigationBar";
 import {
   clientTabs,
@@ -27,7 +29,11 @@ import {
   type Tab,
 } from "../navigation/primaryTabs";
 import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
+import { theme } from "../design-system/tokens";
+import { ComponentCatalog } from "./ComponentCatalog";
+import { friendlyError } from "../design-system/interaction";
 const fullScreen = [
+  "ClientSchedule",
   "ClientNewOrderWizard",
   "ClientTracking",
   "Chat",
@@ -42,36 +48,43 @@ export function Logo() {
       source={require("../../assets/logo-laundry-name.png")}
       accessibilityLabel="Laundry Clean & Fresh"
       resizeMode="contain"
-      style={{ width: 166, height: 42 }}
+      style={{ width: theme.layout.logoWidth, height: theme.layout.logoHeight }}
     />
   );
 }
 export function Page({
   children,
   scroll = true,
+  footer,
+  scrollResetKey,
+  onBack,
 }: {
   children: React.ReactNode;
   scroll?: boolean;
+  footer?: React.ReactNode;
+  scrollResetKey?: string | number;
+  onBack?(): void;
 }) {
   const { state, execute, reset, error, retry } = useApp();
-  const navigation = useLaundryNavigation();
-  const focused = useIsFocused();
-  const route = useRoute();
+  const navigation = useLaundryNavigation(),
+    focused = useIsFocused(),
+    route = useRoute();
   const name = route.name as keyof Routes;
   const [drawer, setDrawer] = useState(false),
-    [resetConfirm, setResetConfirm] = useState(false);
-  const isClient = state.session?.role === "CLIENT";
-  const user = isClient ? currentCustomer(state) : state.driver;
-  const tabs = isClient ? clientTabs : driverTabs;
-  const primary = primaryTabTarget(name);
-  const activeTab = useNavigationState((navigationState) => {
-    if (navigationState.type === "tab")
-      return navigationState.routes[navigationState.index].name;
-    const tabState = navigationState.routes.find(
+    [resetConfirm, setResetConfirm] = useState(false),
+    [catalog, setCatalog] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const isClient = state.session?.role === "CLIENT",
+    user = isClient ? currentCustomer(state) : state.driver;
+  const tabs = isClient ? clientTabs : driverTabs,
+    primary = primaryTabTarget(name);
+  const activeTab = useNavigationState((s) => {
+    if (s.type === "tab") return s.routes[s.index].name;
+    const nested = s.routes.find(
       (r) => r.name === (isClient ? "ClientTabs" : "DriverTabs"),
     )?.state;
     return (
-      tabState?.routes[tabState.index ?? 0]?.name ??
+      nested?.routes[nested.index ?? 0]?.name ??
       (isClient ? "ClientHome" : "DriverRoute")
     );
   });
@@ -79,8 +92,22 @@ export function Page({
     if (!focused) {
       setDrawer(false);
       setResetConfirm(false);
+      setCatalog(false);
     }
   }, [focused]);
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [scrollResetKey]);
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!onBack) return;
+      const listener = BackHandler.addEventListener("hardwareBackPress", () => {
+        onBack();
+        return true;
+      });
+      return () => listener.remove();
+    }, [onBack]),
+  );
   const authenticated =
     !!state.session &&
     (isClient
@@ -97,7 +124,16 @@ export function Page({
     setDrawer(false);
     navigation.navigate(target);
   };
+  const back = () =>
+    onBack
+      ? onBack()
+      : navigation.canGoBack()
+        ? navigation.goBack()
+        : navigate(isClient ? "ClientHome" : "DriverRoute");
   const showTabs = authenticated && !primary && !fullScreen.includes(name);
+  const notification = state.notifications.some(
+    (n) => n.customerId === user.id && !n.isRead,
+  );
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: colors.background }}
@@ -110,11 +146,10 @@ export function Page({
         <View
           style={{
             backgroundColor: colors.surface,
-            borderBottomColor: colors.border,
+            borderBottomColor: colors.divider,
             borderBottomWidth: 1,
-            paddingHorizontal: 16,
-            paddingVertical: 10,
-            gap: 8,
+            paddingHorizontal: 12,
+            paddingVertical: 4,
           }}
         >
           <View
@@ -123,108 +158,84 @@ export function Page({
               { justifyContent: "space-between", flexWrap: "nowrap" },
             ]}
           >
-            {authenticated ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Abrir menú lateral"
-                onPress={() => setDrawer(true)}
-                style={{ padding: 10 }}
-              >
-                <Icon name="menu-outline" />
-              </Pressable>
-            ) : navigation.canGoBack() ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Atrás"
-                onPress={() => navigation.goBack()}
-                style={{ padding: 10 }}
-              >
-                <Icon name="arrow-back" />
-              </Pressable>
+            {primary || !navigation.canGoBack() ? (
+              authenticated ? (
+                <IconButton
+                  label="Abrir menú lateral"
+                  icon="menu-outline"
+                  onPress={() => setDrawer(true)}
+                />
+              ) : (
+                <View style={{ width: 48 }} />
+              )
             ) : (
-              <View style={{ width: 30 }} />
+              <IconButton label="Atrás" icon="arrow-back" onPress={back} />
             )}
-            <Logo />
-            {authenticated && isClient ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Ver notificaciones"
-                onPress={() => navigate("ClientNotifications")}
-                style={{ padding: 10 }}
-              >
-                <Icon name="notifications-outline" />
-                {state.notifications.some(
-                  (n) => n.customerId === user.id && !n.isRead,
-                ) && (
-                  <View
-                    style={{
-                      position: "absolute",
-                      top: 8,
-                      right: 9,
-                      width: 7,
-                      height: 7,
-                      borderRadius: 4,
-                      backgroundColor: colors.lime,
-                    }}
-                  />
-                )}
-              </Pressable>
+            {primary || !authenticated ? (
+              <Logo />
             ) : (
-              <View style={{ width: 30 }} />
-            )}
-          </View>
-          <View style={[ui.row, { justifyContent: "space-between" }]}>
-            <View style={[ui.row, { flex: 1, flexWrap: "nowrap" }]}>
-              {authenticated && !primary && (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Atrás"
-                  onPress={() =>
-                    navigation.canGoBack()
-                      ? navigation.goBack()
-                      : navigate(isClient ? "ClientHome" : "DriverRoute")
-                  }
-                >
-                  <Icon name="arrow-back" />
-                </Pressable>
-              )}
               <Text
                 accessibilityRole="header"
-                style={[ui.subtitle, { flexShrink: 1 }]}
+                numberOfLines={2}
+                style={[ui.subtitle, { flex: 1, marginHorizontal: 8 }]}
               >
                 {titles[name]}
               </Text>
-            </View>
-            {authenticated && (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Restablecer datos demo"
-                onPress={() => setResetConfirm(true)}
-                style={{ padding: 6 }}
-              >
-                <Icon name="refresh-outline" size={19} />
-              </Pressable>
+            )}
+            {authenticated && !primary ? (
+              <IconButton
+                label="Abrir menú lateral"
+                icon="menu-outline"
+                onPress={() => setDrawer(true)}
+              />
+            ) : authenticated && isClient ? (
+              <View>
+                <IconButton
+                  label="Ver notificaciones"
+                  icon="notifications-outline"
+                  onPress={() => navigate("ClientNotifications")}
+                />
+                {notification && (
+                  <View
+                    style={{
+                      position: "absolute",
+                      top: 10,
+                      right: 10,
+                      width: 7,
+                      height: 7,
+                      borderRadius: 4,
+                      backgroundColor: colors.danger,
+                    }}
+                  />
+                )}
+              </View>
+            ) : (
+              <View style={{ width: 48 }} />
             )}
           </View>
         </View>
         {error && (
-          <View style={{ padding: 10 }}>
-            <Text style={ui.error}>{error}</Text>
+          <View style={{ padding: 12 }}>
+            <Text accessibilityRole="alert" style={ui.error}>
+              {friendlyError(error)}
+            </Text>
             <Button label="Reintentar guardado" secondary onPress={retry} />
           </View>
         )}
         {scroll ? (
           <ScrollView
+            ref={scrollRef}
             style={{ flex: 1 }}
             contentContainerStyle={{
-              padding: 16,
-              gap: 16,
+              padding: theme.spacing.screen,
+              gap: 20,
               paddingBottom: 28,
               width: "100%",
-              maxWidth: 780,
+              maxWidth: theme.layout.maxWidth,
               alignSelf: "center",
             }}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
           >
             {children}
           </ScrollView>
@@ -232,14 +243,35 @@ export function Page({
           <View
             style={{
               flex: 1,
-              padding: 16,
-              gap: 12,
+              padding: theme.spacing.screen,
+              gap: 16,
               width: "100%",
-              maxWidth: 780,
+              maxWidth: theme.layout.maxWidth,
               alignSelf: "center",
             }}
           >
             {children}
+          </View>
+        )}
+        {footer && (
+          <View
+            style={{
+              backgroundColor: colors.surface,
+              borderTopWidth: 1,
+              borderTopColor: colors.divider,
+              padding: 12,
+            }}
+          >
+            <View
+              style={{
+                width: "100%",
+                maxWidth: theme.layout.maxWidth,
+                alignSelf: "center",
+                gap: 6,
+              }}
+            >
+              {footer}
+            </View>
           </View>
         )}
         {showTabs && (
@@ -249,135 +281,108 @@ export function Page({
             onSelect={navigate}
           />
         )}
-        <Modal
+        <Drawer
+          title="Menú Laundry"
           visible={focused && drawer}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setDrawer(false)}
+          onClose={() => setDrawer(false)}
         >
+          <Logo />
           <View
             style={{
-              flex: 1,
-              flexDirection: "row",
-              backgroundColor: "#0F172A66",
+              backgroundColor: colors.soft,
+              padding: 16,
+              borderRadius: 16,
+              gap: 4,
             }}
           >
-            <SafeAreaView
-              style={{
-                width: "85%",
-                maxWidth: 340,
-                backgroundColor: colors.surface,
-              }}
-            >
-              <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}>
-                <View style={[ui.row, { justifyContent: "space-between" }]}>
-                  <Logo />
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Cerrar menú"
-                    onPress={() => setDrawer(false)}
-                  >
-                    <Icon name="close" />
-                  </Pressable>
-                </View>
-                <View
-                  style={{
-                    backgroundColor: colors.soft,
-                    padding: 16,
-                    borderRadius: 12,
-                    gap: 4,
-                  }}
-                >
-                  <Icon name="person-circle-outline" size={36} />
-                  <Text style={ui.subtitle}>{user.name}</Text>
-                  <Body>{isClient ? "Cliente" : "Chofer"}</Body>
-                  <Body muted>{user.email}</Body>
-                </View>
-                {tabs.map((tab) => (
-                  <Button
-                    key={tab.route}
-                    label={tab.label}
-                    icon={tab.icon}
-                    secondary
-                    onPress={() => navigate(tab.route)}
-                  />
-                ))}
-                {isClient && (
-                  <>
-                    <Button
-                      label="Billetera Laundry"
-                      icon="wallet-outline"
-                      secondary
-                      onPress={() => navigate("ClientWallet")}
-                    />
-                    <Button
-                      label="Direcciones guardadas"
-                      icon="location-outline"
-                      secondary
-                      onPress={() => navigate("ClientAddresses")}
-                    />
-                    <Button
-                      label="Ayuda y soporte"
-                      icon="help-circle-outline"
-                      secondary
-                      onPress={() => navigate("ClientSupport")}
-                    />
-                  </>
-                )}
-                <Body muted>Acceso rápido del prototipo</Body>
-                <Button
-                  label={
-                    isClient
-                      ? "Cambiar a chofer demo"
-                      : "Cambiar a cliente demo"
-                  }
-                  secondary
-                  onPress={() => {
-                    setDrawer(false);
-                    execute((r) => r.demoLogin(isClient ? "DRIVER" : "CLIENT"));
-                  }}
-                />
-                <Button
-                  label="Cerrar sesión"
-                  icon="log-out-outline"
-                  secondary
-                  onPress={() => {
-                    setDrawer(false);
-                    execute((r) => r.logout());
-                  }}
-                />
-              </ScrollView>
-            </SafeAreaView>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Cerrar menú lateral"
-              onPress={() => setDrawer(false)}
-              style={{ flex: 1 }}
-            />
+            <Icon name="person-circle-outline" size={36} />
+            <Text style={ui.subtitle}>{user.name}</Text>
+            <Body>{isClient ? "Cliente" : "Chofer"}</Body>
+            <Body muted>{user.email}</Body>
           </View>
-        </Modal>
-        <Modal
-          visible={focused && resetConfirm}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setResetConfirm(false)}
-        >
-          <View
-            style={{
-              flex: 1,
-              justifyContent: "center",
-              padding: 24,
-              backgroundColor: "#0F172A66",
+          {tabs.map((tab) => (
+            <ListItem
+              key={tab.route}
+              title={tab.label}
+              icon={tab.icon}
+              onPress={() => navigate(tab.route)}
+            />
+          ))}
+          {isClient && (
+            <>
+              <ListItem
+                title="Billetera Laundry"
+                icon="wallet-outline"
+                onPress={() => navigate("ClientWallet")}
+              />
+              <ListItem
+                title="Direcciones guardadas"
+                icon="location-outline"
+                onPress={() => navigate("ClientAddresses")}
+              />
+              <ListItem
+                title="Ayuda y soporte"
+                icon="help-circle-outline"
+                onPress={() => navigate("ClientSupport")}
+              />
+            </>
+          )}
+          <Accordion title="Herramientas de demostración">
+            <Body muted>Opciones exclusivas del MVP local.</Body>
+            <Button
+              label={
+                isClient ? "Cambiar a chofer demo" : "Cambiar a cliente demo"
+              }
+              secondary
+              onPress={() => {
+                setDrawer(false);
+                execute((r) => r.demoLogin(isClient ? "DRIVER" : "CLIENT"));
+              }}
+            />
+            <Button
+              label="Restablecer datos demo"
+              secondary
+              onPress={() => {
+                setDrawer(false);
+                setResetConfirm(true);
+              }}
+            />
+            {__DEV__ && (
+              <Button
+                label="Catálogo de componentes"
+                secondary
+                onPress={() => {
+                  setDrawer(false);
+                  setCatalog(true);
+                }}
+              />
+            )}
+          </Accordion>
+          <Button
+            label="Cerrar sesión"
+            icon="log-out-outline"
+            variant="ghost"
+            onPress={() => {
+              setDrawer(false);
+              execute((r) => r.logout());
             }}
-          >
-            <View style={ui.card}>
-              <Text style={ui.subtitle}>Restablecer demo</Text>
-              <Body>
-                Se reemplazarán los pedidos, cuentas, saldo y mensajes locales
-                por los ejemplos iniciales.
-              </Body>
+          />
+        </Drawer>
+        {__DEV__ && (
+          <ComponentCatalog
+            visible={focused && catalog}
+            onClose={() => setCatalog(false)}
+          />
+        )}
+        <ConfirmDialog
+          title="Restablecer demo"
+          visible={focused && resetConfirm}
+          onClose={() => setResetConfirm(false)}
+          footer={
+            <>
               <Button
                 label="Restablecer demo"
+                variant="danger"
                 onPress={() => {
                   setResetConfirm(false);
                   reset();
@@ -388,9 +393,14 @@ export function Page({
                 secondary
                 onPress={() => setResetConfirm(false)}
               />
-            </View>
-          </View>
-        </Modal>
+            </>
+          }
+        >
+          <Body>
+            Se reemplazarán los pedidos, cuentas, saldo y mensajes locales por
+            los ejemplos iniciales.
+          </Body>
+        </ConfirmDialog>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

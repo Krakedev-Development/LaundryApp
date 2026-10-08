@@ -1,3 +1,5 @@
+import { theme } from "../design-system/tokens";
+import { tactile } from "../design-system/interaction";
 import { Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
@@ -33,13 +35,17 @@ export function NavigationBar({
             accessibilityLabel={tab.label}
             accessibilityState={{ selected }}
             aria-selected={selected}
-            onPress={() => onSelect(tab.route)}
+            onPress={() => {
+              tactile("selection");
+              onSelect(tab.route);
+            }}
             style={{
               flex: 1,
               alignItems: "center",
               gap: 3,
               paddingVertical: 10,
-              minHeight: 54,
+              minHeight: 64,
+              backgroundColor: selected ? colors.soft : colors.surface,
             }}
           >
             <Icon
@@ -48,7 +54,8 @@ export function NavigationBar({
             />
             <Text
               style={{
-                fontSize: 11,
+                ...theme.typography.caption,
+                fontWeight: selected ? "700" : "500",
                 color: selected ? colors.primary : colors.muted,
               }}
             >

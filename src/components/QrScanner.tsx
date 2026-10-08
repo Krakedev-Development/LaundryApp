@@ -1,9 +1,11 @@
-import { useState } from "react";
-import { Modal, View } from "react-native";
+import { FullScreenOverlay } from "./overlay/OverlayPortal";
+import { useRef, useState } from "react";
+import { View } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { Body, Button, Card, useAction } from "./ui";
 export function QrScanner({ onScan }: { onScan(code: string): void }) {
   const [open, setOpen] = useState(false);
+  const scanned = useRef(false);
   const [permission, request] = useCameraPermissions();
   const a = useAction();
   return (
@@ -13,6 +15,7 @@ export function QrScanner({ onScan }: { onScan(code: string): void }) {
         label="Escanear QR de transferencia"
         secondary
         icon="qr-code-outline"
+        busy={a.busy}
         onPress={() => {
           void a.asyncRun(async () => {
             const p = permission?.granted ? permission : await request();
@@ -20,14 +23,15 @@ export function QrScanner({ onScan }: { onScan(code: string): void }) {
               throw Error(
                 "Permite acceso a la cámara o ingresa el código manual.",
               );
+            scanned.current = false;
             setOpen(true);
           });
         }}
       />
-      <Modal
+      <FullScreenOverlay
+        title="Escanear transferencia"
         visible={open}
-        animationType="slide"
-        onRequestClose={() => setOpen(false)}
+        onClose={() => setOpen(false)}
       >
         <View
           style={{
@@ -47,6 +51,8 @@ export function QrScanner({ onScan }: { onScan(code: string): void }) {
               facing="back"
               barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
               onBarcodeScanned={(result) => {
+                if (scanned.current) return;
+                scanned.current = true;
                 setOpen(false);
                 onScan(result.data);
               }}
@@ -54,7 +60,7 @@ export function QrScanner({ onScan }: { onScan(code: string): void }) {
           )}
           <Button label="Cerrar cámara" onPress={() => setOpen(false)} />
         </View>
-      </Modal>
+      </FullScreenOverlay>
     </>
   );
 }

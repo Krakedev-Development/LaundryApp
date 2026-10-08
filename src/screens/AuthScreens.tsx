@@ -1,3 +1,5 @@
+import { Accordion, ListItem, Stepper } from "../components/presentation";
+import { BottomSheet } from "../components/overlay/OverlayPortal";
 import { useState } from "react";
 import { Text } from "react-native";
 import * as Crypto from "expo-crypto";
@@ -63,6 +65,7 @@ export function LoginScreen() {
         {a.feedback}
         <Button
           label="Iniciar sesión"
+          disabled={!email.trim() || !password}
           busy={a.busy}
           testID="login_submit_button"
           onPress={() => {
@@ -80,7 +83,7 @@ export function LoginScreen() {
         />
         <Button
           label="¿Olvidaste tu contraseña?"
-          secondary
+          variant="ghost"
           onPress={() =>
             a.run(
               () => {},
@@ -89,8 +92,7 @@ export function LoginScreen() {
           }
         />
       </Card>
-      <Card>
-        <Title>Acceso rápido del prototipo</Title>
+      <Accordion title="Acceso rápido del prototipo">
         <Body muted>Contraseña de las cuentas demo: 123456.</Body>
         <Button
           label="Cliente demo"
@@ -112,7 +114,7 @@ export function LoginScreen() {
           secondary
           onPress={() => navigation.navigate("Splash")}
         />
-      </Card>
+      </Accordion>
     </Page>
   );
 }
@@ -124,13 +126,44 @@ export function RegisterScreen() {
     [phone, setPhone] = useState(""),
     [password, setPassword] = useState("");
   return (
-    <Page>
+    <Page
+      footer={
+        <>
+          <Button
+            label="Continuar a verificación"
+            disabled={
+              !name.trim() || !email.trim() || !phone.trim() || !password
+            }
+            busy={a.busy}
+            onPress={() => {
+              void a.asyncRun(async () => {
+                if (!/^(?=.*[A-Z])(?=.*\d).{8,}$/.test(password))
+                  throw Error(
+                    "La contraseña debe tener 8 caracteres, una mayúscula y un número.",
+                  );
+                const hash = await passwordHash(password);
+                execute((r) => r.register(name, email, phone, hash));
+              });
+            }}
+          />
+        </>
+      }
+    >
       <Body>
         Primero crea tu cuenta. Después verificaremos tu documento y selfie para
         habilitar tus solicitudes.
       </Body>
       <Card>
-        <Field label="Nombre completo" value={name} onChangeText={setName} />
+        <Title>Tu información</Title>
+        <Field
+          label="Nombre completo"
+          value={name}
+          onChangeText={setName}
+          validate={(v) =>
+            v.trim().length < 2 ? "Ingresa tu nombre completo." : undefined
+          }
+          autoComplete="name"
+        />
         <Field
           label="Correo electrónico"
           autoCapitalize="none"
@@ -140,32 +173,24 @@ export function RegisterScreen() {
         />
         <Field
           label="Teléfono"
+          validate={(v) =>
+            v.replace(/\D/g, "").length < 8
+              ? "Ingresa al menos 8 dígitos."
+              : undefined
+          }
           keyboardType="phone-pad"
           value={phone}
           onChangeText={setPhone}
         />
         <Field
           label="Contraseña nueva"
+          help="Mínimo 8 caracteres, una mayúscula y un número."
           secureTextEntry
           value={password}
           onChangeText={setPassword}
         />
-        <Body muted>Mínimo 8 caracteres, una mayúscula y un número.</Body>
+
         {a.feedback}
-        <Button
-          label="Continuar a verificación"
-          busy={a.busy}
-          onPress={() => {
-            void a.asyncRun(async () => {
-              if (!/^(?=.*[A-Z])(?=.*\d).{8,}$/.test(password))
-                throw Error(
-                  "La contraseña debe tener 8 caracteres, una mayúscula y un número.",
-                );
-              const hash = await passwordHash(password);
-              execute((r) => r.register(name, email, phone, hash));
-            });
-          }}
-        />
       </Card>
     </Page>
   );
@@ -177,26 +202,42 @@ export function KycUploadScreen() {
   const a = useAction();
   const [type, setType] = useState(c.kycDocumentType),
     [number, setNumber] = useState(c.kycDocumentId ?? ""),
-    [uri, setUri] = useState(c.documentUri);
+    [uri, setUri] = useState(c.documentUri),
+    [typePanel, setTypePanel] = useState(false);
   return (
     <Page>
-      <Badge>Paso 1 de 2</Badge>
+      <Stepper step={1} labels={["Documento", "Selfie"]} />
       <Body>Verifica tu identidad antes de solicitar recogidas.</Body>
       <Card>
         <Icon name="document-text-outline" size={42} />
-        {[
-          "Cédula de Identidad",
-          "DNI",
-          "Pasaporte",
-          "Carné de extranjería",
-        ].map((t) => (
-          <Choice
-            key={t}
-            label={t}
-            selected={type === t}
-            onPress={() => setType(t)}
-          />
-        ))}
+        <ListItem
+          title="Tipo de documento"
+          subtitle={type}
+          icon="document-outline"
+          onPress={() => setTypePanel(true)}
+        />
+        <BottomSheet
+          title="Tipo de documento"
+          visible={typePanel}
+          onClose={() => setTypePanel(false)}
+        >
+          {[
+            "Cédula de Identidad",
+            "DNI",
+            "Pasaporte",
+            "Carné de extranjería",
+          ].map((t) => (
+            <Choice
+              key={t}
+              label={t}
+              selected={type === t}
+              onPress={() => {
+                setType(t);
+                setTypePanel(false);
+              }}
+            />
+          ))}
+        </BottomSheet>
         <Field
           label="Número de documento"
           value={number}
@@ -207,14 +248,16 @@ export function KycUploadScreen() {
           uri={uri}
           onChange={setUri}
         />
-        <Button
-          label="Adjuntar documento simulado · Demo"
-          secondary
-          onPress={() => {
-            setUri("demo://document");
-            if (!number) setNumber("72819234");
-          }}
-        />
+        <Accordion title="Documento de demostración">
+          <Button
+            label="Adjuntar documento simulado · Demo"
+            secondary
+            onPress={() => {
+              setUri("demo://document");
+              if (!number) setNumber("72819234");
+            }}
+          />
+        </Accordion>
         {a.feedback}
         <Button
           label="Continuar a selfie"
@@ -241,7 +284,7 @@ export function KycSelfieScreen() {
   const [uri, setUri] = useState<string>();
   return (
     <Page>
-      <Badge>Paso 2 de 2</Badge>
+      <Stepper step={2} labels={["Documento", "Selfie"]} />
       <Card>
         <Icon name="person-outline" size={46} />
         <Title>Confirma que eres tú</Title>
@@ -252,11 +295,13 @@ export function KycSelfieScreen() {
           onChange={setUri}
           selfie
         />
-        <Button
-          label="Adjuntar selfie simulada · Demo"
-          secondary
-          onPress={() => setUri("demo://selfie")}
-        />
+        <Accordion title="Selfie de demostración">
+          <Button
+            label="Adjuntar selfie simulada · Demo"
+            secondary
+            onPress={() => setUri("demo://selfie")}
+          />
+        </Accordion>
         {a.feedback}
         <Button
           label="Enviar verificación"
@@ -281,15 +326,18 @@ export function KycPendingScreen() {
         </Body>
         <Badge>Pendiente de revisión</Badge>
         {a.feedback}
-        <Button
-          label="Simular aprobación · Demo"
-          onPress={() => a.run(() => execute((r) => r.simulateKyc(true)))}
-        />
-        <Button
-          label="Simular rechazo · Demo"
-          secondary
-          onPress={() => a.run(() => execute((r) => r.simulateKyc(false)))}
-        />
+        <Accordion title="Herramientas de verificación · Demo">
+          <Button
+            label="Simular aprobación · Demo"
+            secondary
+            onPress={() => a.run(() => execute((r) => r.simulateKyc(true)))}
+          />
+          <Button
+            label="Simular rechazo · Demo"
+            secondary
+            onPress={() => a.run(() => execute((r) => r.simulateKyc(false)))}
+          />
+        </Accordion>
         <Button
           label="Cerrar sesión"
           secondary
@@ -331,7 +379,35 @@ export function PasswordScreen({ forced = false }: { forced?: boolean }) {
     [password, setPassword] = useState(""),
     [confirm, setConfirm] = useState("");
   return (
-    <Page>
+    <Page
+      footer={
+        <>
+          <Button
+            label="Guardar contraseña"
+            disabled={!password || !confirm || (!forced && !current)}
+            busy={a.busy}
+            onPress={() => {
+              void a.asyncRun(async () => {
+                if (!/^(?=.*[A-Z])(?=.*\d).{8,}$/.test(password))
+                  throw Error(
+                    "La contraseña debe tener 8 caracteres, una mayúscula y un número.",
+                  );
+                if (password !== confirm)
+                  throw Error("Las contraseñas no coinciden.");
+                const [currentHash, hash] = await Promise.all([
+                  passwordHash(current),
+                  passwordHash(password),
+                ]);
+                execute((r) => r.changePassword(currentHash, hash, forced));
+                setCurrent("");
+                setPassword("");
+                setConfirm("");
+              }, "Contraseña actualizada.");
+            }}
+          />
+        </>
+      }
+    >
       <Card>
         <Icon name="lock-closed-outline" size={38} />
         <Title>
@@ -352,40 +428,23 @@ export function PasswordScreen({ forced = false }: { forced?: boolean }) {
         )}
         <Field
           label="Nueva contraseña"
+          help="Mínimo 8 caracteres, una mayúscula y un número."
           secureTextEntry
           value={password}
           onChangeText={setPassword}
         />
         <Field
           label="Confirmar contraseña"
+          validate={(v) =>
+            v !== password ? "Las contraseñas no coinciden." : undefined
+          }
           secureTextEntry
           value={confirm}
           onChangeText={setConfirm}
         />
         <Body muted>Mínimo 8 caracteres, una mayúscula y un número.</Body>
         {a.feedback}
-        <Button
-          label="Guardar contraseña"
-          busy={a.busy}
-          onPress={() => {
-            void a.asyncRun(async () => {
-              if (!/^(?=.*[A-Z])(?=.*\d).{8,}$/.test(password))
-                throw Error(
-                  "La contraseña debe tener 8 caracteres, una mayúscula y un número.",
-                );
-              if (password !== confirm)
-                throw Error("Las contraseñas no coinciden.");
-              const [currentHash, hash] = await Promise.all([
-                passwordHash(current),
-                passwordHash(password),
-              ]);
-              execute((r) => r.changePassword(currentHash, hash, forced));
-              setCurrent("");
-              setPassword("");
-              setConfirm("");
-            }, "Contraseña actualizada.");
-          }}
-        />
+
         {forced && (
           <Button
             label="Cerrar sesión"
