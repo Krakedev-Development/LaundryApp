@@ -15,7 +15,7 @@
     "test": "tsx --test tests/*.test.ts",
     "test:ui": "playwright test",
     "preview:mvp": "node scripts/preview-export.cjs",
-    "export:android": "expo export --platform android --max-workers 2",
+    "export:android": "expo export --platform android --max-workers 2 --output-dir dist-android",
     "export:web": "expo export --platform web --max-workers 2",
     "doctor": "expo-doctor"
   },

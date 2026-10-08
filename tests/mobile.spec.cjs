@@ -35,7 +35,10 @@ test("client sections preserve filters and the bottom bar while switching tabs a
     .getByRole("button", { name: "Filtrar modalidad", exact: true })
     .click();
   await page
-    .getByRole("radio", { name: "Entrega y retiro en sede", exact: true })
+    .getByRole("radio", {
+      name: "Pick up · recogida a domicilio y retiro en sede",
+      exact: true,
+    })
     .click();
   const bar = page.getByRole("tablist");
   const initialBounds = await bar.boundingBox();
@@ -52,13 +55,22 @@ test("client sections preserve filters and the bottom bar while switching tabs a
     page.getByRole("radio", { name: "Historial", exact: true }),
   ).toBeChecked();
   await expect(
-    page.getByRole("button", { name: "Entrega y retiro en sede", exact: true }),
+    page.getByRole("button", {
+      name: "Pick up · recogida a domicilio y retiro en sede",
+      exact: true,
+    }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "Entrega y retiro en sede", exact: true })
+    .getByRole("button", {
+      name: "Pick up · recogida a domicilio y retiro en sede",
+      exact: true,
+    })
     .click();
   await expect(
-    page.getByRole("radio", { name: "Entrega y retiro en sede", exact: true }),
+    page.getByRole("radio", {
+      name: "Pick up · recogida a domicilio y retiro en sede",
+      exact: true,
+    }),
   ).toBeChecked();
   await page.getByRole("button", { name: "Cerrar panel", exact: true }).click();
   for (let i = 0; i < 2; i++) {
@@ -213,21 +225,15 @@ test("profile lives in sidebar; billing and addresses persist across reload", as
     page.getByRole("textbox", { name: "Nombre o razón social", exact: true }),
   ).toHaveValue("Laundry Cliente Test");
 });
-for (const inbound of ["domicilio", "sede"])
+for (const inbound of ["domicilio"])
   for (const outbound of ["domicilio", "sede"]) {
     test(`five-step request ${inbound} to ${outbound}`, async ({ page }) => {
       await page
         .getByRole("button", { name: "Nueva solicitud", exact: true })
         .click();
-      await page
-        .getByRole("radio", {
-          name:
-            inbound === "domicilio"
-              ? "Chofer recoge en domicilio"
-              : "Entrego en sede",
-          exact: true,
-        })
-        .click();
+      await expect(
+        page.getByRole("radio", { name: "Entrego en sede", exact: true }),
+      ).toHaveCount(0);
       await page
         .getByRole("button", {
           name: inbound === "domicilio" ? "Elegir dirección" : "Elegir sede",
@@ -251,7 +257,7 @@ for (const inbound of ["domicilio", "sede"])
           name:
             outbound === "domicilio"
               ? "Chofer entrega en domicilio"
-              : "Retiro en sede",
+              : "Pick up · retiro en sede",
           exact: true,
         })
         .click();

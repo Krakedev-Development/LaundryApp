@@ -229,8 +229,16 @@ export function ClientScheduleScreen({ route }: ScreenProps<"ClientSchedule">) {
 function ScheduleEditor({ order, onClose }: { order: Order; onClose(): void }) {
   const { execute } = useApp(),
     a = useAction();
-  const [legName, setLegName] = useState<"INBOUND" | "OUTBOUND">("OUTBOUND"),
-    [leg, setLeg] = useState<Leg>(() => clone(order.fulfillmentPlan.outbound));
+  const [legName, setLegName] = useState<"INBOUND" | "OUTBOUND">(
+      order.pickupNeedsScheduling ? "INBOUND" : "OUTBOUND",
+    ),
+    [leg, setLeg] = useState<Leg>(() =>
+      clone(
+        order.pickupNeedsScheduling
+          ? order.fulfillmentPlan.inbound
+          : order.fulfillmentPlan.outbound,
+      ),
+    );
   return (
     <Page
       footer={
@@ -253,10 +261,16 @@ function ScheduleEditor({ order, onClose }: { order: Order; onClose(): void }) {
       }
     >
       <Badge>{order.id}</Badge>
+      {order.pickupNeedsScheduling && (
+        <Body>
+          Tu ingreso en sede pendiente se reemplazó por recogida a domicilio.
+          Confirma dirección, fecha y horario para continuar.
+        </Body>
+      )}
       <SegmentedControl
         value={legName}
         options={[
-          { value: "INBOUND", label: "Entrada · recogida o entrega en sede" },
+          { value: "INBOUND", label: "Entrada · recogida a domicilio" },
           { value: "OUTBOUND", label: "Salida · entrega o retiro en sede" },
         ]}
         onChange={(value) => {
@@ -283,7 +297,6 @@ export function DemoPlantActions({ order }: { order: Order }) {
   const a = useAction();
   const [weight, setWeight] = useState("15");
   const labels: Partial<Record<Order["status"], string>> = {
-    AWAITING_INTAKE: "Simular recepción en sede",
     AT_FACILITY:
       order.pricingModel === "PER_WEIGHT"
         ? "Simular inicio de pesaje"
@@ -450,12 +463,25 @@ export function ClientOrderDetailScreen({
             }
           />
         ))}
+      {order.pickupNeedsScheduling && (
+        <Card>
+          <Body>
+            Confirma la recogida a domicilio para continuar este pedido.
+          </Body>
+          <Button
+            label="Programar recogida a domicilio"
+            onPress={() =>
+              navigation.navigate("ClientSchedule", { orderId: order.id })
+            }
+          />
+        </Card>
+      )}
       <Accordion title="Agenda, direcciones y constancias">
         <Title>Entrada</Title>
         <Body>
-          {order.fulfillmentPlan.inbound.method === "DRIVER"
-            ? "Recogida en domicilio"
-            : "Entrega en sede"}
+          {order.legacyInbound?.status === "COMPLETED"
+            ? "Recepción anterior en sede registrada"
+            : "Recogida en domicilio"}
         </Body>
         <Body>{order.pickup.addressFull}</Body>
         <Body muted>

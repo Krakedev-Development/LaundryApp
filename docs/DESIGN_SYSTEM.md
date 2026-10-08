@@ -2,7 +2,7 @@
 
 ## Alcance y arquitectura
 
-Este rediseño conserva las 30 rutas originales y agrega ClientSchedule para editar una agenda en una pantalla dedicada. No modifica src/domain, src/store, src/services ni assets. Autenticación, verificación KYC obligatoria, contraseña temporal, cuatro modalidades, precios por prenda/peso, cupos, cobros, cancelación, transferencias, evidencias, puntos, membresías y chat mantienen sus contratos.
+Este rediseño conserva las 30 rutas originales y agrega ClientSchedule para editar una agenda en una pantalla dedicada. No modifica src/domain, src/store, src/services ni assets. Autenticación, verificación KYC obligatoria, contraseña temporal, dos modalidades vigentes (domicilio completo y pick up), precios por prenda/peso, cupos, cobros, cancelación, transferencias, evidencias, puntos, membresías y chat mantienen sus contratos.
 
 La auditoría previa está en [UX_AUDIT.md](UX_AUDIT.md). La [matriz funcional del MVP](MVP_NUEVO_FLUJO.md) sigue describiendo las reglas del producto. La lógica permanece separada de la presentación.
 

@@ -338,7 +338,7 @@ test("schedule is a focused screen; saving an outbound change returns to the exi
     page.getByRole("heading", { name: "Reprogramar solicitud", exact: true }),
   ).toBeVisible();
   await page
-    .getByRole("radio", { name: "Retiro en sede", exact: true })
+    .getByRole("radio", { name: "Pick up · retiro en sede", exact: true })
     .click();
   await expect(
     page.getByRole("button", { name: "Guardar nueva agenda", exact: true }),
@@ -366,7 +366,9 @@ test("schedule is a focused screen; saving an outbound change returns to the exi
   ).toBeVisible();
   await expect(
     page
-      .getByText("Domicilio a retiro en sede", { exact: true })
+      .getByText("Pick up · recogida a domicilio y retiro en sede", {
+        exact: true,
+      })
       .filter({ visible: true }),
   ).toBeVisible();
   await page

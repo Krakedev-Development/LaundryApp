@@ -237,32 +237,26 @@ export function createSeedState(): AppState {
     handoffs: [seedHandoff("SOL-HS-001", "FACILITY_TO_CUSTOMER", "749201")],
   });
   hs.fulfillmentPlan.inbound.status = "COMPLETED";
-  const ss = seedOrder(
-    "SOL-SS-001",
-    "AWAITING_INTAKE",
-    "CUSTOMER",
-    "CUSTOMER",
-    {
-      items: [
-        item("it-ss1", "Edredón / Plumón", 1, "Lavado especial", 8),
-        item("it-ss2", "Toallas (juego x2)", 2, "Lavado ecológico", 3.2),
-      ],
-      pricing: {
-        itemsSubtotal: 14.4,
-        extrasTotal: 0,
-        discount: 0,
-        membershipBenefitDiscount: 1.72,
-        deliveryFee: 0,
-        total: 12.68,
-      },
-      handoffs: [seedHandoff("SOL-SS-001", "CUSTOMER_TO_FACILITY", "392814")],
-      facilityName: facilities[1].name,
+  const ss = seedOrder("SOL-SS-001", "PICKUP_ASSIGNED", "DRIVER", "CUSTOMER", {
+    items: [
+      item("it-ss1", "Edredón / Plumón", 1, "Lavado especial", 8),
+      item("it-ss2", "Toallas (juego x2)", 2, "Lavado ecológico", 3.2),
+    ],
+    pricing: {
+      itemsSubtotal: 14.4,
+      extrasTotal: 0,
+      discount: 0,
+      membershipBenefitDiscount: 1.72,
+      deliveryFee: 0,
+      total: 12.68,
     },
-  );
-  ss.fulfillmentPlan.inbound = seedLeg("CUSTOMER", false, 1);
+    handoffs: [seedHandoff("SOL-SS-001", "CUSTOMER_TO_DRIVER", "392814")],
+    facilityName: facilities[1].name,
+  });
+  ss.fulfillmentPlan.inbound = seedLeg("DRIVER", false, 1);
   ss.fulfillmentPlan.outbound = seedLeg("CUSTOMER", true, 1);
-  ss.pickup.addressTitle = ss.delivery.addressTitle = facilities[1].name;
-  ss.pickup.addressFull = ss.delivery.addressFull = facilities[1].address;
+  ss.delivery.addressTitle = facilities[1].name;
+  ss.delivery.addressFull = facilities[1].address;
   const weight = seedOrder("SOL-WEIGHT-001", "WEIGHING", "DRIVER", "DRIVER", {
     pricingModel: "PER_WEIGHT",
     pricingStatus: "CALCULATED",
@@ -322,26 +316,20 @@ export function createSeedState(): AppState {
     },
   );
   adj.fulfillmentPlan.inbound.status = "COMPLETED";
-  const sh = seedOrder(
-    "SOL-SH-001",
-    "DELIVERY_ASSIGNED",
-    "CUSTOMER",
-    "DRIVER",
-    {
-      items: [item("it-sh1", "Camisas / Blusas", 2, "Lavado + Planchado", 4)],
-      pricing: {
-        itemsSubtotal: 8,
-        extrasTotal: 0,
-        discount: 0,
-        membershipBenefitDiscount: 0.96,
-        deliveryFee: 0,
-        total: 7.04,
-      },
-      handoffs: [
-        seedHandoff("SOL-SH-001", "DRIVER_TO_CUSTOMER", "620148", "PENDING"),
-      ],
+  const sh = seedOrder("SOL-SH-001", "DELIVERY_ASSIGNED", "DRIVER", "DRIVER", {
+    items: [item("it-sh1", "Camisas / Blusas", 2, "Lavado + Planchado", 4)],
+    pricing: {
+      itemsSubtotal: 8,
+      extrasTotal: 0,
+      discount: 0,
+      membershipBenefitDiscount: 0.96,
+      deliveryFee: 0,
+      total: 7.04,
     },
-  );
+    handoffs: [
+      seedHandoff("SOL-SH-001", "DRIVER_TO_CUSTOMER", "620148", "PENDING"),
+    ],
+  });
   sh.fulfillmentPlan.inbound.status = "COMPLETED";
   return {
     version: 1,

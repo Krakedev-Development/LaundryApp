@@ -3,7 +3,7 @@ export type KycStatus = "NOT_SUBMITTED" | "PENDING" | "APPROVED" | "REJECTED";
 export type OperationalStatus =
   "AVAILABLE" | "ON_SERVICE" | "BREAK" | "OFFLINE";
 export type Method = "DRIVER" | "CUSTOMER";
-export type Mode = "HOME_HOME" | "HOME_STORE" | "STORE_HOME" | "STORE_STORE";
+export type Mode = "HOME_HOME" | "HOME_STORE";
 export type PricingModel = "FIXED" | "PER_WEIGHT";
 export type PricingStatus =
   | "ESTIMATED"
@@ -17,7 +17,7 @@ export const statusLabels = {
   DRAFT: "Borrador",
   PAYMENT_PENDING: "Pago pendiente",
   CONFIRMED: "Solicitud confirmada",
-  AWAITING_INTAKE: "Esperando entrega en sede",
+  AWAITING_INTAKE: "Recogida pendiente",
   PICKUP_PENDING: "Recogida pendiente",
   PICKUP_ASSIGNED: "Chofer asignado",
   HEADING_TO_PICKUP: "Chofer en camino",
@@ -44,10 +44,8 @@ export const statusLabels = {
   CANCELLED: "Cancelado",
 } as const;
 export const modeLabels: Record<Mode, string> = {
-  HOME_HOME: "Domicilio a domicilio",
-  HOME_STORE: "Domicilio a retiro en sede",
-  STORE_HOME: "Entrega en sede a domicilio",
-  STORE_STORE: "Entrega y retiro en sede",
+  HOME_HOME: "Domicilio completo · recogida y entrega",
+  HOME_STORE: "Pick up · recogida a domicilio y retiro en sede",
 };
 export const operationalLabels: Record<OperationalStatus, string> = {
   AVAILABLE: "Disponible",
@@ -249,6 +247,9 @@ export interface Adjustment {
   resolvedAt?: string;
 }
 export interface Order {
+  /** Previous intake retained only as history, never as an available method. */
+  legacyInbound?: Leg;
+  pickupNeedsScheduling?: boolean;
   id: string;
   customerId: string;
   customerName: string;
@@ -403,7 +404,11 @@ export const deliveryStatuses: OrderStatus[] = [
   "ARRIVED_FOR_DELIVERY",
 ];
 export function modeFor(inbound: Method, outbound: Method): Mode {
-  return `${inbound === "DRIVER" ? "HOME" : "STORE"}_${outbound === "DRIVER" ? "HOME" : "STORE"}` as Mode;
+  if (inbound !== "DRIVER" || !["DRIVER", "CUSTOMER"].includes(outbound))
+    throw Error(
+      "La recogida debe ser a domicilio. Solo se admite domicilio completo o pick up.",
+    );
+  return outbound === "DRIVER" ? "HOME_HOME" : "HOME_STORE";
 }
 export const money = (n: number) => `$${n.toFixed(2)}`;
 export const round = (n: number) =>

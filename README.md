@@ -67,3 +67,7 @@ Esta estructura usa el [navegador oficial de pestañas](https://reactnavigation.
 La estructura contiene únicamente el proyecto React Native con Expo. Se eliminaron el código Kotlin original, `app/`, `gradle/`, `.gradle/` y los archivos raíz del proyecto Android Studio. La configuración Android de Expo en `app.json`, `app.config.ts` y `eas.json` permite ejecutar y compilar la aplicación para esa plataforma.
 
 `.gitignore` excluye `.env`, credenciales, cachés, dependencias, carpetas nativas generadas por Expo, artefactos de Gradle, exportaciones, APK/AAB y resultados de pruebas. `package-lock.json`, logos, configuración Expo, documentación y pruebas forman parte del proyecto. Los cambios de lógica se realizan en `src/domain`.
+
+## Modalidades vigentes
+
+Solo se ofrecen **domicilio completo** (recogida y entrega a domicilio) y **pick up** (recogida a domicilio y retiro del cliente en sede). La entrega inicial del cliente en el local no está disponible. Los pedidos guardados con ingreso pendiente requieren confirmar una recogida a domicilio; se conservan pagos y constancias anteriores.

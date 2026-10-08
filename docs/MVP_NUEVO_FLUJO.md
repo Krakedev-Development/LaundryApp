@@ -14,7 +14,7 @@ La migración tomó como referencia el prototipo Kotlin recibido. Sus 30 rutas t
 | KycPending            | AuthScreens.tsx / KycPendingScreen               | Espera de revisión, aprobación/rechazo demo, cierre de sesión                        |
 | KycRejected           | AuthScreens.tsx / KycRejectedScreen              | Motivo de rechazo y reenvío                                                          |
 | ClientHome            | ClientOrderScreens.tsx / ClientHomeScreen        | Solicitud dominante, cargos, saldo, puntos y accesos rápidos                         |
-| ClientOrders          | ClientOrderScreens.tsx / ClientOrdersScreen      | Activos/historial, filtros de las cuatro modalidades                                 |
+| ClientOrders          | ClientOrderScreens.tsx / ClientOrdersScreen      | Activos/historial, filtros de las dos modalidades vigentes                           |
 | ClientNewOrderWizard  | NewOrderScreen.tsx / NewOrderScreen              | Entrada, salida, prendas/peso, extras, confirmación y éxito                          |
 | ClientBenefits        | AccountScreens.tsx / BenefitsScreen              | Promociones, recompensas, historial de canjes y membresías                           |
 | ClientProfile         | AccountScreens.tsx / ClientProfileScreen         | Accesos de cuenta, identidad, puntos y cierre de sesión; datos personales en sidebar |
@@ -68,27 +68,25 @@ La traducción de `LaundryRepository.kt` está en `src/domain/repository.ts`. Ca
 | addAddress, setDefaultAddress, removeAddress         | saveAddress, setDefaultAddress, removeAddress                                                                            |
 | updateBillingData                                    | updateBillingData                                                                                                        |
 
-Se conservan los 29 estados de `OrderStatus`, sus etiquetas, las cuatro modalidades, los dos modelos de precio, los estados de ajuste/cargo/KYC y los seis tipos de transferencia. Se mantienen las tres sedes, diez prendas, cinco servicios, cuatro extras, tres promociones, cuatro recompensas y tres membresías del Kotlin.
+Se conservan los 29 estados de `OrderStatus`, sus etiquetas compatibles con historial, las dos modalidades vigentes, los dos modelos de precio, los estados de ajuste/cargo/KYC y las constancias de transferencia. El ingreso del cliente en sede solo se conserva como historial, sin generación ni confirmación de nuevos códigos. Se mantienen las tres sedes, diez prendas, cinco servicios, cuatro extras, tres promociones, cuatro recompensas y tres membresías del Kotlin.
 
-Se conservan el cliente María Elena Torres ($28.50, 1540 puntos), el chofer Carlos Mendoza (ABC-789, 34 entregas), los cinco pedidos originales (`SOL-4587`, `SOL-HS-001`, `SOL-SS-001`, `SOL-WEIGHT-001`, `SOL-ADJ-002`), movimientos, canjes, notificaciones y chat iniciales. `SOL-SH-001` añade una entrega lista para el chofer y completa la demostración de STORE_HOME, que el enum nativo admitía pero no tenía en sus cinco semillas.
+Se conservan el cliente María Elena Torres ($28.50, 1540 puntos), el chofer Carlos Mendoza (ABC-789, 34 entregas), los cinco pedidos originales (`SOL-4587`, `SOL-HS-001`, `SOL-SS-001`, `SOL-WEIGHT-001`, `SOL-ADJ-002`), movimientos, canjes, notificaciones y chat iniciales. `SOL-SH-001` añade una entrega lista para el chofer dentro de domicilio completo. Los pedidos demo que antes ingresaban en sede ahora tienen recogida a domicilio.
 
 La migración completa los controles que el prototipo solo simulaba: login y registro validan y guardan datos, la contraseña cambia realmente en la demo, la cámara/galería adjunta archivos, los QR se generan y pueden leerse, los cupos se reservan/liberan, la reprogramación valida el corte y los enlaces abren navegación externa. El camino original de confirmación mediante checklist se mantiene; introducir o escanear el código es opcional y, cuando se usa, debe ser correcto. Fotos de recogida y entrega opcionales, representadas con íconos de archivo adjunto.
 
 ## Recorridos de revisión
 
-1. **Domicilio a domicilio:** nueva solicitud → entrada domicilio y cupo → salida domicilio y cupo → prendas → extras → pago. Cambia a chofer → navegación → llegada → conteo/checklist → recogida → planta. Desde detalle, usa la simulación de lavado/calidad/despacho. Chofer → navegación de entrega → llegada → destinatario y checklist → entrega e historial.
-2. **Domicilio a sede:** mismo tramo de recogida y planta; al terminar calidad se activa QR de retiro. La simulación de retiro completa el pedido sin crear un servicio de entrega al chofer.
-3. **Sede a domicilio:** ingreso mediante QR de entrega en sede y simulación de recepción; lavado/calidad/despacho; chofer ejecuta solo la entrega.
-4. **Sede a sede:** entrega en recepción con QR → planta → QR de retiro → retiro y cierre; no aparece en las tareas del chofer.
-5. **Por peso:** crea con estimado; no se descuenta saldo. Después de recepción, simula pesaje y registra libras. Cliente confirma el valor certificado y paga; continúa lavado. `SOL-WEIGHT-001` ya tiene 18.5 lb, 8.39 kg y $32.75 pendientes; recarga o usa tarjeta demo.
-6. **Ajuste:** abre `SOL-ADJ-002`, aprueba +$4.50 (total $11.10) o rechaza para mantener $6.60 y el tratamiento original.
-7. **Cargo:** cancela `SOL-4587`, cuya recogida está iniciada; aparece $5 en la billetera y la nueva solicitud queda bloqueada hasta regularizarlo.
-8. **Identidad:** cierra sesión, registra una cuenta, adjunta documento y selfie, simula rechazo, reenvía y simula aprobación. La nueva cuenta tiene pedidos y saldo propios.
-9. **Persistencia:** cambia dirección o facturación, recarga, envía mensajes y cierra/reabre. Se conservan los cambios. Un restablecimiento explícito vuelve a las semillas.
+1. **Domicilio completo:** nueva solicitud → entrada domicilio y cupo → salida domicilio y cupo → prendas → extras → pago. Cambia a chofer → navegación → llegada → conteo/checklist → recogida → planta. Desde detalle, usa la simulación de lavado/calidad/despacho. Chofer → navegación de entrega → llegada → destinatario y checklist → entrega e historial.
+2. **Pick up:** mismo tramo de recogida y planta; al terminar calidad se activa QR de retiro. La simulación de retiro completa el pedido sin crear un servicio de entrega al chofer.
+3. **Por peso:** crea con estimado; no se descuenta saldo. Después de recepción, simula pesaje y registra libras. Cliente confirma el valor certificado y paga; continúa lavado. `SOL-WEIGHT-001` ya tiene 18.5 lb, 8.39 kg y $32.75 pendientes; recarga o usa tarjeta demo.
+4. **Ajuste:** abre `SOL-ADJ-002`, aprueba +$4.50 (total $11.10) o rechaza para mantener $6.60 y el tratamiento original.
+5. **Cargo:** cancela `SOL-4587`, cuya recogida está iniciada; aparece $5 en la billetera y la nueva solicitud queda bloqueada hasta regularizarlo.
+6. **Identidad:** cierra sesión, registra una cuenta, adjunta documento y selfie, simula rechazo, reenvía y simula aprobación. La nueva cuenta tiene pedidos y saldo propios.
+7. **Persistencia:** cambia dirección o facturación, recarga, envía mensajes y cierra/reabre. Se conservan los cambios. Un restablecimiento explícito vuelve a las semillas.
 
 ## Validación y límites
 
-Resultado de revisión después del ajuste de navegación: 19 pruebas de dominio y persistencia aprobadas, 11 recorridos de interfaz aprobados en Microsoft Edge a 412 × 915, tipos correctos y exportaciones web y Android correctas. Las pruebas cubren las cuatro modalidades, el recorrido del chofer, KYC, persistencia, filtros al cambiar de pestaña, barra inferior estable, retorno desde seguimiento sin duplicar detalles y borrador conservado al abrir direcciones. Auditoría de las 30 rutas sin rutas faltantes y de exclusiones Git sin dependencias, secretos ni resultados generados entre los archivos nuevos del repositorio.
+Resultado de revisión después del ajuste de navegación: 19 pruebas de dominio y persistencia aprobadas, 11 recorridos de interfaz aprobados en Microsoft Edge a 412 × 915, tipos correctos y exportaciones web y Android correctas. Las pruebas cubren las dos modalidades vigentes, el recorrido del chofer, KYC, persistencia, filtros al cambiar de pestaña, barra inferior estable, retorno desde seguimiento sin duplicar detalles y borrador conservado al abrir direcciones. Auditoría de las 30 rutas sin rutas faltantes y de exclusiones Git sin dependencias, secretos ni resultados generados entre los archivos nuevos del repositorio.
 
 Expo Doctor completó 20 de 21 comprobaciones. La validación remota del esquema de configuración falló por una conexión TLS interrumpida con la API de Expo, también al reintentar. La configuración Expo no cambió durante este ajuste.
 
@@ -99,3 +97,7 @@ Los permisos de cámara/galería, la lectura óptica de QR, el mapa nativo y la 
 El alcance continúa siendo un MVP local: pagos y verificación simulados, posición demo y ausencia de backend compartido. Para desarrollo completo, reemplazar esas simulaciones por servicios y retirar los accesos demo, simulación de planta/KYC y restablecimiento del menú. La lógica y sus pruebas se mantienen dentro de LaundryApp.
 
 El rediseño UX posterior conserva este inventario y sus reglas. ClientSchedule agrega una pantalla dedicada para reprogramar; selección de dirección, franja, servicio y pago pasa a paneles contextuales. Los códigos siguen disponibles mediante «Mostrar código», los datos complementarios en acordeones y las acciones demo en grupos explícitos. Consulta [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) y [UX_AUDIT.md](UX_AUDIT.md) para componentes y validación del rediseño.
+
+## Cambio de política de entrega inicial
+
+La entrada siempre es recogida a domicilio. La salida permite entrega a domicilio o retiro en sede. Crear o reprogramar un ingreso del cliente en sede se rechaza antes de reservar o cobrar. Al cargar datos previos, los ingresos pendientes liberan la reserva anterior, revocan el código sin usar y muestran una acción para confirmar dirección y franja de recogida. No se inventan recorridos, recepciones, cobros ni horarios; los ingresos ya confirmados conservan sus constancias e historial y continúan desde su etapa actual.

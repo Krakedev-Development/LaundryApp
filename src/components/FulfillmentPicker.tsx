@@ -48,22 +48,25 @@ export function FulfillmentPicker({
     leg === "INBOUND"
       ? "Chofer recoge en domicilio"
       : "Chofer entrega en domicilio";
-  const customerLabel =
-    leg === "INBOUND" ? "Entrego en sede" : "Retiro en sede";
+  const customerLabel = "Pick up · retiro en sede";
   return (
     <View style={{ gap: 16 }}>
       <Card>
         <Title>
-          {leg === "INBOUND" ? "Cómo entregas tu ropa" : "Cómo recibes tu ropa"}
+          {leg === "INBOUND" ? "Recogida a domicilio" : "Cómo recibes tu ropa"}
         </Title>
-        <SegmentedControl
-          options={[
-            { value: "DRIVER", label: driverLabel },
-            { value: "CUSTOMER", label: customerLabel },
-          ]}
-          value={value.method}
-          onChange={changeMethod}
-        />
+        {leg === "INBOUND" ? (
+          <Body>Chofer recoge en domicilio</Body>
+        ) : (
+          <SegmentedControl
+            options={[
+              { value: "DRIVER", label: driverLabel },
+              { value: "CUSTOMER", label: customerLabel },
+            ]}
+            value={value.method}
+            onChange={changeMethod}
+          />
+        )}
         <ListItem
           title={value.method === "DRIVER" ? "Elegir dirección" : "Elegir sede"}
           subtitle={value.addressFull || "Selecciona dónde"}
@@ -121,9 +124,7 @@ export function FulfillmentPicker({
           </>
         ) : (
           facilities
-            .filter((f) =>
-              leg === "INBOUND" ? f.acceptsDropoff : f.allowsPickup,
-            )
+            .filter((f) => leg === "OUTBOUND" && f.allowsPickup)
             .map((f) => (
               <View key={f.id} style={{ gap: 4 }}>
                 <Choice

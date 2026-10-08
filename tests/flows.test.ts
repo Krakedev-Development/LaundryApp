@@ -79,6 +79,15 @@ function harness() {
     },
   };
 }
+function intake(h: ReturnType<typeof harness>, id: string) {
+  h.run((r) => r.demoLogin("DRIVER"));
+  h.run((r) => r.driverAction(id, "START_PICKUP"));
+  h.run((r) => r.driverAction(id, "ARRIVE_PICKUP"));
+  h.run((r) => r.driverConfirmPickup(id, 2, "Bolsa sellada"));
+  h.run((r) => r.driverAction(id, "GO_FACILITY"));
+  h.run((r) => r.driverAction(id, "ARRIVE_FACILITY"));
+  h.run((r) => r.demoLogin("CLIENT"));
+}
 function input(
   s: AppState,
   inbound: Method = "DRIVER",
@@ -120,7 +129,7 @@ test("preserves the native customer, driver, five scenarios, catalog values and 
     DEMO_PASSWORD_HASH,
   );
 });
-for (const inbound of ["DRIVER", "CUSTOMER"] as const)
+for (const inbound of ["DRIVER"] as const)
   for (const outbound of ["DRIVER", "CUSTOMER"] as const) {
     test(`complete ${modeFor(inbound, outbound)} lifecycle, custody and evidence`, () => {
       const h = harness();
@@ -209,7 +218,7 @@ test("per-weight order defers debit until certified weight, then pays once and e
   const balance = h.state.customers[0].walletBalance;
   const o = h.run((r) =>
     r.createOrder({
-      ...input(h.state, "CUSTOMER", "CUSTOMER"),
+      ...input(h.state, "DRIVER", "CUSTOMER"),
       items: [],
       pricingModel: "PER_WEIGHT",
       estimatedWeightLb: 10,
@@ -219,7 +228,7 @@ test("per-weight order defers debit until certified weight, then pays once and e
   assert.equal(h.state.customers[0].walletBalance, balance);
   assert.equal(h.state.customers[0].loyaltyPoints, 1540);
   assert.throws(() => h.run((r) => r.confirmWeightAndPay(o.id)), /pesaje/);
-  h.run((r) => r.advancePlantOperation(o.id));
+  intake(h, o.id);
   h.run((r) => r.advancePlantOperation(o.id));
   h.run((r) => r.advancePlantOperation(o.id, 5));
   assert.equal(h.state.orders[0].weightKg, 2.27);
@@ -321,14 +330,14 @@ test("timely cancellation releases both reservations without a charge", () => {
 });
 test("outbound mode change updates plan, destination, slot, custody and later driver route", () => {
   const h = harness();
-  const o = h.run((r) => r.createOrder(input(h.state, "CUSTOMER", "CUSTOMER")));
-  h.run((r) => r.advancePlantOperation(o.id));
+  const o = h.run((r) => r.createOrder(input(h.state, "DRIVER", "CUSTOMER")));
+  intake(h, o.id);
   h.run((r) => r.advancePlantOperation(o.id));
   h.run((r) => r.advancePlantOperation(o.id));
   h.run((r) => r.advancePlantOperation(o.id));
   h.run((r) => r.changeLeg(o.id, "OUTBOUND", leg(h.state, "DRIVER", true)));
   const updated = h.state.orders.find((x) => x.id === o.id)!;
-  assert.equal(updated.fulfillmentPlan.mode, "STORE_HOME");
+  assert.equal(updated.fulfillmentPlan.mode, "HOME_HOME");
   assert.equal(updated.status, "DELIVERY_ASSIGNED");
   assert.equal(
     updated.delivery.addressFull,
@@ -518,4 +527,103 @@ test("reopening later renews the agenda while preserving previous reservations",
   const total = s.timeSlots.length;
   refreshSchedule(s, new Date("2026-10-17T12:00:00Z"));
   assert.equal(s.timeSlots.length, total);
+});
+
+test("customer drop-off is rejected without changing balances or reservations", () => {
+  const h = harness();
+  const data = input(h.state);
+  const before = JSON.stringify(h.state);
+  assert.throws(() => modeFor("CUSTOMER", "CUSTOMER"), /domicilio/);
+  assert.throws(
+    () =>
+      h.run((r) =>
+        r.createOrder({
+          ...data,
+          inbound: { ...data.inbound, method: "CUSTOMER" },
+        }),
+      ),
+    /domicilio/,
+  );
+  assert.equal(JSON.stringify(h.state), before);
+  const order = h.run((r) => r.createOrder(data));
+  const booked = JSON.stringify(h.state);
+  assert.throws(
+    () =>
+      h.run((r) =>
+        r.changeLeg(order.id, "INBOUND", {
+          ...data.inbound,
+          method: "CUSTOMER",
+        }),
+      ),
+    /domicilio/,
+  );
+  assert.equal(JSON.stringify(h.state), booked);
+  assert.ok(
+    h.state.orders.every((o) => o.fulfillmentPlan.inbound.method === "DRIVER"),
+  );
+  assert.ok(
+    !h.state.timeSlots.some((slot) => slot.context === "FACILITY_DROPOFF"),
+  );
+});
+
+test("pending saved drop-offs migrate once and require a home booking without fabricated custody", () => {
+  const old = initializeState(now);
+  const order = old.orders.find((o) => o.id === "SOL-SS-001")!;
+  order.fulfillmentPlan.inbound.method = "CUSTOMER";
+  order.fulfillmentPlan.inbound.timeSlotId = "old-slot";
+  order.status = "AWAITING_INTAKE";
+  order.handoffs[0].type = "CUSTOMER_TO_FACILITY";
+  old.timeSlots.push({
+    ...old.timeSlots[0],
+    id: "old-slot",
+    context: "FACILITY_DROPOFF",
+    reservedCount: 1,
+  });
+  const balance = old.customers[0].walletBalance;
+  const events = structuredClone(order.timeline);
+  const migrated = decodeState(JSON.stringify(old));
+  const next = migrated.orders.find((o) => o.id === order.id)!;
+  assert.equal(next.fulfillmentPlan.mode, "HOME_STORE");
+  assert.equal(next.fulfillmentPlan.inbound.method, "DRIVER");
+  assert.equal(next.status, "PICKUP_PENDING");
+  assert.equal(next.pickupNeedsScheduling, true);
+  assert.equal(next.fulfillmentPlan.inbound.timeSlotId, undefined);
+  assert.equal(next.assignedDriverId, undefined);
+  assert.equal(next.handoffs[0].status, "REVOKED");
+  assert.equal(migrated.customers[0].walletBalance, balance);
+  assert.deepEqual(next.timeline, events);
+  assert.deepEqual(decodeState(JSON.stringify(migrated)), migrated);
+  const { state: booked } = transact(
+    migrated,
+    (r) => r.changeLeg(next.id, "INBOUND", leg(migrated, "DRIVER", false)),
+    now,
+  );
+  assert.equal(
+    booked.orders.find((o) => o.id === next.id)!.pickupNeedsScheduling,
+    false,
+  );
+  assert.equal(
+    booked.orders.find((o) => o.id === next.id)!.status,
+    "PICKUP_ASSIGNED",
+  );
+});
+
+test("completed local intake stays historical without requiring another pickup or modifying receipts", () => {
+  const old = initializeState(now);
+  const order = old.orders.find((o) => o.id === "SOL-HS-001")!;
+  order.fulfillmentPlan.inbound.method = "CUSTOMER";
+  const receipt = {
+    ...order.handoffs[0],
+    type: "CUSTOMER_TO_FACILITY" as const,
+    status: "USED" as const,
+    usedAt: "2026-10-06T12:00:00Z",
+  };
+  order.handoffs.unshift(receipt);
+  const migrated = decodeState(JSON.stringify(old));
+  const next = migrated.orders.find((o) => o.id === order.id)!;
+  assert.equal(next.status, "READY_FOR_PICKUP");
+  assert.equal(next.pickupNeedsScheduling, undefined);
+  assert.equal(next.legacyInbound?.method, "CUSTOMER");
+  assert.deepEqual(next.handoffs[0], receipt);
+  assert.deepEqual(next.timeline, order.timeline);
 });

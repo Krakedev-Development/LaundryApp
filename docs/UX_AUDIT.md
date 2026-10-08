@@ -100,3 +100,7 @@ Se conservan las 30 rutas originales. ClientSchedule añade una pantalla de edic
 - La exportación Android no equivale a probar el APK en hardware. Cámara/galería, haptics, TalkBack/VoiceOver y arrastre del panel requieren validación en dispositivo.
 
 El alcance local del MVP continúa: no se añadieron backend, GPS real, ETA, recarga bancaria, sincronización entre dispositivos ni estados de red ficticios.
+
+## Política vigente de logística
+
+La entrada es únicamente recogida a domicilio. El selector de salida ofrece domicilio completo o pick up con retiro en sede. Los cuatro recorridos citados en la revisión anterior son un registro histórico del prototipo. La política actual elimina el ingreso inicial del cliente en sede y añade migración de pedidos pendientes y validación de los dos recorridos vigentes.

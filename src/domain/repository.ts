@@ -103,10 +103,10 @@ export function slotContext(
   leg: "INBOUND" | "OUTBOUND",
   method: Method,
 ): TimeSlot["context"] {
+  if (leg === "INBOUND" && method !== "DRIVER")
+    throw Error("La recogida debe ser a domicilio.");
   return leg === "INBOUND"
-    ? method === "DRIVER"
-      ? "DRIVER_PICKUP"
-      : "FACILITY_DROPOFF"
+    ? "DRIVER_PICKUP"
     : method === "DRIVER"
       ? "DRIVER_DELIVERY"
       : "FACILITY_PICKUP";
@@ -425,6 +425,7 @@ export class LaundryRepository {
       throw Error("Selecciona una sede válida.");
   }
   createOrder(input: CreateOrderInput): Order {
+    modeFor(input.inbound.method, input.outbound.method);
     const c = this.client();
     if (!this.canCreateNewOrder())
       throw Error(
@@ -485,8 +486,7 @@ export class LaundryRepository {
       customerId: c.id,
       customerName: c.name,
       customerPhone: c.phone,
-      status:
-        inbound.method === "CUSTOMER" ? "AWAITING_INTAKE" : "PICKUP_ASSIGNED",
+      status: "PICKUP_ASSIGNED",
       priority: false,
       items: input.pricingModel === "FIXED" ? clone(input.items) : [],
       extras: clone(extras.filter((e) => input.extraIds.includes(e.id))),
@@ -536,12 +536,7 @@ export class LaundryRepository {
       adjustments: [],
       canChangeOutboundMethod: true,
     };
-    this.addHandoff(
-      order,
-      inbound.method === "DRIVER"
-        ? "CUSTOMER_TO_DRIVER"
-        : "CUSTOMER_TO_FACILITY",
-    );
+    this.addHandoff(order, "CUSTOMER_TO_DRIVER");
     const statuses: OrderStatus[] = [
       "CONFIRMED",
       order.status,
@@ -568,6 +563,8 @@ export class LaundryRepository {
     return order;
   }
   private addHandoff(o: Order, type: HandoffType, pending = false): void {
+    if (type === "CUSTOMER_TO_FACILITY")
+      throw Error("El ingreso del cliente en sede ya no está disponible.");
     if (
       o.handoffs.some(
         (h) => h.type === type && ["ACTIVE", "PENDING"].includes(h.status),
@@ -582,6 +579,8 @@ export class LaundryRepository {
     o.handoffs.push(h);
   }
   private consume(o: Order, type: HandoffType, code?: string): void {
+    if (type === "CUSTOMER_TO_FACILITY")
+      throw Error("El ingreso del cliente en sede ya no está disponible.");
     let h = o.handoffs.find((h) => h.type === type && h.status === "ACTIVE");
     if (!h) {
       this.addHandoff(o, type);
@@ -595,7 +594,7 @@ export class LaundryRepository {
   regenerateHandoffCode(orderId: string, handoffId: string): void {
     const o = this.order(orderId, "CLIENT");
     const h = o.handoffs.find((h) => h.id === handoffId);
-    if (!h || h.status !== "ACTIVE")
+    if (!h || h.type === "CUSTOMER_TO_FACILITY" || h.status !== "ACTIVE")
       throw Error("El código ya no está activo.");
     const oldCode = h.fallbackCode;
     do {
@@ -673,6 +672,7 @@ export class LaundryRepository {
       throw Error("Este tramo ya inició y no permite cambios.");
   }
   changeLeg(orderId: string, legName: "INBOUND" | "OUTBOUND", next: Leg): void {
+    slotContext(legName, next.method);
     const o = this.order(orderId, "CLIENT");
     this.editable(o, legName);
     this.validateLeg(next);
@@ -683,7 +683,13 @@ export class LaundryRepository {
     const scheduled = new Date(
       `${scheduleDate(old.scheduledDate, this.now)}T${old.timeSlotText.slice(0, 5)}:00-05:00`,
     ).getTime();
-    if (scheduled - this.now.getTime() < 3600000)
+    if (
+      !o.pickupNeedsScheduling &&
+      old.scheduledDate &&
+      old.timeSlotText &&
+      Number.isFinite(scheduled) &&
+      scheduled - this.now.getTime() < 3600000
+    )
       throw Error("La reprogramación requiere 60 minutos de anticipación.");
     const nextTime = new Date(
       `${next.scheduledDate}T${next.timeSlotText.slice(0, 5)}:00-05:00`,
@@ -697,10 +703,14 @@ export class LaundryRepository {
     ).getTime();
     if (
       !Number.isFinite(nextTime) ||
-      (legName === "INBOUND" ? nextTime >= otherTime : nextTime <= otherTime)
+      (other.scheduledDate &&
+        other.timeSlotText &&
+        Number.isFinite(otherTime) &&
+        (legName === "INBOUND" ? nextTime >= otherTime : nextTime <= otherTime))
     )
       throw Error("La salida debe ser posterior a la entrada.");
-    this.reserve(old, slotContext(legName, old.method), true);
+    if (old.timeSlotId)
+      this.reserve(old, slotContext(legName, old.method), true);
     this.reserve(next, slotContext(legName, next.method));
     if (legName === "INBOUND") {
       o.fulfillmentPlan.inbound = clone(next);
@@ -720,14 +730,9 @@ export class LaundryRepository {
         .forEach((h) => {
           h.status = "REVOKED";
         });
-      this.addHandoff(
-        o,
-        next.method === "DRIVER"
-          ? "CUSTOMER_TO_DRIVER"
-          : "CUSTOMER_TO_FACILITY",
-      );
-      o.status =
-        next.method === "DRIVER" ? "PICKUP_ASSIGNED" : "AWAITING_INTAKE";
+      this.addHandoff(o, "CUSTOMER_TO_DRIVER");
+      o.status = "PICKUP_ASSIGNED";
+      o.pickupNeedsScheduling = false;
     } else {
       o.fulfillmentPlan.outbound = clone(next);
       Object.assign(o.delivery, {
@@ -769,9 +774,7 @@ export class LaundryRepository {
       o.fulfillmentPlan.inbound.method,
       o.fulfillmentPlan.outbound.method,
     );
-    if (o.fulfillmentPlan.mode !== "STORE_STORE")
-      o.assignedDriverId = this.state.driver.id;
-    else delete o.assignedDriverId;
+    if (!o.pickupNeedsScheduling) o.assignedDriverId = this.state.driver.id;
     this.state.rescheduleRequests.unshift({
       id: this.id("reschedule"),
       orderId,
@@ -942,12 +945,6 @@ export class LaundryRepository {
     const o = this.order(orderId);
     this.active(o);
     switch (o.status) {
-      case "AWAITING_INTAKE":
-        this.consume(o, "CUSTOMER_TO_FACILITY");
-        o.fulfillmentPlan.inbound.status = "COMPLETED";
-        o.fulfillmentPlan.inbound.completedAt = this.stamp();
-        this.event(o, "AT_FACILITY");
-        break;
       case "AT_FACILITY":
         this.event(
           o,
