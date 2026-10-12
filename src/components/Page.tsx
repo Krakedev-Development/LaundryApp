@@ -7,6 +7,8 @@ import {
   ScrollView,
   Text,
   View,
+  type StyleProp,
+  type ViewStyle,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -55,12 +57,16 @@ export function Page({
   footer,
   scrollResetKey,
   onBack,
+  backgroundColor,
+  contentContainerStyle,
 }: {
   children: React.ReactNode;
   scroll?: boolean;
   footer?: React.ReactNode;
   scrollResetKey?: string | number;
   onBack?(): void;
+  backgroundColor?: string;
+  contentContainerStyle?: StyleProp<ViewStyle>;
 }) {
   const { state, error, retry } = useApp();
   const navigation = useLaundryNavigation(),
@@ -114,75 +120,77 @@ export function Page({
     );
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: colors.background }}
+      style={{ flex: 1, backgroundColor: backgroundColor ?? colors.background }}
       edges={primary ? ["top"] : ["top", "bottom"]}
     >
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <View
-          style={{
-            backgroundColor: colors.surface,
-            borderBottomColor: colors.divider,
-            borderBottomWidth: 1,
-            paddingHorizontal: 12,
-            paddingVertical: 4,
-          }}
-        >
+        {name !== "Login" && (
           <View
-            style={[
-              ui.chromeRow,
-              { justifyContent: "space-between", flexWrap: "nowrap" },
-            ]}
+            style={{
+              backgroundColor: colors.surface,
+              borderBottomColor: colors.divider,
+              borderBottomWidth: 1,
+              paddingHorizontal: 12,
+              paddingVertical: 4,
+            }}
           >
-            {primary || !navigation.canGoBack() ? (
-              <View
-                style={{
-                  width: theme.layout.touch,
-                  height: authenticated ? theme.layout.touch : undefined,
-                }}
-              />
-            ) : (
-              <IconButton label="Atrás" icon="arrow-back" onPress={back} />
-            )}
-            {primary || !authenticated ? (
-              <Logo />
-            ) : (
-              <Text
-                accessibilityRole="header"
-                numberOfLines={2}
-                style={[ui.chromeSubtitle, { flex: 1, marginHorizontal: 8 }]}
-              >
-                {titles[name]}
-              </Text>
-            )}
-            {authenticated && isClient ? (
-              <View>
-                <IconButton
-                  label="Ver notificaciones"
-                  icon="notifications-outline"
-                  onPress={() => navigate("ClientNotifications")}
+            <View
+              style={[
+                ui.chromeRow,
+                { justifyContent: "space-between", flexWrap: "nowrap" },
+              ]}
+            >
+              {primary || !navigation.canGoBack() ? (
+                <View
+                  style={{
+                    width: theme.layout.touch,
+                    height: authenticated ? theme.layout.touch : undefined,
+                  }}
                 />
-                {notification && (
-                  <View
-                    style={{
-                      position: "absolute",
-                      top: 10,
-                      right: 10,
-                      width: 7,
-                      height: 7,
-                      borderRadius: 4,
-                      backgroundColor: colors.danger,
-                    }}
+              ) : (
+                <IconButton label="Atrás" icon="arrow-back" onPress={back} />
+              )}
+              {primary || !authenticated ? (
+                <Logo />
+              ) : (
+                <Text
+                  accessibilityRole="header"
+                  numberOfLines={2}
+                  style={[ui.chromeSubtitle, { flex: 1, marginHorizontal: 8 }]}
+                >
+                  {titles[name]}
+                </Text>
+              )}
+              {authenticated && isClient ? (
+                <View>
+                  <IconButton
+                    label="Ver notificaciones"
+                    icon="notifications-outline"
+                    onPress={() => navigate("ClientNotifications")}
                   />
-                )}
-              </View>
-            ) : (
-              <View style={{ width: 48 }} />
-            )}
+                  {notification && (
+                    <View
+                      style={{
+                        position: "absolute",
+                        top: 10,
+                        right: 10,
+                        width: 7,
+                        height: 7,
+                        borderRadius: 4,
+                        backgroundColor: colors.danger,
+                      }}
+                    />
+                  )}
+                </View>
+              ) : (
+                <View style={{ width: 48 }} />
+              )}
+            </View>
           </View>
-        </View>
+        )}
         {error && (
           <View style={{ padding: 12 }}>
             <Text accessibilityRole="alert" style={ui.error}>
@@ -194,16 +202,22 @@ export function Page({
         {scroll ? (
           <ScrollView
             ref={scrollRef}
-            style={{ flex: 1, backgroundColor: contentTheme.colors.background }}
-            contentContainerStyle={{
-              padding: contentTheme.spacing.screen,
-              backgroundColor: contentTheme.colors.background,
-              gap: 16,
-              paddingBottom: 28,
-              width: "100%",
-              maxWidth: theme.layout.maxWidth,
-              alignSelf: "center",
+            style={{
+              flex: 1,
+              backgroundColor: backgroundColor ?? contentTheme.colors.background,
             }}
+            contentContainerStyle={[
+              {
+                padding: contentTheme.spacing.screen,
+                backgroundColor: backgroundColor ?? contentTheme.colors.background,
+                gap: 16,
+                paddingBottom: 28,
+                width: "100%",
+                maxWidth: theme.layout.maxWidth,
+                alignSelf: "center",
+              },
+              contentContainerStyle,
+            ]}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
           >
@@ -211,15 +225,18 @@ export function Page({
           </ScrollView>
         ) : (
           <View
-            style={{
-              flex: 1,
-              padding: contentTheme.spacing.screen,
-              backgroundColor: contentTheme.colors.background,
-              gap: 16,
-              width: "100%",
-              maxWidth: theme.layout.maxWidth,
-              alignSelf: "center",
-            }}
+            style={[
+              {
+                flex: 1,
+                padding: contentTheme.spacing.screen,
+                backgroundColor: backgroundColor ?? contentTheme.colors.background,
+                gap: 16,
+                width: "100%",
+                maxWidth: theme.layout.maxWidth,
+                alignSelf: "center",
+              },
+              contentContainerStyle,
+            ]}
           >
             {children}
           </View>

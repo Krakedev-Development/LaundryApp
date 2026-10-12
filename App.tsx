@@ -14,16 +14,14 @@ import {
 } from "./src/design-system/MotionProvider";
 import { OverlayProvider } from "./src/components/overlay/OverlayProvider";
 import { Skeleton } from "./src/components/presentation";
-import {
-  KycPendingScreen,
-  KycRejectedScreen,
-  KycSelfieScreen,
-  KycUploadScreen,
-  LoginScreen,
-  PasswordScreen,
-  RegisterScreen,
-  SplashScreen,
-} from "./src/screens/AuthScreens";
+import { SplashScreen } from "./src/screens/auth/SplashScreen";
+import { LoginScreen } from "./src/screens/auth/LoginScreen";
+import { PasswordScreen } from "./src/screens/auth/PasswordScreen";
+import { RegisterScreen } from "./src/screens/registration/RegisterScreen";
+import { KycUploadScreen } from "./src/screens/verification/KycUploadScreen";
+import { KycSelfieScreen } from "./src/screens/verification/KycSelfieScreen";
+import { KycPendingScreen } from "./src/screens/verification/KycPendingScreen";
+import { KycRejectedScreen } from "./src/screens/verification/KycRejectedScreen";
 import {
   ClientOrderDetailScreen,
   ClientScheduleScreen,

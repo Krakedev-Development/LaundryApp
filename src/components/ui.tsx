@@ -146,6 +146,7 @@ export function Button({
   testID,
   variant,
   style,
+  textStyle,
 }: {
   label: string;
   onPress(): void;
@@ -156,6 +157,7 @@ export function Button({
   testID?: string;
   variant?: "primary" | "secondary" | "ghost" | "danger";
   style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
 }) {
   const kind = variant ?? (secondary ? "secondary" : "primary");
   const soft = kind === "secondary" || kind === "ghost";
@@ -198,12 +200,15 @@ export function Button({
         icon && <Icon name={icon} color={ink} size={19} />
       )}
       <Text
-        style={{
-          color: ink,
-          ...theme.typography.button,
-          textAlign: "center",
-          flexShrink: 1,
-        }}
+        style={[
+          {
+            color: ink,
+            ...theme.typography.button,
+            textAlign: "center",
+            flexShrink: 1,
+          },
+          textStyle,
+        ]}
       >
         {label}
       </Text>
@@ -251,6 +256,8 @@ export function IconButton({
 }
 export function Field({
   label,
+  leadingIcon,
+  labelAccessory,
   help,
   error,
   validate,
@@ -260,6 +267,8 @@ export function Field({
   ...props
 }: TextInputProps & {
   label: string;
+  leadingIcon?: IconName;
+  labelAccessory?: React.ReactNode;
   help?: string;
   error?: string;
   validate?: (value: string) => string | undefined;
@@ -286,17 +295,22 @@ export function Field({
     (touched ? (validate ?? automatic)(String(props.value ?? "")) : undefined);
   return (
     <View style={{ gap: 6 }}>
-      <Text
-        style={[
-          ui.muted,
-          {
-            fontWeight: "600",
-            color: problem ? contentColors.danger : contentColors.text,
-          },
-        ]}
+      <View
+        style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}
       >
-        {label}
-      </Text>
+        <Text
+          style={[
+            ui.muted,
+            {
+              fontWeight: "600",
+              color: problem ? contentColors.danger : contentColors.text,
+            },
+          ]}
+        >
+          {label}
+        </Text>
+        {labelAccessory}
+      </View>
       <View style={{ position: "relative" }}>
         <TextInput
           accessibilityLabel={label}
@@ -316,6 +330,7 @@ export function Field({
           onChangeText={onChangeText}
           style={[
             ui.input,
+            leadingIcon && { paddingLeft: 40 },
             props.secureTextEntry && { paddingRight: 58 },
             focused && { borderColor: contentColors.focus, borderWidth: 2 },
             problem && { borderColor: contentColors.danger },
@@ -323,6 +338,11 @@ export function Field({
             props.style,
           ]}
         />
+        {leadingIcon && (
+          <View pointerEvents="none" style={{ position: "absolute", left: 12, top: 17 }}>
+            <Icon name={leadingIcon} size={18} color={contentColors.muted} />
+          </View>
+        )}
         {props.secureTextEntry && (
           <View style={{ position: "absolute", right: 2, top: 2 }}>
             <IconButton

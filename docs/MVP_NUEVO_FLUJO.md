@@ -4,15 +4,17 @@ La migración tomó como referencia el prototipo Kotlin recibido. Sus 30 rutas t
 
 ## Pantallas y navegación
 
+Las implementaciones de la tabla se encuentran en `src/screens`. Autenticación (`auth`), registro (`registration`) y verificación de identidad (`verification`) tienen un archivo por pantalla, con imports directos desde `App.tsx`. El hash SHA-256 utilizado por login, registro y cambio de contraseña se comparte mediante `src/services/passwordHash.ts`; las reglas de sesión y verificación permanecen en el dominio y la navegación.
+
 | Ruta del prototipo    | Implementación React Native                      | Comportamiento conservado                                                            |
 | --------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------ |
-| Splash                | AuthScreens.tsx / SplashScreen                   | Introducción, logo, comenzar; accesible desde «Conocer Laundry» en login             |
-| Login                 | AuthScreens.tsx / LoginScreen                    | Inicio cliente/chofer, accesos demo y recuperación mediante soporte                  |
-| RegisterStep1         | AuthScreens.tsx / RegisterScreen                 | Nombre, correo, teléfono, contraseña y paso a KYC                                    |
-| KycUpload             | AuthScreens.tsx / KycUploadScreen                | Tipo y número de documento, cámara o galería                                         |
-| KycSelfie             | AuthScreens.tsx / KycSelfieScreen                | Captura o selección de selfie y envío                                                |
-| KycPending            | AuthScreens.tsx / KycPendingScreen               | Espera de revisión, aprobación/rechazo demo, cierre de sesión                        |
-| KycRejected           | AuthScreens.tsx / KycRejectedScreen              | Motivo de rechazo y reenvío                                                          |
+| Splash                | auth/SplashScreen.tsx                            | Introducción, logo y comenzar; ruta conservada sin acceso desde login                 |
+| Login                 | auth/LoginScreen.tsx                             | Inicio cliente/chofer, accesos demo y recuperación mediante soporte                  |
+| RegisterStep1         | registration/RegisterScreen.tsx                  | Nombre, correo, teléfono, contraseña y paso a KYC                                    |
+| KycUpload             | verification/KycUploadScreen.tsx                 | Tipo y número de documento, cámara o galería                                         |
+| KycSelfie             | verification/KycSelfieScreen.tsx                  | Captura o selección de selfie y envío                                                |
+| KycPending            | verification/KycPendingScreen.tsx                | Espera de revisión, aprobación/rechazo demo, cierre de sesión                        |
+| KycRejected           | verification/KycRejectedScreen.tsx               | Motivo de rechazo y reenvío                                                          |
 | ClientHome            | ClientOrderScreens.tsx / ClientHomeScreen        | Solicitud dominante, cargos, saldo, puntos y accesos rápidos                         |
 | ClientOrders          | ClientOrderScreens.tsx / ClientOrdersScreen      | Activos/historial, filtros de las dos modalidades vigentes                           |
 | ClientNewOrderWizard  | NewOrderScreen.tsx / NewOrderScreen              | Entrada, salida, prendas/peso, extras, confirmación y éxito                          |
@@ -26,7 +28,7 @@ La migración tomó como referencia el prototipo Kotlin recibido. Sus 30 rutas t
 | ClientBilling         | AccountScreens.tsx / BillingScreen               | Nombre fiscal, identificación, correo, teléfono, dirección y guardado                |
 | ClientNotifications   | AccountScreens.tsx / NotificationsScreen         | Notificaciones, lectura y enlace al pedido                                           |
 | ClientSupport         | AccountScreens.tsx / SupportScreen               | Preguntas frecuentes y contacto con soporte                                          |
-| ClientSecurity        | AuthScreens.tsx / PasswordScreen                 | Contraseña actual, nueva, confirmación y validación                                  |
+| ClientSecurity        | auth/PasswordScreen.tsx                          | Contraseña actual, nueva, confirmación y validación                                  |
 | DriverRoute           | DriverScreens.tsx / DriverRouteScreen            | Estado operativo, siguiente servicio, paradas, mapa, chat y acción por estado        |
 | DriverServices        | DriverScreens.tsx / DriverServicesScreen         | Servicios activos y próximos asignados al chofer                                     |
 | DriverHistory         | DriverScreens.tsx / DriverHistoryScreen          | Finalizados, filtro hoy/semana/todos, acceso al detalle                              |
@@ -35,7 +37,7 @@ La migración tomó como referencia el prototipo Kotlin recibido. Sus 30 rutas t
 | DriverMap             | TrackingAndChatScreens.tsx / DriverMapScreen     | Mapa, destino, Google Maps, Waze y chat                                              |
 | DriverPickupConfirm   | DriverScreens.tsx / DriverPickupConfirmScreen    | Conteo, verificación, observaciones, evidencia y confirmación                        |
 | DriverDeliveryConfirm | DriverScreens.tsx / DriverDeliveryConfirmScreen  | Nombre, relación, observaciones, evidencia y aceptación                              |
-| DriverChangePassword  | AuthScreens.tsx / PasswordScreen forced          | Cambio obligatorio antes de ingresar a la ruta                                       |
+| DriverChangePassword  | auth/PasswordScreen.tsx (forced)                 | Cambio obligatorio antes de ingresar a la ruta                                       |
 
 La navegación reinicia la pila al cambiar cuenta, rol o estado de verificación, para impedir regresar a un flujo que ya no corresponda a la sesión. Las secciones principales usan el navegador oficial de pestañas de React Navigation con cambios sin animación lateral y estado persistente. El botón físico de Android vuelve a Inicio o Mi ruta desde una pestaña secundaria; los controles «Atrás» de detalles, mapas y formularios vuelven a su pantalla de origen. Abrir un destino existente reutiliza esa pantalla y evita duplicar el historial. Las pestañas conservan Inicio/Pedidos/Solicitar/Beneficios/Cuenta para cliente y Ruta/Servicios/Historial/Cuenta para chofer; Solicitar abre el asistente sobre la sección actual. Los detalles usan un fundido y los menús se cierran al perder foco.
 
