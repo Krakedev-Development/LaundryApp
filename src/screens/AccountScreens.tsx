@@ -12,6 +12,7 @@ import {
 import { useState } from "react";
 import { Linking, FlatList, View } from "react-native";
 import { Page } from "../components/Page";
+import { AccountDemoTools } from "../components/AccountDemoTools";
 import {
   ProfileDetail,
   ProfileHero,
@@ -50,14 +51,11 @@ export function ClientProfileScreen() {
   const c = currentCustomer(state);
   return (
     <Page>
-      <ProfileHero title="Tu cuenta Laundry">
+      <ProfileHero title={c.name} email={c.email}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
           <Icon name="shield-checkmark-outline" size={18} />
           <Badge>Identidad verificada</Badge>
         </View>
-        <Body muted style={{ textAlign: "center" }}>
-          Los datos de tu perfil están en el menú lateral.
-        </Body>
       </ProfileHero>
       <ProfileStats
         items={[
@@ -122,6 +120,7 @@ export function ClientProfileScreen() {
           onPress={() => navigation.navigate("ClientSupport")}
         />
       </ProfileSection>
+      <AccountDemoTools />
       <ProfileLogout onPress={() => execute((r) => r.logout())} />
     </Page>
   );
@@ -820,14 +819,11 @@ export function DriverProfileScreen() {
   const d = state.driver;
   return (
     <Page>
-      <ProfileHero title="Tu operación Laundry">
+      <ProfileHero title={d.name} email={d.email}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
           <Icon name="car-outline" size={18} />
           <Badge>{operationalLabels[d.operationalStatus]}</Badge>
         </View>
-        <Body muted style={{ textAlign: "center" }}>
-          Los datos de tu perfil están en el menú lateral.
-        </Body>
       </ProfileHero>
       <ProfileSection title="Vehículo asignado">
         <ProfileDetail label="Vehículo" icon="car-outline">
@@ -851,6 +847,7 @@ export function DriverProfileScreen() {
           </Body>
         </View>
       </ProfileSection>
+      <AccountDemoTools />
       <ProfileLogout onPress={() => execute((r) => r.logout())} />
     </Page>
   );

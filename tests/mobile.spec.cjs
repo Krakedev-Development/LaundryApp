@@ -7,9 +7,7 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByText("Ropa fresca, tiempo para ti.")).toBeVisible();
 });
 async function switchRole(page, role) {
-  await page
-    .getByRole("button", { name: "Abrir menú lateral", exact: true })
-    .click();
+  await page.getByRole("tab", { name: "Cuenta", exact: true }).click();
   await page
     .getByRole("button", { name: "Herramientas de demostración", exact: true })
     .click();
@@ -26,7 +24,7 @@ async function slot(page) {
     .last()
     .click();
 }
-test("client sections preserve filters and the bottom bar while switching tabs and menu", async ({
+test("client sections preserve filters and the bottom bar while switching tabs", async ({
   page,
 }) => {
   await page.getByRole("tab", { name: "Pedidos", exact: true }).click();
@@ -50,6 +48,9 @@ test("client sections preserve filters and the bottom bar while switching tabs a
     );
     await expect(bar).toHaveCount(1);
     expect(await bar.boundingBox()).toEqual(initialBounds);
+    await expect(
+      page.getByRole("button", { name: "Abrir menú lateral", exact: true }),
+    ).toHaveCount(0);
   }
   await expect(
     page.getByRole("radio", { name: "Historial", exact: true }),
@@ -74,10 +75,7 @@ test("client sections preserve filters and the bottom bar while switching tabs a
   ).toBeChecked();
   await page.getByRole("button", { name: "Cerrar panel", exact: true }).click();
   for (let i = 0; i < 2; i++) {
-    await page
-      .getByRole("button", { name: "Abrir menú lateral", exact: true })
-      .click();
-    await page.getByRole("button", { name: "Inicio", exact: true }).click();
+    await page.getByRole("tab", { name: "Inicio", exact: true }).click();
     await expect(page.getByText("Ropa fresca, tiempo para ti.")).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Cerrar panel", exact: true }),
@@ -102,6 +100,16 @@ test("driver sections retain the service filter when leaving and returning", asy
       "true",
     );
     await expect(page.getByRole("tablist")).toHaveCount(1);
+    await expect(
+      page.getByRole("button", { name: "Abrir menú lateral", exact: true }),
+    ).toHaveCount(0);
+    if (name === "Cuenta") {
+      await expect(page.getByText("Carlos Mendoza", { exact: true })).toBeVisible();
+      await expect(
+        page.getByText("carlos.mendoza@laundryfresh.com", { exact: true }),
+      ).toBeVisible();
+      await expect(page.getByText("Chofer", { exact: true })).toHaveCount(0);
+    }
   }
   await expect(
     page.getByRole("radio", { name: "Próximos", exact: true }),
@@ -174,21 +182,27 @@ test("opening addresses from a request preserves its draft and returns to the sa
   ).toBeVisible();
 });
 
-test("profile lives in sidebar; billing and addresses persist across reload", async ({
+test("profile lives in account without a role; billing and addresses persist across reload", async ({
   page,
 }) => {
   await expect(
     page.getByText("maria.torres@gmail.com", { exact: true }),
   ).not.toBeVisible();
-  await page
-    .getByRole("button", { name: "Abrir menú lateral", exact: true })
-    .click();
+  await page.getByRole("tab", { name: "Cuenta", exact: true }).click();
   await expect(
     page.getByText("María Elena Torres", { exact: true }),
   ).toBeVisible();
   await expect(
     page.getByText("maria.torres@gmail.com", { exact: true }),
   ).toBeVisible();
+  await expect(page.getByText("Cliente", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Tu cuenta Laundry", { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByText("Los datos de tu perfil están en el menú lateral.", { exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Abrir menú lateral", exact: true }),
+  ).toHaveCount(0);
   await page
     .getByRole("button", { name: "Direcciones guardadas", exact: true })
     .click();
@@ -209,6 +223,9 @@ test("profile lives in sidebar; billing and addresses persist across reload", as
   await page
     .getByRole("button", { name: "Datos de facturación", exact: true })
     .click();
+  await expect(
+    page.getByRole("button", { name: "Abrir menú lateral", exact: true }),
+  ).toHaveCount(0);
   await page
     .getByRole("textbox", { name: "Nombre o razón social", exact: true })
     .fill("Laundry Cliente Test");
@@ -433,9 +450,7 @@ test("driver pickup, plant, delivery, recipient and history form a complete rout
 test("registration verification rejection and resubmission unlock the new client", async ({
   page,
 }) => {
-  await page
-    .getByRole("button", { name: "Abrir menú lateral", exact: true })
-    .click();
+  await page.getByRole("tab", { name: "Cuenta", exact: true }).click();
   await page
     .getByRole("button", { name: "Cerrar sesión", exact: true })
     .click();
@@ -521,4 +536,13 @@ test("registration verification rejection and resubmission unlock the new client
       "No tienes solicitudes activas. Agenda tu próximo servicio.",
     ),
   ).toBeVisible();
+  await page.getByRole("tab", { name: "Cuenta", exact: true }).click();
+  await expect(page.getByText("Ana Test", { exact: true })).toBeVisible();
+  await expect(page.getByText("ana@example.com", { exact: true })).toBeVisible();
+  await expect(page.getByText("maria.torres@gmail.com", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Cliente", { exact: true })).toHaveCount(0);
+  await page.reload();
+  await page.getByRole("tab", { name: "Cuenta", exact: true }).click();
+  await expect(page.getByText("Ana Test", { exact: true })).toBeVisible();
+  await expect(page.getByText("ana@example.com", { exact: true })).toBeVisible();
 });

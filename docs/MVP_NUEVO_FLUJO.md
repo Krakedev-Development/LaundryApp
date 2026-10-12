@@ -17,7 +17,7 @@ La migración tomó como referencia el prototipo Kotlin recibido. Sus 30 rutas t
 | ClientOrders          | ClientOrderScreens.tsx / ClientOrdersScreen      | Activos/historial, filtros de las dos modalidades vigentes                           |
 | ClientNewOrderWizard  | NewOrderScreen.tsx / NewOrderScreen              | Entrada, salida, prendas/peso, extras, confirmación y éxito                          |
 | ClientBenefits        | AccountScreens.tsx / BenefitsScreen              | Promociones, recompensas, historial de canjes y membresías                           |
-| ClientProfile         | AccountScreens.tsx / ClientProfileScreen         | Accesos de cuenta, identidad, puntos y cierre de sesión; datos personales en sidebar |
+| ClientProfile         | AccountScreens.tsx / ClientProfileScreen         | Nombre y correo sin rol, identidad, puntos, accesos de cuenta y cierre de sesión      |
 | ClientOrderDetail     | ClientOrderScreens.tsx / ClientOrderDetailScreen | Estados, precios, pagos, QR, ajustes, agenda, prendas, custodia e historial          |
 | ClientTracking        | TrackingAndChatScreens.tsx / TrackingScreen      | Posición simulada, destino, chofer, vehículo, código y chat                          |
 | Chat                  | TrackingAndChatScreens.tsx / ChatScreen          | Mensajes del pedido desde cliente o chofer, teclado y scroll                         |
@@ -30,7 +30,7 @@ La migración tomó como referencia el prototipo Kotlin recibido. Sus 30 rutas t
 | DriverRoute           | DriverScreens.tsx / DriverRouteScreen            | Estado operativo, siguiente servicio, paradas, mapa, chat y acción por estado        |
 | DriverServices        | DriverScreens.tsx / DriverServicesScreen         | Servicios activos y próximos asignados al chofer                                     |
 | DriverHistory         | DriverScreens.tsx / DriverHistoryScreen          | Finalizados, filtro hoy/semana/todos, acceso al detalle                              |
-| DriverProfile         | AccountScreens.tsx / DriverProfileScreen         | Vehículo, placa, sede, zona, entregas; datos personales en sidebar                   |
+| DriverProfile         | AccountScreens.tsx / DriverProfileScreen         | Nombre y correo sin rol, vehículo, placa, sede, zona y entregas                      |
 | DriverServiceDetail   | DriverScreens.tsx / DriverServiceDetailScreen    | Destino, horario, instrucciones, prendas, acción y constancias                       |
 | DriverMap             | TrackingAndChatScreens.tsx / DriverMapScreen     | Mapa, destino, Google Maps, Waze y chat                                              |
 | DriverPickupConfirm   | DriverScreens.tsx / DriverPickupConfirmScreen    | Conteo, verificación, observaciones, evidencia y confirmación                        |

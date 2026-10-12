@@ -17,7 +17,7 @@ Se revisaron las 30 rutas, sus componentes y acciones antes de cambiar la interf
 | ClientOrders          | Crítico               | Filtros permanentes y botones duplicados; búsqueda, panel y cards completas         |
 | ClientNewOrderWizard  | Crítico               | Catálogo y franjas muy extensos; selección contextual, progreso y CTA fija          |
 | ClientBenefits        | Crítico               | Filtros verticales y múltiples acciones; segmentos y opciones contextualizadas      |
-| ClientProfile         | Crítico               | Cards administrativas; filas por tarea, datos personales solo en sidebar            |
+| ClientProfile         | Crítico               | Perfil con nombre y correo sin rol; filas agrupadas para las opciones de cuenta      |
 | ClientOrderDetail     | Crítico               | Toda la información simultánea; alertas prioritarias y secciones desplegables       |
 | ClientTracking        | Crítico               | Mapa pequeño, QR y datos compiten; mapa y resumen con panel contextual              |
 | Chat                  | Mejorable             | Tokens, teclado, feedback y lista virtualizada                                      |
@@ -30,7 +30,7 @@ Se revisaron las 30 rutas, sus componentes y acciones antes de cambiar la interf
 | DriverRoute           | Crítico               | Estado operativo y varias tareas compiten; próxima parada y acción contextual       |
 | DriverServices        | Mejorable             | Segmentos, búsqueda y lista virtualizada                                            |
 | DriverHistory         | Mejorable             | Filtro compacto, búsqueda y estados vacíos útiles                                   |
-| DriverProfile         | Mejorable             | Información operativa agrupada sin duplicar perfil personal                         |
+| DriverProfile         | Mejorable             | Perfil con nombre y correo sin rol; información operativa agrupada                   |
 | DriverServiceDetail   | Crítico               | Mapa, prendas y constancias compiten; próxima acción y detalle desplegable          |
 | DriverMap             | Crítico               | Navegadores compiten y mapa secundario; mapa dominante y alternativas accesibles    |
 | DriverPickupConfirm   | Crítico               | Campos opcionales compiten con conteo; agrupar evidencia y código                   |
@@ -54,7 +54,7 @@ Se conservan las 30 rutas originales. ClientSchedule añade una pantalla de edic
 
 | Función conservada                    | Acceso actual                                                      |
 | ------------------------------------- | ------------------------------------------------------------------ |
-| Crear solicitud                       | CTA de Inicio, acción Solicitar en barra y menú                    |
+| Crear solicitud                       | CTA de Inicio y acción Solicitar en barra inferior                 |
 | Filtros de pedidos                    | Segmentos y panel de modalidad; búsqueda persistente               |
 | Dirección, sede y franjas             | Filas del wizard que abren paneles                                 |
 | Servicio y pago                       | Selectores del wizard; precios, prendas y extras conservados       |
@@ -72,8 +72,8 @@ Se conservan las 30 rutas originales. ClientSchedule añade una pantalla de edic
 | Persona que recibe                    | Selector de relación en confirmación de entrega                    |
 | Notificaciones                        | Todas/Sin leer, lectura y acceso al pedido                         |
 | Google Maps, Waze y chat              | Mapa/servicio y contacto contextual                                |
-| Roles demo y reset                    | Menú → Herramientas de demostración                                |
-| Perfil personal                       | Únicamente sidebar con nombre, rol y correo                        |
+| Roles demo y reset                    | Cuenta → Herramientas de demostración                              |
+| Perfil personal                       | Cuenta: nombre y correo de la cuenta activa, sin rol               |
 
 ## Trazabilidad de los 24 entregables
 

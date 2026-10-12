@@ -15,9 +15,11 @@ const tones = {
 
 export function ProfileHero({
   title,
+  email,
   children,
 }: {
   title: string;
+  email: string;
   children: React.ReactNode;
 }) {
   return (
@@ -31,6 +33,7 @@ export function ProfileHero({
         />
       </View>
       <Title style={styles.heroTitle}>{title}</Title>
+      <Body muted style={styles.heroEmail}>{email}</Body>
       {children}
     </Card>
   );
@@ -170,6 +173,12 @@ const styles = StyleSheet.create({
   },
   logo: { width: 72, height: 72 },
   heroTitle: { fontSize: 20, lineHeight: 27, textAlign: "center" },
+  heroEmail: {
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: "center",
+    maxWidth: "100%",
+  },
   stats: { flexDirection: "row", gap: 0, paddingVertical: 16 },
   stat: { flex: 1, alignItems: "center", gap: 2, paddingHorizontal: 8 },
   statDivider: { borderLeftWidth: 1, borderLeftColor: "#E5E7EB" },

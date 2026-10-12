@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   BackHandler,
   Image,
@@ -11,16 +11,13 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   useFocusEffect,
-  useIsFocused,
   useNavigationState,
   useRoute,
 } from "@react-navigation/native";
 import { useApp } from "../store/AppProvider";
 import { currentCustomer } from "../domain/repository";
 import { titles, type Routes } from "../navigation/routes";
-import { Body, Button, colors, Icon, IconButton, ui } from "./ui";
-import { Accordion, ListItem } from "./presentation";
-import { Drawer, ConfirmDialog } from "./overlay/OverlayPortal";
+import { Button, colors, IconButton, ui } from "./ui";
 import { NavigationBar } from "./NavigationBar";
 import {
   clientTabs,
@@ -31,7 +28,6 @@ import {
 import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
 import { theme } from "../design-system/tokens";
 import { contentTheme } from "../design-system/classic";
-import { ComponentCatalog } from "./ComponentCatalog";
 import { friendlyError } from "../design-system/interaction";
 const fullScreen = [
   "ClientSchedule",
@@ -66,17 +62,12 @@ export function Page({
   scrollResetKey?: string | number;
   onBack?(): void;
 }) {
-  const { state, execute, reset, error, retry } = useApp();
+  const { state, error, retry } = useApp();
   const navigation = useLaundryNavigation(),
-    focused = useIsFocused(),
     route = useRoute();
   const name = route.name as keyof Routes;
-  const [drawer, setDrawer] = useState(false),
-    [resetConfirm, setResetConfirm] = useState(false),
-    [catalog, setCatalog] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
-  const isClient = state.session?.role === "CLIENT",
-    user = isClient ? currentCustomer(state) : state.driver;
+  const isClient = state.session?.role === "CLIENT";
   const tabs = isClient ? clientTabs : driverTabs,
     primary = primaryTabTarget(name);
   const activeTab = useNavigationState((s) => {
@@ -89,13 +80,6 @@ export function Page({
       (isClient ? "ClientHome" : "DriverRoute")
     );
   });
-  useEffect(() => {
-    if (!focused) {
-      setDrawer(false);
-      setResetConfirm(false);
-      setCatalog(false);
-    }
-  }, [focused]);
   useEffect(() => {
     scrollRef.current?.scrollTo({ y: 0, animated: false });
   }, [scrollResetKey]);
@@ -114,17 +98,8 @@ export function Page({
     (isClient
       ? currentCustomer(state).kycStatus === "APPROVED"
       : !state.driver.mustChangePassword);
-  const navigate = (
-    target:
-      | Tab["route"]
-      | "ClientNotifications"
-      | "ClientWallet"
-      | "ClientAddresses"
-      | "ClientSupport",
-  ) => {
-    setDrawer(false);
+  const navigate = (target: Tab["route"] | "ClientNotifications") =>
     navigation.navigate(target);
-  };
   const back = () =>
     onBack
       ? onBack()
@@ -132,9 +107,11 @@ export function Page({
         ? navigation.goBack()
         : navigate(isClient ? "ClientHome" : "DriverRoute");
   const showTabs = authenticated && !primary && !fullScreen.includes(name);
-  const notification = state.notifications.some(
-    (n) => n.customerId === user.id && !n.isRead,
-  );
+  const notification =
+    isClient &&
+    state.notifications.some(
+      (n) => n.customerId === currentCustomer(state).id && !n.isRead,
+    );
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: colors.background }}
@@ -160,15 +137,12 @@ export function Page({
             ]}
           >
             {primary || !navigation.canGoBack() ? (
-              authenticated ? (
-                <IconButton
-                  label="Abrir menú lateral"
-                  icon="menu-outline"
-                  onPress={() => setDrawer(true)}
-                />
-              ) : (
-                <View style={{ width: 48 }} />
-              )
+              <View
+                style={{
+                  width: theme.layout.touch,
+                  height: authenticated ? theme.layout.touch : undefined,
+                }}
+              />
             ) : (
               <IconButton label="Atrás" icon="arrow-back" onPress={back} />
             )}
@@ -183,13 +157,7 @@ export function Page({
                 {titles[name]}
               </Text>
             )}
-            {authenticated && !primary ? (
-              <IconButton
-                label="Abrir menú lateral"
-                icon="menu-outline"
-                onPress={() => setDrawer(true)}
-              />
-            ) : authenticated && isClient ? (
+            {authenticated && isClient ? (
               <View>
                 <IconButton
                   label="Ver notificaciones"
@@ -284,126 +252,6 @@ export function Page({
             onSelect={navigate}
           />
         )}
-        <Drawer
-          title="Menú Laundry"
-          visible={focused && drawer}
-          onClose={() => setDrawer(false)}
-        >
-          <Logo />
-          <View
-            style={{
-              backgroundColor: colors.soft,
-              padding: 16,
-              borderRadius: 16,
-              gap: 4,
-            }}
-          >
-            <Icon name="person-circle-outline" size={36} />
-            <Text style={ui.subtitle}>{user.name}</Text>
-            <Body>{isClient ? "Cliente" : "Chofer"}</Body>
-            <Body muted>{user.email}</Body>
-          </View>
-          {tabs.map((tab) => (
-            <ListItem
-              key={tab.route}
-              title={tab.label}
-              icon={tab.icon}
-              onPress={() => navigate(tab.route)}
-            />
-          ))}
-          {isClient && (
-            <>
-              <ListItem
-                title="Billetera Laundry"
-                icon="wallet-outline"
-                onPress={() => navigate("ClientWallet")}
-              />
-              <ListItem
-                title="Direcciones guardadas"
-                icon="location-outline"
-                onPress={() => navigate("ClientAddresses")}
-              />
-              <ListItem
-                title="Ayuda y soporte"
-                icon="help-circle-outline"
-                onPress={() => navigate("ClientSupport")}
-              />
-            </>
-          )}
-          <Accordion title="Herramientas de demostración">
-            <Body muted>Opciones exclusivas del MVP local.</Body>
-            <Button
-              label={
-                isClient ? "Cambiar a chofer demo" : "Cambiar a cliente demo"
-              }
-              secondary
-              onPress={() => {
-                setDrawer(false);
-                execute((r) => r.demoLogin(isClient ? "DRIVER" : "CLIENT"));
-              }}
-            />
-            <Button
-              label="Restablecer datos demo"
-              secondary
-              onPress={() => {
-                setDrawer(false);
-                setResetConfirm(true);
-              }}
-            />
-            {__DEV__ && (
-              <Button
-                label="Catálogo de componentes"
-                secondary
-                onPress={() => {
-                  setDrawer(false);
-                  setCatalog(true);
-                }}
-              />
-            )}
-          </Accordion>
-          <Button
-            label="Cerrar sesión"
-            icon="log-out-outline"
-            variant="ghost"
-            onPress={() => {
-              setDrawer(false);
-              execute((r) => r.logout());
-            }}
-          />
-        </Drawer>
-        {__DEV__ && (
-          <ComponentCatalog
-            visible={focused && catalog}
-            onClose={() => setCatalog(false)}
-          />
-        )}
-        <ConfirmDialog
-          title="Restablecer demo"
-          visible={focused && resetConfirm}
-          onClose={() => setResetConfirm(false)}
-          footer={
-            <>
-              <Button
-                label="Restablecer demo"
-                variant="danger"
-                onPress={() => {
-                  setResetConfirm(false);
-                  reset();
-                }}
-              />
-              <Button
-                label="Conservar datos"
-                secondary
-                onPress={() => setResetConfirm(false)}
-              />
-            </>
-          }
-        >
-          <Body>
-            Se reemplazarán los pedidos, cuentas, saldo y mensajes locales por
-            los ejemplos iniciales.
-          </Body>
-        </ConfirmDialog>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

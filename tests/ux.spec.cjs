@@ -180,12 +180,33 @@ test("request cancellation retains the warning and creates the existing late fee
     page.getByText("Cargo regularizado.", { exact: true }),
   ).toBeVisible();
 });
+test("demo reset remains confirmed in account and retaining preserves customer data", async ({ page }) => {
+  await account(page, "Direcciones guardadas");
+  await page.getByRole("button", { name: "Añadir dirección", exact: true }).click();
+  await page.getByRole("textbox", { name: "Nombre de dirección", exact: true }).fill("Dirección de prueba reset");
+  await page.getByRole("textbox", { name: "Dirección completa", exact: true }).fill("Calle de prueba 456");
+  await page.getByRole("button", { name: "Guardar dirección", exact: true }).click();
+  await account(page, "Herramientas de demostración");
+  await page.getByRole("button", { name: "Restablecer datos demo", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Cerrar panel", exact: true })).toHaveCount(1);
+  await page.getByRole("button", { name: "Conservar datos", exact: true }).click();
+  await page.getByRole("button", { name: "Direcciones guardadas", exact: true }).click();
+  await expect(page.getByText("Dirección de prueba reset", { exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: "Cuenta", exact: true }).click();
+  await page.getByRole("button", { name: "Restablecer datos demo", exact: true }).click();
+  await page.getByRole("button", { name: "Restablecer demo", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Cerrar panel", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Direcciones guardadas", exact: true }).click();
+  await expect(page.getByText("Dirección de prueba reset", { exact: true })).toHaveCount(0);
+  await page.reload();
+  await account(page, "Direcciones guardadas");
+  await expect(page.getByText("Dirección de prueba reset", { exact: true })).toHaveCount(0);
+});
+
 test("email and password validation is contextual and temporary password cannot bypass security", async ({
   page,
 }) => {
-  await page
-    .getByRole("button", { name: "Abrir menú lateral", exact: true })
-    .click();
+  await page.getByRole("tab", { name: "Cuenta", exact: true }).click();
   await page
     .getByRole("button", { name: "Cerrar sesión", exact: true })
     .click();

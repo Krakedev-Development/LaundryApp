@@ -22,7 +22,7 @@ El contenido recupera el estilo del commit `4fa1bd3` (`chore: upgrade Expo SDK a
 | Espaciado   | 4, 8, 12, 16, 20, 24, 32 y 40 puntos; margen del contenido 16                          |
 | Radios      | Campos 8, tarjetas y botones 12, promociones 16, paneles 24 y chips de estado redondos |
 | Interacción | Objetivo táctil mínimo 48; botones 52 puntos                                           |
-| Ancho       | Contenido máximo 780; panel máximo 600; sidebar máximo 340                             |
+| Ancho       | Contenido máximo 780; panel máximo 600                                                  |
 | Movimiento  | 140/220/280/300 ms; búsqueda 250 ms; aviso 6000 ms                                     |
 | Capas       | Contenido, feedback, overlay; sombras suaves disponibles                               |
 
@@ -52,13 +52,15 @@ Los logos oficiales se conservan. Personas, documentos y evidencias se represent
 - useAction: errores humanos, confirmación visible y exclusión de envíos asincrónicos simultáneos. Las operaciones síncronas siguen siendo transacciones del dominio.
 - HandoffCard/HandoffCodeSheet: código a demanda, QR/manual y regeneración con feedback.
 
-En desarrollo, Menú → Herramientas de demostración → Catálogo de componentes permite inspeccionar variantes, selección, validación, carga y estados. Está condicionado por **DEV** y no altera datos del producto.
+En desarrollo, Cuenta → Herramientas de demostración → Catálogo de componentes permite inspeccionar variantes, selección, validación, carga y estados. Está condicionado por **DEV** y no altera datos del producto.
 
 ## Navegación
 
 ClientMainTabs conserva Inicio, Pedidos, Beneficios y Cuenta; Solicitar inicia el flujo guiado desde la barra. DriverMainTabs conserva Mi ruta, Servicios, Historial y Cuenta. Cambiar de pestaña conserva búsqueda, filtros y estado de la sección. Los detalles usan la pila nativa existente y se reutilizan por orderId.
 
-El header de secciones principales muestra logo, menú y notificaciones según rol. Las pantallas secundarias muestran Atrás, título y menú. Nombre, rol y correo del usuario aparecen solamente en el sidebar.
+La app móvil no presenta menú lateral. El header de secciones principales conserva el logo oficial centrado y el acceso a notificaciones del cliente. Las pantallas secundarias muestran Atrás, título y notificaciones cuando corresponden. La barra inferior conserva los accesos principales y Cuenta agrupa las opciones de cuenta.
+
+El perfil de Cuenta muestra el nombre y correo de la cuenta activa, sin mostrar su rol, tanto para cliente como para chofer. Se conserva el estilo centrado del commit `4fa1bd3`, el logo oficial y los estados de verificación/disponibilidad vigentes. Los datos se leen del store actual, incluyendo cuentas registradas por el usuario.
 
 La solicitud conserva Entrada → Salida → Prendas → Extras → Confirmación. La CTA permanece al pie, no habilita pasos incompletos y el contenido vuelve arriba al cambiar de etapa. Atrás del header/Android retrocede una etapa; se deshabilita el gesto de salida de iOS durante el wizard para evitar abandonarlo involuntariamente. Al terminar se mantiene el resultado con acceso al pedido.
 
@@ -66,10 +68,9 @@ ClientSchedule recibe orderId, edita entrada/salida con las mismas reglas de cor
 
 ## Paneles y confirmaciones
 
-OverlayProvider ofrece un único Modal nativo mediante OverlayHost. BottomSheet, ConfirmDialog, Drawer y FullScreenOverlay son portales declarativos; los consumidores no crean Modal adicionales.
+OverlayProvider ofrece un único Modal nativo mediante OverlayHost. BottomSheet, ConfirmDialog y FullScreenOverlay son los portales activos; los consumidores no crean Modal adicionales. La app no usa el portal Drawer para navegar ni presentar el perfil.
 
 - Sheet: selección de dirección/sede, fecha/horario, servicio, pago, filtros, disponibilidad, relación del destinatario y adjuntos.
-- Drawer: navegación y perfil.
 - Dialog: cancelación, eliminación de dirección y restablecimiento demo.
 - Full: formularios de dirección, cámara QR y catálogo de desarrollo.
 
@@ -91,7 +92,7 @@ El MVP usa AsyncStorage local. No se agregan pull-to-refresh, indicadores de con
 
 Listas de solicitudes, servicios, historial, movimientos, notificaciones y chat usan FlatList fuera de un ScrollView padre. El seguimiento solo ejecuta su simulación cuando está visible, el tramo está en camino y el usuario permite movimiento. El mapa es dominante y conserva la advertencia demo y los enlaces reales de Google Maps/Waze.
 
-Las acciones de demostración se agrupan; el reset está en Menú → Herramientas de demostración. Estas opciones deben retirarse al conectar el producto a servicios de producción. El rediseño no cambia el alcance local del prototipo.
+Las acciones de demostración se agrupan en Cuenta → Herramientas de demostración mediante AccountDemoTools. Cambio de cuenta demo, reset con confirmación y catálogo de desarrollo conservan su comportamiento; los paneles se cierran al salir de Cuenta. Estas opciones deben retirarse al conectar el producto a servicios de producción. El rediseño no cambia el alcance local del prototipo.
 
 ## Accesibilidad y adaptación
 
