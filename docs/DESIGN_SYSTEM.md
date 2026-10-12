@@ -56,11 +56,13 @@ Los logos oficiales se conservan. Personas, documentos y evidencias se represent
 - useAction: errores humanos, confirmación visible y exclusión de envíos asincrónicos simultáneos. Las operaciones síncronas siguen siendo transacciones del dominio.
 - HandoffCard/HandoffCodeSheet: código a demanda, QR/manual y regeneración con feedback.
 
-En desarrollo, Cuenta → Herramientas de demostración → Catálogo de componentes permite inspeccionar variantes, selección, validación, carga y estados. Está condicionado por **DEV** y no altera datos del producto.
+En desarrollo, Perfil → Herramientas de demostración → Catálogo de componentes permite inspeccionar variantes, selección, validación, carga y estados. Está condicionado por **DEV** y no altera datos del producto.
 
 ## Navegación
 
-ClientMainTabs conserva Inicio, Pedidos, Beneficios y Cuenta; Solicitar inicia el flujo guiado desde la barra. DriverMainTabs conserva Mi ruta, Servicios, Historial y Cuenta. Cambiar de pestaña conserva búsqueda, filtros y estado de la sección. Los detalles usan la pila nativa existente y se reutilizan por orderId.
+ClientMainTabs conserva Inicio, Pedidos, Beneficios y el acceso a la cuenta, rotulado Perfil en la barra. Solicitar inicia el flujo guiado desde el botón circular central azul con signo verde, sin texto visible y con nombre accesible Solicitar. DriverMainTabs conserva Mi ruta, Servicios, Historial y Perfil, sin añadir acciones de cliente. Cambiar de pestaña conserva búsqueda, filtros y estado de la sección. Los detalles usan la pila nativa existente y se reutilizan por orderId.
+
+La barra inferior sigue la referencia adjunta: fondo blanco, íconos de 16 puntos y etiquetas de 10 puntos; la selección se identifica con azul, ícono con relleno y texto más marcado, sin rellenar la celda. Inicio, Pedidos, Beneficios y Perfil usan sus íconos de contorno cuando están inactivos y sus variantes con relleno al seleccionarse. Beneficios conserva el regalo y Perfil usa la persona; el estado de Perfil también es consistente en la barra del chofer. El botón central tiene diámetro de 48 puntos y sombra suave; las áreas de interacción conservan al menos 48 puntos y el safe area inferior. NavigationBar comparte esta presentación entre secciones principales y pantallas secundarias. Se mantienen los destinos, el evento tabPress, la respuesta háptica y la lógica de selección existentes.
 
 La app móvil no presenta menú lateral. El header de secciones principales conserva el logo oficial centrado y el acceso a notificaciones del cliente. Las pantallas secundarias muestran Atrás, título y notificaciones cuando corresponden. La barra inferior conserva los accesos principales y Cuenta agrupa las opciones de cuenta.
 
@@ -96,7 +98,7 @@ El MVP usa AsyncStorage local. No se agregan pull-to-refresh, indicadores de con
 
 Listas de solicitudes, servicios, historial, movimientos, notificaciones y chat usan FlatList fuera de un ScrollView padre. El seguimiento solo ejecuta su simulación cuando está visible, el tramo está en camino y el usuario permite movimiento. El mapa es dominante y conserva la advertencia demo y los enlaces reales de Google Maps/Waze.
 
-Las acciones de demostración se agrupan en Cuenta → Herramientas de demostración mediante AccountDemoTools. Cambio de cuenta demo, reset con confirmación y catálogo de desarrollo conservan su comportamiento; los paneles se cierran al salir de Cuenta. Estas opciones deben retirarse al conectar el producto a servicios de producción. El rediseño no cambia el alcance local del prototipo.
+Las acciones de demostración se agrupan en Perfil → Herramientas de demostración mediante AccountDemoTools. Cambio de cuenta demo, reset con confirmación y catálogo de desarrollo conservan su comportamiento; los paneles se cierran al salir de Cuenta. Estas opciones deben retirarse al conectar el producto a servicios de producción. El rediseño no cambia el alcance local del prototipo.
 
 ## Accesibilidad y adaptación
 

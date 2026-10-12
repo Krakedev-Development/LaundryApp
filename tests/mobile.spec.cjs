@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByText("Ropa fresca, tiempo para ti.")).toBeVisible();
 });
 async function switchRole(page, role) {
-  await page.getByRole("tab", { name: "Cuenta", exact: true }).click();
+  await page.getByRole("tab", { name: "Perfil", exact: true }).click();
   await page
     .getByRole("button", { name: "Herramientas de demostración", exact: true })
     .click();
@@ -40,7 +40,7 @@ test("client sections preserve filters and the bottom bar while switching tabs",
     .click();
   const bar = page.getByRole("tablist");
   const initialBounds = await bar.boundingBox();
-  for (const name of ["Beneficios", "Cuenta", "Inicio", "Pedidos"]) {
+  for (const name of ["Beneficios", "Perfil", "Inicio", "Pedidos"]) {
     await page.getByRole("tab", { name, exact: true }).click();
     await expect(page.getByRole("tab", { name, exact: true })).toHaveAttribute(
       "aria-selected",
@@ -93,7 +93,7 @@ test("driver sections retain the service filter when leaving and returning", asy
   await switchRole(page, "chofer");
   await page.getByRole("tab", { name: "Servicios", exact: true }).click();
   await page.getByRole("radio", { name: "Próximos", exact: true }).click();
-  for (const name of ["Cuenta", "Historial", "Mi ruta", "Servicios"]) {
+  for (const name of ["Perfil", "Historial", "Mi ruta", "Servicios"]) {
     await page.getByRole("tab", { name, exact: true }).click();
     await expect(page.getByRole("tab", { name, exact: true })).toHaveAttribute(
       "aria-selected",
@@ -103,7 +103,7 @@ test("driver sections retain the service filter when leaving and returning", asy
     await expect(
       page.getByRole("button", { name: "Abrir menú lateral", exact: true }),
     ).toHaveCount(0);
-    if (name === "Cuenta") {
+    if (name === "Perfil") {
       await expect(page.getByText("Carlos Mendoza", { exact: true })).toBeVisible();
       await expect(
         page.getByText("carlos.mendoza@laundryfresh.com", { exact: true }),
@@ -188,7 +188,7 @@ test("profile lives in account without a role; billing and addresses persist acr
   await expect(
     page.getByText("maria.torres@gmail.com", { exact: true }),
   ).not.toBeVisible();
-  await page.getByRole("tab", { name: "Cuenta", exact: true }).click();
+  await page.getByRole("tab", { name: "Perfil", exact: true }).click();
   await expect(
     page.getByText("María Elena Torres", { exact: true }),
   ).toBeVisible();
@@ -219,7 +219,7 @@ test("profile lives in account without a role; billing and addresses persist acr
     .getByRole("button", { name: "Guardar dirección", exact: true })
     .click();
   await expect(page.getByText("Oficina nueva", { exact: true })).toBeVisible();
-  await page.getByRole("tab", { name: "Cuenta", exact: true }).click();
+  await page.getByRole("tab", { name: "Perfil", exact: true }).click();
   await page
     .getByRole("button", { name: "Datos de facturación", exact: true })
     .click();
@@ -234,7 +234,7 @@ test("profile lives in account without a role; billing and addresses persist acr
     .click();
   await expect(page.getByText("Datos de facturación guardados.")).toBeVisible();
   await page.reload();
-  await page.getByRole("tab", { name: "Cuenta", exact: true }).click();
+  await page.getByRole("tab", { name: "Perfil", exact: true }).click();
   await page
     .getByRole("button", { name: "Datos de facturación", exact: true })
     .click();
@@ -450,7 +450,7 @@ test("driver pickup, plant, delivery, recipient and history form a complete rout
 test("registration verification rejection and resubmission unlock the new client", async ({
   page,
 }) => {
-  await page.getByRole("tab", { name: "Cuenta", exact: true }).click();
+  await page.getByRole("tab", { name: "Perfil", exact: true }).click();
   await page
     .getByRole("button", { name: "Cerrar sesión", exact: true })
     .click();
@@ -536,13 +536,13 @@ test("registration verification rejection and resubmission unlock the new client
       "No tienes solicitudes activas. Agenda tu próximo servicio.",
     ),
   ).toBeVisible();
-  await page.getByRole("tab", { name: "Cuenta", exact: true }).click();
+  await page.getByRole("tab", { name: "Perfil", exact: true }).click();
   await expect(page.getByText("Ana Test", { exact: true })).toBeVisible();
   await expect(page.getByText("ana@example.com", { exact: true })).toBeVisible();
   await expect(page.getByText("maria.torres@gmail.com", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Cliente", { exact: true })).toHaveCount(0);
   await page.reload();
-  await page.getByRole("tab", { name: "Cuenta", exact: true }).click();
+  await page.getByRole("tab", { name: "Perfil", exact: true }).click();
   await expect(page.getByText("Ana Test", { exact: true })).toBeVisible();
   await expect(page.getByText("ana@example.com", { exact: true })).toBeVisible();
 });

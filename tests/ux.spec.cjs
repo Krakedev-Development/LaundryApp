@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByText("Ropa fresca, tiempo para ti.")).toBeVisible();
 });
 async function account(page, target) {
-  await page.getByRole("tab", { name: "Cuenta", exact: true }).click();
+  await page.getByRole("tab", { name: "Perfil", exact: true }).click();
   await page.getByRole("button", { name: target, exact: true }).click();
 }
 test("sheets dismiss by backdrop and Escape; wizard progress is guarded and its footer remains fixed", async ({
@@ -192,7 +192,7 @@ test("demo reset remains confirmed in account and retaining preserves customer d
   await page.getByRole("button", { name: "Conservar datos", exact: true }).click();
   await page.getByRole("button", { name: "Direcciones guardadas", exact: true }).click();
   await expect(page.getByText("Dirección de prueba reset", { exact: true })).toBeVisible();
-  await page.getByRole("tab", { name: "Cuenta", exact: true }).click();
+  await page.getByRole("tab", { name: "Perfil", exact: true }).click();
   await page.getByRole("button", { name: "Restablecer datos demo", exact: true }).click();
   await page.getByRole("button", { name: "Restablecer demo", exact: true }).click();
   await expect(page.getByRole("button", { name: "Cerrar panel", exact: true })).toHaveCount(0);
@@ -206,7 +206,7 @@ test("demo reset remains confirmed in account and retaining preserves customer d
 test("email and password validation is contextual and temporary password cannot bypass security", async ({
   page,
 }) => {
-  await page.getByRole("tab", { name: "Cuenta", exact: true }).click();
+  await page.getByRole("tab", { name: "Perfil", exact: true }).click();
   await page
     .getByRole("button", { name: "Cerrar sesión", exact: true })
     .click();
@@ -265,7 +265,7 @@ for (const viewport of [
       await page.emulateMedia({ reducedMotion: "reduce" });
       const errors = [];
       page.on("pageerror", (error) => errors.push(error.message));
-      for (const name of ["Inicio", "Pedidos", "Beneficios", "Cuenta"]) {
+      for (const name of ["Inicio", "Pedidos", "Beneficios", "Perfil"]) {
         await page.getByRole("tab", { name, exact: true }).click();
         await expect(page.getByRole("tablist")).toHaveCount(1);
         const box = await page.getByRole("tablist").boundingBox();
@@ -484,7 +484,7 @@ test("benefits, unread notifications, support and chat remain reachable", async 
   await expect(
     page.getByText(/Después del pesaje certificado en planta/),
   ).toBeVisible();
-  await page.getByRole("tab", { name: "Cuenta", exact: true }).click();
+  await page.getByRole("tab", { name: "Perfil", exact: true }).click();
   await page
     .getByRole("button", { name: "Notificaciones", exact: true })
     .click();
