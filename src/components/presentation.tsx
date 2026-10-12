@@ -1,8 +1,16 @@
 ﻿import React, { useEffect, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
-import { Body, colors, Icon, IconButton, Title, ui, type IconName } from "./ui";
+import {
+  Body,
+  contentColors as colors,
+  Icon,
+  IconButton,
+  Title,
+  ui,
+  type IconName,
+} from "./ui";
 import { MotionSection } from "../design-system/MotionProvider";
-import { theme } from "../design-system/tokens";
+import { contentTheme as theme } from "../design-system/classic";
 import { statusLabels, type OrderStatus, type Order } from "../domain/models";
 export function Accordion({
   title,
@@ -46,34 +54,61 @@ export function ListItem({
   icon,
   onPress,
   trailing,
+  appearance = "list",
 }: {
   title: string;
   subtitle?: string;
   icon?: IconName;
   onPress?(): void;
   trailing?: React.ReactNode;
+  appearance?: "list" | "metric";
 }) {
-  const content = (
-    <>
-      <View
-        style={{
-          width: 40,
-          height: 40,
-          backgroundColor: colors.soft,
-          borderRadius: 12,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        {icon && <Icon name={icon} size={21} />}
-      </View>
-      <View style={{ flex: 1, gap: 3 }}>
-        <Text style={[ui.text, { fontWeight: "600" }]}>{title}</Text>
-        {subtitle && <Body muted>{subtitle}</Body>}
-      </View>
-      {trailing || (onPress && <Icon name="chevron-forward" size={18} />)}
-    </>
-  );
+  const content =
+    appearance === "metric" ? (
+      <>
+        {icon && <Icon name={icon} size={20} />}
+        <Text
+          style={{
+            fontSize: 16,
+            lineHeight: 22,
+            fontWeight: "700",
+            color: colors.text,
+            textAlign: "center",
+          }}
+        >
+          {subtitle}
+        </Text>
+        <Text
+          style={{
+            ...theme.typography.caption,
+            color: colors.muted,
+            textAlign: "center",
+          }}
+        >
+          {title}
+        </Text>
+      </>
+    ) : (
+      <>
+        <View
+          style={{
+            width: 40,
+            height: 40,
+            backgroundColor: colors.soft,
+            borderRadius: 12,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {icon && <Icon name={icon} size={21} />}
+        </View>
+        <View style={{ flex: 1, gap: 3 }}>
+          <Text style={[ui.text, { fontWeight: "600" }]}>{title}</Text>
+          {subtitle && <Body muted>{subtitle}</Body>}
+        </View>
+        {trailing || (onPress && <Icon name="chevron-forward" size={18} />)}
+      </>
+    );
   return onPress ? (
     <Pressable
       accessibilityRole="button"
@@ -86,6 +121,15 @@ export function ListItem({
           flexWrap: "nowrap",
           paddingVertical: 8,
           opacity: pressed ? 0.8 : 1,
+        },
+        appearance === "metric" && {
+          flex: 1,
+          flexDirection: "column",
+          gap: 4,
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: 88,
+          paddingVertical: 4,
         },
       ]}
     >
@@ -247,20 +291,46 @@ export function StatusChip({ status }: { status: OrderStatus }) {
     "CUSTOMER_APPROVAL_PENDING",
     "WEIGHING",
   ].includes(status);
-  const foreground = problem
-    ? colors.danger
-    : done
-      ? colors.success
-      : attention
-        ? colors.warning
-        : colors.info;
-  const backgroundColor = problem
-    ? colors.dangerSoft
-    : done
-      ? colors.successSoft
-      : attention
-        ? colors.warningSoft
-        : colors.infoSoft;
+  const tint: Partial<Record<OrderStatus, { ink: string; fill: string }>> = {
+    CREATED: { ink: colors.warning, fill: colors.warningSoft },
+    AWAITING_INTAKE: { ink: colors.warning, fill: colors.warningSoft },
+    PICKUP_PENDING: { ink: colors.warning, fill: colors.warningSoft },
+    IN_PROCESS: { ink: theme.accent.purple, fill: theme.accent.purpleSoft },
+    QUALITY_CONTROL: {
+      ink: theme.accent.purple,
+      fill: theme.accent.purpleSoft,
+    },
+    READY_FOR_DELIVERY: {
+      ink: theme.accent.limeInk,
+      fill: theme.accent.limeSoft,
+    },
+    READY_FOR_PICKUP: {
+      ink: theme.accent.limeInk,
+      fill: theme.accent.limeSoft,
+    },
+    OUT_FOR_DELIVERY: {
+      ink: theme.accent.limeInk,
+      fill: theme.accent.limeSoft,
+    },
+  };
+  const foreground =
+    tint[status]?.ink ??
+    (problem
+      ? colors.danger
+      : done
+        ? theme.accent.complete
+        : attention
+          ? colors.warning
+          : colors.info);
+  const backgroundColor =
+    tint[status]?.fill ??
+    (problem
+      ? colors.dangerSoft
+      : done
+        ? theme.accent.completeSoft
+        : attention
+          ? colors.warningSoft
+          : colors.infoSoft);
   return (
     <MotionSection key={status}>
       <View
@@ -269,9 +339,9 @@ export function StatusChip({ status }: { status: OrderStatus }) {
           {
             alignSelf: "flex-start",
             backgroundColor,
-            borderRadius: 8,
-            paddingHorizontal: 9,
-            paddingVertical: 5,
+            borderRadius: theme.radius.pill,
+            paddingHorizontal: 10,
+            paddingVertical: 3,
             gap: 6,
           },
         ]}

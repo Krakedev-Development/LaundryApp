@@ -8,21 +8,25 @@ La auditoría previa está en [UX_AUDIT.md](UX_AUDIT.md). La [matriz funcional d
 
 ## Tokens
 
-La única fuente del sistema visual es src/design-system/tokens.ts. ui.tsx exporta colors como alias de theme.colors para mantener compatibles los componentes existentes.
+El contenido recupera el estilo del commit `4fa1bd3` (`chore: upgrade Expo SDK and dependencies, update app icons, and configure plugins`) mediante `src/design-system/classic.ts`. Se toman sus colores de marca, superficies, tipografía compacta, tarjetas con sombra, chips y acentos de promociones y se aplican a las pantallas del flujo actual.
 
-| Grupo       | Valores y criterio                                                                        |
-| ----------- | ----------------------------------------------------------------------------------------- |
-| Marca       | Azul #143F73, azul oscuro #0F315A, verde #A5CD39, aqua #61BFC7                            |
-| Superficies | Fondo #F5F7FA, superficie #FFFFFF, suave #EDF2F7                                          |
-| Texto       | Principal #162B43, secundario #52647A                                                     |
-| Estados     | Success, warning, danger, info y fondos correspondientes; siempre con texto/ícono         |
-| Tipografía  | Display 30/38, título 24/31, sección 18/25, cuerpo 16/24, secundario 14/21, caption 12/18 |
-| Espaciado   | 4, 8, 12, 16, 20, 24, 32 y 40 puntos; margen de pantalla 20                               |
-| Radios      | 8, 12, 16, 24 y pill                                                                      |
-| Interacción | Objetivo táctil mínimo 48; botones 52 puntos                                              |
-| Ancho       | Contenido máximo 780; panel máximo 600; sidebar máximo 340                                |
-| Movimiento  | 140/220/280/300 ms; búsqueda 250 ms; aviso 6000 ms                                        |
-| Capas       | Contenido, feedback, overlay; sombras suaves disponibles                                  |
+`src/design-system/tokens.ts` conserva los valores actuales del header y navbar, además de los contratos de movimiento, tamaños táctiles y layout. `ui.tsx` mantiene `colors` para estos elementos y exporta `contentColors` para el contenido. `chromeRow` y `chromeSubtitle` conservan el espaciado y texto del header; el logo mantiene archivo y dimensiones actuales. El commit de referencia no modifica rutas, stores, modelos, datos ni dependencias de la versión vigente.
+
+| Grupo       | Valores y criterio                                                                     |
+| ----------- | -------------------------------------------------------------------------------------- |
+| Marca       | Azul #143F73, azul oscuro #0F315A, verde #A5CD39, aqua #61BFC7                         |
+| Superficies | Fondo #F7F9FC, superficie #FFFFFF, suave #E8EEF5                                       |
+| Texto       | Principal #1F2937, secundario #6B7280, títulos #111827                                 |
+| Estados     | Success, warning, danger, info y fondos correspondientes; siempre con texto/ícono      |
+| Tipografía  | Display 28/36, título 22/29, sección 17/24, cuerpo 14/21, secundario y caption 12/18   |
+| Espaciado   | 4, 8, 12, 16, 20, 24, 32 y 40 puntos; margen del contenido 16                          |
+| Radios      | Campos 8, tarjetas y botones 12, promociones 16, paneles 24 y chips de estado redondos |
+| Interacción | Objetivo táctil mínimo 48; botones 52 puntos                                           |
+| Ancho       | Contenido máximo 780; panel máximo 600; sidebar máximo 340                             |
+| Movimiento  | 140/220/280/300 ms; búsqueda 250 ms; aviso 6000 ms                                     |
+| Capas       | Contenido, feedback, overlay; sombras suaves disponibles                               |
+
+La tarjeta estándar usa padding 16, separación 8 y sombra de opacidad .06, radio 8 y elevación 2. La billetera usa azul suave; las promociones recuperan azul, aqua y verde. Los colores se adaptan a las etapas vigentes: lavado/control en violeta, salida/listo en verde, finalizado en gris y atención en ámbar. Sus etiquetas y condiciones de negocio permanecen actuales.
 
 darkTheme contiene la paleta semántica equivalente. La app mantiene el tema claro declarado en Expo; todavía no expone un interruptor de tema. Para activar oscuro en el futuro, conectar ambos themes a un ThemeProvider y configurar StatusBar y mapas con la misma selección. Los QR deben conservar fondo blanco.
 

@@ -9,20 +9,23 @@ import {
   type TextInputProps,
   type StyleProp,
   type ViewStyle,
+  type TextStyle,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { theme } from "../design-system/tokens";
+import { theme as chromeTheme } from "../design-system/tokens";
+import { contentTheme as theme, contentColors } from "../design-system/classic";
 import { tactile, friendlyError } from "../design-system/interaction";
 import { useFeedback } from "./overlay/OverlayContext";
-export const colors = theme.colors;
+export const colors = chromeTheme.colors;
+export { contentColors };
 export const ui = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: contentColors.surface,
     borderRadius: theme.radius.lg,
-    padding: theme.spacing.lg,
+    padding: theme.spacing.md,
+    ...theme.shadow.subtle,
     gap: theme.spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: contentColors.border,
   },
   row: {
     flexDirection: "row",
@@ -30,23 +33,30 @@ export const ui = StyleSheet.create({
     gap: theme.spacing.sm,
     flexWrap: "wrap",
   },
-  title: { color: colors.dark, ...theme.typography.title },
-  subtitle: { color: colors.dark, ...theme.typography.section },
-  text: { color: colors.text, ...theme.typography.body },
-  muted: { color: colors.muted, ...theme.typography.secondary },
+  chromeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: chromeTheme.spacing.sm,
+    flexWrap: "wrap",
+  },
+  chromeSubtitle: { color: colors.dark, ...chromeTheme.typography.section },
+  title: { color: "#111827", ...theme.typography.title },
+  subtitle: { color: "#111827", ...theme.typography.section },
+  text: { color: contentColors.text, ...theme.typography.body },
+  muted: { color: contentColors.muted, ...theme.typography.secondary },
   input: {
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    borderRadius: theme.radius.md,
-    paddingHorizontal: 14,
+    borderColor: contentColors.border,
+    backgroundColor: contentColors.surface,
+    borderRadius: theme.radius.sm,
+    paddingHorizontal: 12,
     paddingVertical: 12,
-    color: colors.text,
+    color: contentColors.text,
     minHeight: theme.layout.button,
     fontSize: 16,
   },
   action: {
-    backgroundColor: colors.primary,
+    backgroundColor: contentColors.primary,
     borderRadius: theme.radius.md,
     minHeight: theme.layout.button,
     padding: 12,
@@ -56,23 +66,23 @@ export const ui = StyleSheet.create({
     gap: 8,
   },
   outline: {
-    backgroundColor: colors.surface,
+    backgroundColor: contentColors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: contentColors.border,
   },
   badge: {
     alignSelf: "flex-start",
-    borderRadius: theme.radius.sm,
-    backgroundColor: colors.soft,
+    borderRadius: theme.radius.pill,
+    backgroundColor: contentColors.soft,
     paddingVertical: 5,
     paddingHorizontal: 9,
-    color: colors.primary,
+    color: contentColors.primary,
     ...theme.typography.caption,
     fontWeight: "600",
   },
   error: {
-    color: colors.danger,
-    backgroundColor: colors.dangerSoft,
+    color: contentColors.danger,
+    backgroundColor: contentColors.dangerSoft,
     padding: 12,
     borderRadius: theme.radius.md,
     ...theme.typography.secondary,
@@ -99,9 +109,15 @@ export function Card({
 }) {
   return <View style={[ui.card, style]}>{children}</View>;
 }
-export function Title({ children }: { children: React.ReactNode }) {
+export function Title({
+  children,
+  style,
+}: {
+  children: React.ReactNode;
+  style?: StyleProp<TextStyle>;
+}) {
   return (
-    <Text accessibilityRole="header" style={ui.subtitle}>
+    <Text accessibilityRole="header" style={[ui.subtitle, style]}>
       {children}
     </Text>
   );
@@ -109,11 +125,13 @@ export function Title({ children }: { children: React.ReactNode }) {
 export function Body({
   children,
   muted = false,
+  style,
 }: {
   children: React.ReactNode;
   muted?: boolean;
+  style?: StyleProp<TextStyle>;
 }) {
-  return <Text style={muted ? ui.muted : ui.text}>{children}</Text>;
+  return <Text style={[muted ? ui.muted : ui.text, style]}>{children}</Text>;
 }
 export function Badge({ children }: { children: React.ReactNode }) {
   return <Text style={ui.badge}>{children}</Text>;
@@ -139,7 +157,7 @@ export function Button({
 }) {
   const kind = variant ?? (secondary ? "secondary" : "primary");
   const soft = kind === "secondary" || kind === "ghost";
-  const ink = soft ? colors.primary : colors.onPrimary;
+  const ink = soft ? contentColors.primary : contentColors.onPrimary;
   return (
     <Pressable
       accessibilityRole="button"
@@ -154,9 +172,13 @@ export function Button({
       style={({ pressed }) => [
         ui.action,
         soft && {
-          backgroundColor: kind === "ghost" ? colors.transparent : colors.soft,
+          backgroundColor:
+            kind === "ghost"
+              ? contentColors.transparent
+              : contentColors.surface,
         },
-        kind === "danger" && { backgroundColor: colors.danger },
+        kind === "secondary" && ui.outline,
+        kind === "danger" && { backgroundColor: contentColors.danger },
         {
           opacity:
             disabled || busy
@@ -264,7 +286,10 @@ export function Field({
       <Text
         style={[
           ui.muted,
-          { fontWeight: "600", color: problem ? colors.danger : colors.text },
+          {
+            fontWeight: "600",
+            color: problem ? contentColors.danger : contentColors.text,
+          },
         ]}
       >
         {label}
@@ -273,7 +298,7 @@ export function Field({
         <TextInput
           accessibilityLabel={label}
           accessibilityHint={problem || help}
-          placeholderTextColor={colors.muted}
+          placeholderTextColor={contentColors.muted}
           {...props}
           secureTextEntry={props.secureTextEntry && !reveal}
           onFocus={(e) => {
@@ -289,9 +314,9 @@ export function Field({
           style={[
             ui.input,
             props.secureTextEntry && { paddingRight: 58 },
-            focused && { borderColor: colors.focus, borderWidth: 2 },
-            problem && { borderColor: colors.danger },
-            props.editable === false && { backgroundColor: colors.soft },
+            focused && { borderColor: contentColors.focus, borderWidth: 2 },
+            problem && { borderColor: contentColors.danger },
+            props.editable === false && { backgroundColor: contentColors.soft },
             props.style,
           ]}
         />
@@ -310,7 +335,7 @@ export function Field({
       {(problem || help) && (
         <Text
           accessibilityRole={problem ? "alert" : undefined}
-          style={[ui.muted, problem && { color: colors.danger }]}
+          style={[ui.muted, problem && { color: contentColors.danger }]}
         >
           {problem || help}
         </Text>
@@ -345,8 +370,8 @@ export function Choice({
         ui.outline,
         { justifyContent: "flex-start" },
         selected && {
-          backgroundColor: colors.soft,
-          borderColor: colors.primary,
+          backgroundColor: contentColors.soft,
+          borderColor: contentColors.primary,
         },
         {
           opacity: disabled
@@ -473,7 +498,7 @@ export function useAction() {
       {message && (
         <Text
           accessibilityLiveRegion="polite"
-          style={[ui.badge, { color: colors.success }]}
+          style={[ui.badge, { color: contentColors.success }]}
         >
           {message}
         </Text>

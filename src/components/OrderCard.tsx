@@ -1,4 +1,5 @@
-﻿import { Pressable, View } from "react-native";
+import { contentColors } from "../design-system/classic";
+import { Pressable, View } from "react-native";
 import { Body, Button, Card, Icon, Title, ui } from "./ui";
 import { StatusChip } from "./presentation";
 import {
@@ -24,7 +25,7 @@ export function OrderCard({
         accessibilityLabel={"Ver detalle de " + order.id}
         onPress={onDetail}
         style={({ pressed }) => ({
-          padding: 18,
+          padding: 16,
           gap: 8,
           opacity: pressed ? 0.8 : 1,
         })}
@@ -42,7 +43,18 @@ export function OrderCard({
               " prendas · " +
               (order.items[0]?.serviceType ?? "Lavado y cuidado")}
         </Body>
-        <View style={[ui.row, { justifyContent: "space-between" }]}>
+        <View
+          style={[
+            ui.row,
+            {
+              justifyContent: "space-between",
+              borderTopWidth: 1,
+              borderTopColor: contentColors.divider,
+              paddingTop: 8,
+              marginTop: 4,
+            },
+          ]}
+        >
           <Body muted>
             {order.pickup.date} · {order.pickup.timeSlot}
           </Body>

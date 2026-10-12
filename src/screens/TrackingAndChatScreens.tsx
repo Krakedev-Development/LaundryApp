@@ -2,7 +2,7 @@ import { useIsFocused } from "@react-navigation/native";
 import { BottomSheet } from "../components/overlay/OverlayPortal";
 import { ListItem, StatusChip } from "../components/presentation";
 import { useReducedMotion } from "../design-system/MotionProvider";
-import { colors } from "../components/ui";
+import { contentColors as colors } from "../components/ui";
 import { useEffect, useRef, useState } from "react";
 import {
   Linking,

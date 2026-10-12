@@ -104,3 +104,20 @@ El alcance local del MVP continúa: no se añadieron backend, GPS real, ETA, rec
 ## Política vigente de logística
 
 La entrada es únicamente recogida a domicilio. El selector de salida ofrece domicilio completo o pick up con retiro en sede. Los cuatro recorridos citados en la revisión anterior son un registro histórico del prototipo. La política actual elimina el ingreso inicial del cliente en sede y añade migración de pedidos pendientes y validación de los dos recorridos vigentes.
+
+## Restauración visual sobre el flujo vigente · 12 de octubre de 2026
+
+Se revisó el commit `4fa1bd3` como referencia de diseño, mediante `git show`, conservando la revisión actual. El contenido recupera la paleta original, tarjetas blancas con sombras suaves, radios de 12 puntos, campos compactos, estados redondeados, billetera azul suave y promociones en los colores oficiales. Las métricas de Inicio mantienen sus valores y accesos actuales en una franja conjunta.
+
+La nueva apariencia está en `src/design-system/classic.ts` y en estilos de componentes. La tipografía y espaciado del header y navbar quedan aislados de estos cambios. No se modifican SDK, plugins, dependencias, assets, rutas, dominio, persistencia ni servicios.
+
+La revisión verificó:
+
+- 30 archivos protegidos idénticos por SHA-256, incluyendo navegación, store, dominio, servicios, assets, configuración y dependencias.
+- 289 handlers y bindings de las pantallas sin cambios: eventos, valores, validaciones, datos, selección, visibilidad y estados de habilitación.
+- Componente Logo sin cambios y comparación de píxeles idéntica para header y navbar de Inicio/Pedidos del cliente y Mi ruta/Servicios del chofer.
+- 20 pruebas del dominio aprobadas, manteniendo domicilio completo, pick up y la prohibición de ingreso inicial del cliente en sede.
+- 22 recorridos de interfaz aprobados, incluidos KYC, contraseña temporal, solicitud, cupos, cobros, QR, recogida/planta/entrega, persistencia, reprogramación, filtros, overlays, beneficios, soporte y chat.
+- Adaptación y movimiento reducido a 320, 412 y 768 puntos; tipado y exportaciones web/Android correctos.
+
+El lanzador tsx encontró `uv_os_get_passwd ENOMEM` al consultar la cuenta de Windows del entorno aislado. Se ejecutó el mismo archivo `tests/flows.test.ts` con el compilador TypeScript y node:test, sin cambiar ni omitir pruebas. Los cargadores, capturas y manifiestos temporales permanecen en `tmp/`, ignorado por Git; los exports y resultados también permanecen excluidos. LaundryWeb queda sin cambios.

@@ -53,6 +53,7 @@ import {
 } from "../domain/models";
 import type { ScreenProps } from "../navigation/routes";
 import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
+import { contentColors } from "../design-system/classic";
 
 export function ClientHomeScreen() {
   const navigation = useLaundryNavigation();
@@ -88,14 +89,23 @@ export function ClientHomeScreen() {
           />
         </Card>
       )}
-      <Card>
+      <Card style={{ flexDirection: "row", alignItems: "stretch", gap: 0 }}>
         <ListItem
+          appearance="metric"
           title="Ver billetera"
           subtitle={money(c.walletBalance) + " disponibles"}
           icon="wallet-outline"
           onPress={() => navigation.navigate("ClientWallet")}
         />
+        <View
+          style={{
+            width: 1,
+            backgroundColor: contentColors.divider,
+            marginHorizontal: 12,
+          }}
+        />
         <ListItem
+          appearance="metric"
           title="Ver beneficios"
           subtitle={c.loyaltyPoints + " puntos · " + c.membershipTier}
           icon="gift-outline"

@@ -30,6 +30,7 @@ import {
 } from "../navigation/primaryTabs";
 import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
 import { theme } from "../design-system/tokens";
+import { contentTheme } from "../design-system/classic";
 import { ComponentCatalog } from "./ComponentCatalog";
 import { friendlyError } from "../design-system/interaction";
 const fullScreen = [
@@ -154,7 +155,7 @@ export function Page({
         >
           <View
             style={[
-              ui.row,
+              ui.chromeRow,
               { justifyContent: "space-between", flexWrap: "nowrap" },
             ]}
           >
@@ -177,7 +178,7 @@ export function Page({
               <Text
                 accessibilityRole="header"
                 numberOfLines={2}
-                style={[ui.subtitle, { flex: 1, marginHorizontal: 8 }]}
+                style={[ui.chromeSubtitle, { flex: 1, marginHorizontal: 8 }]}
               >
                 {titles[name]}
               </Text>
@@ -225,10 +226,11 @@ export function Page({
         {scroll ? (
           <ScrollView
             ref={scrollRef}
-            style={{ flex: 1 }}
+            style={{ flex: 1, backgroundColor: contentTheme.colors.background }}
             contentContainerStyle={{
-              padding: theme.spacing.screen,
-              gap: 20,
+              padding: contentTheme.spacing.screen,
+              backgroundColor: contentTheme.colors.background,
+              gap: 16,
               paddingBottom: 28,
               width: "100%",
               maxWidth: theme.layout.maxWidth,
@@ -243,7 +245,8 @@ export function Page({
           <View
             style={{
               flex: 1,
-              padding: theme.spacing.screen,
+              padding: contentTheme.spacing.screen,
+              backgroundColor: contentTheme.colors.background,
               gap: 16,
               width: "100%",
               maxWidth: theme.layout.maxWidth,

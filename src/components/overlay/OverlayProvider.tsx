@@ -8,7 +8,7 @@
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { theme } from "../../design-system/tokens";
+import { contentTheme as theme } from "../../design-system/classic";
 import {
   OverlayContext,
   type FeedbackKind,

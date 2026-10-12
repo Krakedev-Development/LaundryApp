@@ -1,3 +1,4 @@
+import { contentTheme } from "../design-system/classic";
 import {
   Accordion,
   ListItem,
@@ -11,6 +12,14 @@ import {
 import { useState } from "react";
 import { Linking, FlatList, View } from "react-native";
 import { Page } from "../components/Page";
+import {
+  ProfileDetail,
+  ProfileHero,
+  ProfileLogout,
+  ProfileRow,
+  ProfileSection,
+  ProfileStats,
+} from "../components/ProfilePresentation";
 import {
   Badge,
   Body,
@@ -41,65 +50,79 @@ export function ClientProfileScreen() {
   const c = currentCustomer(state);
   return (
     <Page>
-      <Card>
-        <Icon name="shield-checkmark-outline" size={36} />
-        <Title>Tu cuenta Laundry</Title>
-        <Badge>Identidad verificada</Badge>
-        <Body>
-          Membresía {c.membershipTier} · {c.loyaltyPoints} puntos
+      <ProfileHero title="Tu cuenta Laundry">
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <Icon name="shield-checkmark-outline" size={18} />
+          <Badge>Identidad verificada</Badge>
+        </View>
+        <Body muted style={{ textAlign: "center" }}>
+          Los datos de tu perfil están en el menú lateral.
         </Body>
-        <Body muted>Los datos de tu perfil están en el menú lateral.</Body>
-      </Card>
-      <Card>
-        <Title>Direcciones y facturación</Title>
-        <ListItem
+      </ProfileHero>
+      <ProfileStats
+        items={[
+          { label: "Membresía", text: c.membershipTier },
+          { label: "Puntos", text: c.loyaltyPoints },
+        ]}
+      />
+      <ProfileSection title="Direcciones y facturación">
+        <ProfileRow
           title="Direcciones guardadas"
           icon="location-outline"
+          tone="amber"
           onPress={() => navigation.navigate("ClientAddresses")}
         />
-        <ListItem
+        <ProfileRow
           title="Datos de facturación"
           icon="receipt-outline"
+          tone="green"
+          last
           onPress={() => navigation.navigate("ClientBilling")}
         />
-      </Card>
-      <Card>
-        <Title>Saldo y beneficios</Title>
-        <ListItem
+      </ProfileSection>
+      <ProfileSection title="Saldo y beneficios">
+        <ProfileRow
           title={`Billetera Laundry · ${money(c.walletBalance)}`}
+          label="Billetera Laundry"
+          subtitle={money(c.walletBalance)}
           icon="wallet-outline"
           onPress={() => navigation.navigate("ClientWallet")}
         />
-        <ListItem
+        <ProfileRow
           title="Métodos de pago"
           icon="card-outline"
           onPress={() => navigation.navigate("ClientWallet")}
         />
-        <ListItem
+        <ProfileRow
           title="Promociones, recompensas y membresía"
           icon="gift-outline"
+          tone="purple"
+          last
           onPress={() => navigation.navigate("ClientBenefits")}
         />
-      </Card>
-      <Card>
-        <Title>Preferencias y seguridad</Title>
-        <ListItem
+      </ProfileSection>
+      <ProfileSection title="Preferencias y seguridad">
+        <ProfileRow
           title="Notificaciones"
+          icon="notifications-outline"
+          tone="red"
           onPress={() => navigation.navigate("ClientNotifications")}
         />
-        <ListItem
+        <ProfileRow
           title="Seguridad y contraseña"
+          icon="lock-closed-outline"
+          tone="gray"
           onPress={() => navigation.navigate("ClientSecurity")}
         />
-        <ListItem
+        <ProfileRow
           title="Ayuda y soporte"
+          icon="help-circle-outline"
+          tone="gray"
+          last
           onPress={() => navigation.navigate("ClientSupport")}
         />
-      </Card>
-      <ListItem
-        title="Cerrar sesión"
-        onPress={() => execute((r) => r.logout())}
-      />
+      </ProfileSection>
+      <ProfileLogout onPress={() => execute((r) => r.logout())} />
     </Page>
   );
 }
@@ -121,17 +144,65 @@ export function BenefitsScreen() {
       />
       {a.feedback}
       {tab === "Promociones" &&
-        promos.map((p) => (
-          <Card key={p.code}>
-            <Icon name="pricetag-outline" />
-            <Title>{p.code}</Title>
-            <Body>{p.description}</Body>
-            <Body muted>
+        promos.map((p, index) => (
+          <Card
+            key={p.code}
+            style={{
+              backgroundColor:
+                index === 0
+                  ? contentTheme.colors.primary
+                  : index % 2
+                    ? contentTheme.colors.aqua
+                    : contentTheme.colors.lime,
+              borderRadius: 16,
+              padding: 20,
+            }}
+          >
+            <Icon
+              name="pricetag-outline"
+              color={
+                index === 0
+                  ? contentTheme.colors.onPrimary
+                  : contentTheme.colors.dark
+              }
+            />
+            <Title
+              style={{
+                fontSize: 22,
+                lineHeight: 28,
+                color:
+                  index === 0
+                    ? contentTheme.colors.onPrimary
+                    : contentTheme.colors.dark,
+              }}
+            >
+              {p.code}
+            </Title>
+            <Body
+              style={{
+                color:
+                  index === 0
+                    ? contentTheme.colors.onPrimary
+                    : contentTheme.colors.dark,
+              }}
+            >
+              {p.description}
+            </Body>
+            <Body
+              muted
+              style={{
+                color:
+                  index === 0
+                    ? contentTheme.colors.infoSoft
+                    : contentTheme.colors.dark,
+              }}
+            >
               Mínimo en prendas {money(p.minOrderAmount)} · Válido hasta{" "}
               {p.validUntil}
             </Body>
             <Button
               label={`Usar ${p.code}`}
+              secondary
               onPress={() =>
                 navigation.navigate("ClientNewOrderWizard", {
                   promoCode: p.code,
@@ -220,9 +291,24 @@ export function WalletScreen() {
         keyExtractor={(tx) => tx.id}
         ListHeaderComponent={
           <View style={{ gap: 16 }}>
-            <Card>
-              <Icon name="wallet-outline" size={38} />
-              <Title>{money(c.walletBalance)}</Title>
+            <Card
+              style={{
+                backgroundColor: contentTheme.colors.soft,
+                borderWidth: 1,
+                borderColor: contentTheme.colors.border,
+                borderRadius: 14,
+              }}
+            >
+              <Icon name="wallet-outline" size={28} />
+              <Title
+                style={{
+                  fontSize: 24,
+                  lineHeight: 32,
+                  color: contentTheme.colors.dark,
+                }}
+              >
+                {money(c.walletBalance)}
+              </Title>
               <Body>Saldo disponible en Billetera Laundry</Body>
               <Badge>Pagos y recargas demo</Badge>
             </Card>
@@ -734,32 +820,38 @@ export function DriverProfileScreen() {
   const d = state.driver;
   return (
     <Page>
-      <Card>
-        <Icon name="car-outline" size={36} />
-        <Title>Tu operación Laundry</Title>
-        <Badge>{operationalLabels[d.operationalStatus]}</Badge>
-        <Body muted>Los datos de tu perfil están en el menú lateral.</Body>
-      </Card>
-      <Card>
-        <Title>Vehículo asignado</Title>
-        <Body>
+      <ProfileHero title="Tu operación Laundry">
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <Icon name="car-outline" size={18} />
+          <Badge>{operationalLabels[d.operationalStatus]}</Badge>
+        </View>
+        <Body muted style={{ textAlign: "center" }}>
+          Los datos de tu perfil están en el menú lateral.
+        </Body>
+      </ProfileHero>
+      <ProfileSection title="Vehículo asignado">
+        <ProfileDetail label="Vehículo" icon="car-outline">
           {d.vehicleModel} · {d.vehicleColor}
-        </Body>
-        <Badge>{d.vehiclePlate}</Badge>
-        <Body>{d.facilityName}</Body>
-        <Body muted>{d.zoneName}</Body>
-      </Card>
-      <Card>
-        <Title>{d.completedDeliveriesCount} entregas completadas</Title>
-        <Body>
-          Consulta los servicios finalizados en el historial de tu ruta.
-        </Body>
-      </Card>
-      <Button
-        label="Cerrar sesión"
-        secondary
-        onPress={() => execute((r) => r.logout())}
-      />
+        </ProfileDetail>
+        <ProfileDetail label="Placa" icon="pricetag-outline">
+          {d.vehiclePlate}
+        </ProfileDetail>
+        <ProfileDetail label="Sede" icon="business-outline">
+          {d.facilityName}
+        </ProfileDetail>
+        <ProfileDetail label="Zona" icon="location-outline" last>
+          {d.zoneName}
+        </ProfileDetail>
+      </ProfileSection>
+      <ProfileSection title="Historial de ruta">
+        <View style={{ padding: 16, gap: 8 }}>
+          <Title>{d.completedDeliveriesCount} entregas completadas</Title>
+          <Body muted>
+            Consulta los servicios finalizados en el historial de tu ruta.
+          </Body>
+        </View>
+      </ProfileSection>
+      <ProfileLogout onPress={() => execute((r) => r.logout())} />
     </Page>
   );
 }
