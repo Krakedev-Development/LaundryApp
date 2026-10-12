@@ -10,9 +10,17 @@ import {
   FullScreenOverlay,
 } from "../components/overlay/OverlayPortal";
 import { useState } from "react";
-import { Linking, FlatList, View } from "react-native";
+import { Linking, FlatList, Text, View } from "react-native";
 import { Page } from "../components/Page";
 import { AccountDemoTools } from "../components/AccountDemoTools";
+import {
+  BenefitIcon,
+  PointsSummary,
+  PromoSurface,
+  benefitStyles,
+  membershipTone,
+  promoTone,
+} from "../components/BenefitsPresentation";
 import {
   ProfileDetail,
   ProfileHero,
@@ -142,90 +150,78 @@ export function BenefitsScreen() {
         onChange={setTab}
       />
       {a.feedback}
-      {tab === "Promociones" &&
-        promos.map((p, index) => (
-          <Card
-            key={p.code}
-            style={{
-              backgroundColor:
-                index === 0
-                  ? contentTheme.colors.primary
-                  : index % 2
-                    ? contentTheme.colors.aqua
-                    : contentTheme.colors.lime,
-              borderRadius: 16,
-              padding: 20,
-            }}
-          >
-            <Icon
-              name="pricetag-outline"
-              color={
-                index === 0
-                  ? contentTheme.colors.onPrimary
-                  : contentTheme.colors.dark
-              }
-            />
-            <Title
-              style={{
-                fontSize: 22,
-                lineHeight: 28,
-                color:
-                  index === 0
-                    ? contentTheme.colors.onPrimary
-                    : contentTheme.colors.dark,
-              }}
-            >
-              {p.code}
-            </Title>
-            <Body
-              style={{
-                color:
-                  index === 0
-                    ? contentTheme.colors.onPrimary
-                    : contentTheme.colors.dark,
-              }}
-            >
-              {p.description}
-            </Body>
-            <Body
-              muted
-              style={{
-                color:
-                  index === 0
-                    ? contentTheme.colors.infoSoft
-                    : contentTheme.colors.dark,
-              }}
-            >
-              Mínimo en prendas {money(p.minOrderAmount)} · Válido hasta{" "}
-              {p.validUntil}
-            </Body>
-            <Button
-              label={`Usar ${p.code}`}
-              secondary
-              onPress={() =>
-                navigation.navigate("ClientNewOrderWizard", {
-                  promoCode: p.code,
-                })
-              }
-            />
-          </Card>
-        ))}
+      {tab === "Promociones" && (
+        <>
+          <Title style={benefitStyles.sectionTitle}>Promociones</Title>
+          <View style={benefitStyles.promoGrid}>
+            {promos.map((p, index) => (
+              <PromoSurface key={p.code} index={index}>
+                <View
+                  style={[
+                    benefitStyles.promoHero,
+                    { backgroundColor: promoTone(index).background },
+                  ]}
+                >
+                  <View style={benefitStyles.promoHeading}>
+                    <Icon name="pricetag-outline" color={promoTone(index).ink} />
+                    <Title
+                      style={[benefitStyles.promoTitle, { color: promoTone(index).ink }]}
+                    >
+                      {p.code}
+                    </Title>
+                  </View>
+                  <Body
+                    style={[benefitStyles.promoDescription, { color: promoTone(index).ink }]}
+                  >
+                    {p.description}
+                  </Body>
+                </View>
+                <View style={benefitStyles.promoBody}>
+                  <View style={benefitStyles.conditions}>
+                    <Icon name="information-circle-outline" size={18} />
+                    <Body muted style={benefitStyles.conditionText}>
+                      Mínimo en prendas {money(p.minOrderAmount)} · Válido hasta{" "}
+                      {p.validUntil}
+                    </Body>
+                  </View>
+                  <Button
+                    label={`Usar ${p.code}`}
+                    icon="arrow-forward"
+                    style={benefitStyles.promoButton}
+                    onPress={() =>
+                      navigation.navigate("ClientNewOrderWizard", {
+                        promoCode: p.code,
+                      })
+                    }
+                  />
+                </View>
+              </PromoSurface>
+            ))}
+          </View>
+        </>
+      )}
       {tab === "Recompensas" && (
         <>
-          <Card>
-            <Title>{c.loyaltyPoints} puntos disponibles</Title>
-            <Body muted>
+          <Title style={benefitStyles.sectionTitle}>Recompensas</Title>
+          <PointsSummary points={c.loyaltyPoints}>
+            <Body muted style={benefitStyles.pointsExplanation}>
               Ganas 10 puntos por dólar al confirmar un servicio. Los canjes
               requieren aprobación.
             </Body>
-          </Card>
+          </PointsSummary>
           {rewards.map((r) => (
-            <Card key={r.id}>
-              <Title>{r.title}</Title>
-              <Badge>{r.pointsCost} puntos</Badge>
-              <Body>{r.description}</Body>
+            <Card key={r.id} style={benefitStyles.rewardCard}>
+              <View style={benefitStyles.rewardHeading}>
+                <BenefitIcon name="gift-outline" />
+                <View style={benefitStyles.rewardInfo}>
+                  <Title style={benefitStyles.rewardTitle}>{r.title}</Title>
+                  <Text style={benefitStyles.rewardCost}>{r.pointsCost} puntos</Text>
+                </View>
+              </View>
+              <Body style={benefitStyles.rewardDescription}>{r.description}</Body>
               <Button
                 label={`Canjear ${r.title}`}
+                style={benefitStyles.rewardButton}
                 disabled={c.loyaltyPoints < r.pointsCost}
                 onPress={() =>
                   a.run(
@@ -236,13 +232,13 @@ export function BenefitsScreen() {
               />
             </Card>
           ))}
-          <Title>Mis canjes</Title>
+          <Title style={benefitStyles.sectionTitle}>Mis canjes</Title>
           {state.loyaltyRedemptions
             .filter((r) => r.customerId === c.id)
             .map((r) => (
-              <Card key={r.id}>
-                <Title>{r.rewardTitle}</Title>
-                <Body>
+              <Card key={r.id} style={benefitStyles.redemption}>
+                <Title style={benefitStyles.rewardTitle}>{r.rewardTitle}</Title>
+                <Body muted>
                   {r.pointsCost} puntos · {r.date}
                 </Body>
                 <Badge>{r.status}</Badge>
@@ -250,29 +246,60 @@ export function BenefitsScreen() {
             ))}
         </>
       )}
-      {tab === "Membresía" &&
-        plans.map((plan) => (
-          <Card key={plan.id}>
-            <Title>
-              {plan.name} · {money(plan.priceMonthly)} / mes
-            </Title>
-            {c.membershipTier === plan.name && <Badge>Plan actual</Badge>}
-            {plan.benefits.map((b) => (
-              <Body key={b}>{b}</Body>
-            ))}
-            <Button
-              label={`Elegir plan ${plan.name} · Demo`}
-              secondary
-              disabled={c.membershipTier === plan.name}
-              onPress={() =>
-                a.run(
-                  () => execute((r) => r.changeMembershipPlan(plan.name)),
-                  `Membresía ${plan.name} seleccionada.`,
-                )
-              }
-            />
-          </Card>
-        ))}
+      {tab === "Membresía" && (
+        <>
+          <Title style={benefitStyles.sectionTitle}>Membresía</Title>
+          {plans.map((plan) => (
+            <Card
+              key={plan.id}
+              style={[
+                benefitStyles.planCard,
+                { borderColor: membershipTone(plan.id).ink },
+                c.membershipTier === plan.name && benefitStyles.currentPlan,
+              ]}
+            >
+              {c.membershipTier === plan.name && (
+                <View
+                  style={[benefitStyles.planBadge, { backgroundColor: membershipTone(plan.id).soft }]}
+                >
+                  <Icon name="checkmark-circle" size={14} color={membershipTone(plan.id).ink} />
+                  <Text style={[benefitStyles.planBadgeText, { color: membershipTone(plan.id).ink }]}>
+                    Plan actual
+                  </Text>
+                </View>
+              )}
+              <View style={benefitStyles.planHeader}>
+                <Title style={[benefitStyles.planName, { color: membershipTone(plan.id).ink }]}>
+                  {plan.name}
+                </Title>
+                <View style={benefitStyles.planPriceRow}>
+                  <Text style={benefitStyles.planPrice}>{money(plan.priceMonthly)}</Text>
+                  <Body muted style={benefitStyles.planPeriod}>/ mes</Body>
+                </View>
+              </View>
+              <View style={benefitStyles.features}>
+                {plan.benefits.map((b) => (
+                  <View key={b} style={benefitStyles.feature}>
+                    <Icon name="checkmark-circle" size={15} color={membershipTone(plan.id).ink} />
+                    <Body style={benefitStyles.featureText}>{b}</Body>
+                  </View>
+                ))}
+              </View>
+              <Button
+                label={`Elegir plan ${plan.name} · Demo`}
+                style={[benefitStyles.planButton, { backgroundColor: membershipTone(plan.id).ink }]}
+                disabled={c.membershipTier === plan.name}
+                onPress={() =>
+                  a.run(
+                    () => execute((r) => r.changeMembershipPlan(plan.name)),
+                    `Membresía ${plan.name} seleccionada.`,
+                  )
+                }
+              />
+            </Card>
+          ))}
+        </>
+      )}
     </Page>
   );
 }

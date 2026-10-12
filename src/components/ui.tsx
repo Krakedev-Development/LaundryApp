@@ -145,6 +145,7 @@ export function Button({
   busy = false,
   testID,
   variant,
+  style,
 }: {
   label: string;
   onPress(): void;
@@ -154,6 +155,7 @@ export function Button({
   busy?: boolean;
   testID?: string;
   variant?: "primary" | "secondary" | "ghost" | "danger";
+  style?: StyleProp<ViewStyle>;
 }) {
   const kind = variant ?? (secondary ? "secondary" : "primary");
   const soft = kind === "secondary" || kind === "ghost";
@@ -187,6 +189,7 @@ export function Button({
                 ? theme.opacity.pressed
                 : 1,
         },
+        style,
       ]}
     >
       {busy ? (

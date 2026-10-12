@@ -1,5 +1,5 @@
 import { contentColors } from "../design-system/classic";
-import { Pressable, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { Body, Button, Card, Icon, Title, ui } from "./ui";
 import { StatusChip } from "./presentation";
 import {
@@ -13,30 +13,35 @@ export function OrderCard({
   order,
   onDetail,
   onTrack,
+  appearance = "default",
 }: {
   order: Order;
   onDetail(): void;
   onTrack?(): void;
+  appearance?: "default" | "home";
 }) {
+  const home = appearance === "home";
   return (
-    <Card style={{ padding: 0 }}>
+    <Card style={[{ padding: 0 }, home && homeOrderStyles.card]}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={"Ver detalle de " + order.id}
         onPress={onDetail}
         style={({ pressed }) => ({
-          padding: 16,
+          padding: home ? 14 : 16,
           gap: 8,
           opacity: pressed ? 0.8 : 1,
         })}
       >
         <View style={[ui.row, { justifyContent: "space-between" }]}>
-          <Title>{order.id}</Title>
+          <Title style={home && homeOrderStyles.title}>{order.id}</Title>
           <Icon name="chevron-forward" size={18} />
         </View>
         <StatusChip status={order.status} />
-        <Body muted>{modeLabels[order.fulfillmentPlan.mode]}</Body>
-        <Body muted>
+        <Body muted style={home && homeOrderStyles.caption}>
+          {modeLabels[order.fulfillmentPlan.mode]}
+        </Body>
+        <Body muted style={home && homeOrderStyles.caption}>
           {order.pricingModel === "PER_WEIGHT"
             ? "Ropa por peso · $2.20 / lb"
             : garmentCount(order) +
@@ -49,16 +54,16 @@ export function OrderCard({
             {
               justifyContent: "space-between",
               borderTopWidth: 1,
-              borderTopColor: contentColors.divider,
+              borderTopColor: home ? "#BFDBFE" : contentColors.divider,
               paddingTop: 8,
               marginTop: 4,
             },
           ]}
         >
-          <Body muted>
+          <Body muted style={home && homeOrderStyles.caption}>
             {order.pickup.date} · {order.pickup.timeSlot}
           </Body>
-          <Body>
+          <Body style={home && homeOrderStyles.amount}>
             {order.pricingStatus === "PENDING_WEIGHT"
               ? "Monto por determinar"
               : money(order.pricing.total)}
@@ -78,3 +83,17 @@ export function OrderCard({
     </Card>
   );
 }
+
+const homeOrderStyles = StyleSheet.create({
+  card: {
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    borderRadius: 12,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  title: { fontSize: 14, lineHeight: 20, fontWeight: "700", color: "#1D4ED8" },
+  caption: { color: contentColors.primary, fontSize: 12, lineHeight: 18 },
+  amount: { color: contentColors.primary, fontWeight: "700" },
+});

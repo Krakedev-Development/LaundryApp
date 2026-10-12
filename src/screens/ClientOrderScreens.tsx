@@ -54,6 +54,7 @@ import {
 import type { ScreenProps } from "../navigation/routes";
 import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
 import { contentColors } from "../design-system/classic";
+import { HomeMetric, homeStyles } from "../components/HomePresentation";
 
 export function ClientHomeScreen() {
   const navigation = useLaundryNavigation();
@@ -66,18 +67,25 @@ export function ClientHomeScreen() {
   );
   return (
     <Page>
-      <Text style={ui.title}>Ropa fresca, tiempo para ti.</Text>
-      <Body muted>Agenda tu servicio y sigue cada etapa de tus prendas.</Body>
-      {charges.length === 0 && (
-        <Button
-          label="Nueva solicitud"
-          icon="add-circle-outline"
-          onPress={() => navigation.navigate("ClientNewOrderWizard")}
-        />
-      )}
+      <Card style={homeStyles.hero}>
+        <Text style={[ui.title, homeStyles.heroTitle]}>
+          Ropa fresca, tiempo para ti.
+        </Text>
+        <Body muted style={homeStyles.heroBody}>
+          Agenda tu servicio y sigue cada etapa de tus prendas.
+        </Body>
+        {charges.length === 0 && (
+          <Button
+            label="Nueva solicitud"
+            icon="add-circle-outline"
+            style={homeStyles.heroAction}
+            onPress={() => navigation.navigate("ClientNewOrderWizard")}
+          />
+        )}
+      </Card>
       {charges.length > 0 && (
-        <Card>
-          <Icon name="alert-circle-outline" />
+        <Card style={homeStyles.charges}>
+          <Icon name="alert-circle-outline" color={contentColors.warning} />
           <Title>Tienes cargos pendientes</Title>
           <Body>
             Regulariza {money(charges.reduce((sum, ch) => sum + ch.amount, 0))}{" "}
@@ -89,33 +97,29 @@ export function ClientHomeScreen() {
           />
         </Card>
       )}
-      <Card style={{ flexDirection: "row", alignItems: "stretch", gap: 0 }}>
-        <ListItem
-          appearance="metric"
+      <Card style={homeStyles.metrics}>
+        <HomeMetric
           title="Ver billetera"
-          subtitle={money(c.walletBalance) + " disponibles"}
+          amount={money(c.walletBalance)}
+          caption="Saldo disponible"
           icon="wallet-outline"
           onPress={() => navigation.navigate("ClientWallet")}
         />
-        <View
-          style={{
-            width: 1,
-            backgroundColor: contentColors.divider,
-            marginHorizontal: 12,
-          }}
-        />
-        <ListItem
-          appearance="metric"
+        <View style={homeStyles.metricDivider} />
+        <HomeMetric
           title="Ver beneficios"
-          subtitle={c.loyaltyPoints + " puntos · " + c.membershipTier}
-          icon="gift-outline"
+          amount={String(c.loyaltyPoints)}
+          caption={"Puntos · " + c.membershipTier}
+          icon="star-outline"
+          color="#B45309"
           onPress={() => navigation.navigate("ClientBenefits")}
         />
       </Card>
-      <Title>Tu solicitud activa</Title>
+      <Title style={homeStyles.sectionTitle}>Tu solicitud activa</Title>
       {active ? (
         <OrderCard
           order={active}
+          appearance="home"
           onDetail={() =>
             navigation.navigate("ClientOrderDetail", { orderId: active.id })
           }
@@ -129,6 +133,7 @@ export function ClientHomeScreen() {
       <Button
         label="Ver todas mis solicitudes"
         secondary
+        style={homeStyles.allOrders}
         onPress={() => navigation.navigate("ClientOrders")}
       />
     </Page>
