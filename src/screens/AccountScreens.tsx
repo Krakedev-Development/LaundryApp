@@ -9,7 +9,7 @@ import {
   FullScreenOverlay,
 } from "../components/overlay/OverlayPortal";
 import { useState } from "react";
-import { Linking, FlatList, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { Page } from "../components/Page";
 import { AccountDemoTools } from "../components/AccountDemoTools";
 import {
@@ -574,115 +574,9 @@ export function BillingScreen() {
     </Page>
   );
 }
-export function NotificationsScreen() {
-  const navigation = useLaundryNavigation(),
-    { state, execute } = useApp(),
-    c = currentCustomer(state);
-  const [filter, setFilter] = useState("Todas");
-  const notifications = state.notifications.filter(
-    (n) => n.customerId === c.id && (filter === "Todas" || !n.isRead),
-  );
-  return (
-    <Page scroll={false}>
-      <SegmentedControl
-        value={filter}
-        onChange={setFilter}
-        options={[
-          { value: "Todas", label: "Todas" },
-          { value: "Sin leer", label: "Sin leer" },
-        ]}
-      />
-      <FlatList
-        data={notifications}
-        keyExtractor={(n) => n.id}
-        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-        ListEmptyComponent={
-          <Empty text="No tienes notificaciones en esta vista." />
-        }
-        renderItem={({ item: n }) => (
-          <Card>
-            <ListItem
-              title={n.title}
-              subtitle={n.timeAgo}
-              icon={n.isRead ? "notifications-outline" : "notifications"}
-              trailing={!n.isRead && <Badge>Sin leer</Badge>}
-            />
-            <Body>{n.body}</Body>
-            <Button
-              label={
-                n.relatedOrderId
-                  ? "Ver solicitud " + n.relatedOrderId
-                  : "Marcar como leída"
-              }
-              secondary
-              onPress={() => {
-                execute((r) => r.markNotificationRead(n.id));
-                if (n.relatedOrderId)
-                  navigation.navigate("ClientOrderDetail", {
-                    orderId: n.relatedOrderId,
-                  });
-              }}
-            />
-          </Card>
-        )}
-        contentContainerStyle={{ paddingBottom: 20 }}
-      />
-    </Page>
-  );
-}
-const faqs = [
-  [
-    "¿Cómo solicito un servicio?",
-    "Elige entrada y salida en domicilio o sede, añade prendas o peso estimado, selecciona extras y confirma tu agenda.",
-  ],
-  [
-    "¿Cuándo pago la ropa por peso?",
-    "Después del pesaje certificado en planta. Revisa el peso y valor final en el detalle de tu solicitud.",
-  ],
-  [
-    "¿Puedo cambiar mi horario?",
-    "Puedes reprogramar un tramo que aún no haya iniciado, con al menos 60 minutos de anticipación y sujeto a cupos.",
-  ],
-  [
-    "¿Qué pasa si cancelo tarde?",
-    "Se genera un cargo de $5.00. Debes regularizarlo para crear nuevas solicitudes.",
-  ],
-  [
-    "¿Para qué sirve mi código QR?",
-    "Identifica la transferencia de tus prendas al chofer o en sede. También puedes mostrar el código manual de seis dígitos.",
-  ],
-  [
-    "¿Cómo funcionan los puntos?",
-    "Ganas 10 puntos por dólar pagado en servicios. Puedes solicitar canjes que quedan pendientes de aprobación.",
-  ],
-];
-export function SupportScreen() {
-  const a = useAction();
-  return (
-    <Page>
-      <Title>Preguntas frecuentes</Title>
-      {faqs.map(([question, answer]) => (
-        <Accordion key={question} title={question}>
-          <Body>{answer}</Body>
-        </Accordion>
-      ))}
-      <Card>
-        <Title>Contacta a soporte</Title>
-        <Body muted>Atención mediante correo electrónico.</Body>
-        {a.feedback}
-        <Button
-          label="Escribir a soporte"
-          icon="mail-outline"
-          onPress={() => {
-            void a.asyncRun(() =>
-              Linking.openURL("mailto:soporte@laundryfresh.com"),
-            );
-          }}
-        />
-      </Card>
-    </Page>
-  );
-}
+
+
+
 export function DriverProfileScreen() {
   const { state, execute } = useApp();
   const d = state.driver;

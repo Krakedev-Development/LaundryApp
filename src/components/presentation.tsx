@@ -17,32 +17,60 @@ export function Accordion({
   children,
   initialOpen = false,
   subtitle,
+  appearance = "card",
 }: {
   title: string;
   children: React.ReactNode;
   initialOpen?: boolean;
   subtitle?: string;
+  appearance?: "card" | "list";
 }) {
   const [open, setOpen] = useState(initialOpen);
   return (
-    <View style={ui.card}>
+    <View style={appearance === "list" ? { gap: 0 } : ui.card}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={title}
         accessibilityState={{ expanded: open }}
         aria-expanded={open}
         onPress={() => setOpen(!open)}
-        style={[ui.row, { minHeight: 48, flexWrap: "nowrap" }]}
+        style={[
+          ui.row,
+          { minHeight: 48, flexWrap: "nowrap" },
+          appearance === "list" && { paddingVertical: 14, paddingHorizontal: 14 },
+        ]}
       >
         <View style={{ flex: 1, gap: 4 }}>
-          <Title>{title}</Title>
+          <Title
+            style={
+              appearance === "list"
+                ? { fontSize: 15, lineHeight: 21, fontWeight: "600" }
+                : undefined
+            }
+          >
+            {title}
+          </Title>
           {subtitle && <Body muted>{subtitle}</Body>}
         </View>
-        <Icon name={open ? "chevron-up" : "chevron-down"} size={20} />
+        <Icon
+          name={open ? "chevron-up" : "chevron-down"}
+          size={appearance === "list" ? 18 : 20}
+          color={appearance === "list" ? colors.muted : undefined}
+        />
       </Pressable>
       {open && (
         <MotionSection>
-          <View style={{ gap: 12 }}>{children}</View>
+          <View
+            style={[
+              { gap: 12 },
+              appearance === "list" && {
+                paddingHorizontal: 14,
+                paddingBottom: 14,
+              },
+            ]}
+          >
+            {children}
+          </View>
         </MotionSection>
       )}
     </View>

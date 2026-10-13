@@ -8,6 +8,10 @@ La auditoría previa está en [UX_AUDIT.md](UX_AUDIT.md). La [matriz funcional d
 
 ## Tokens
 
+Ayuda y soporte recupera de `4fa1bd3` las secciones con títulos compactos, la tarjeta blanca de contacto con ícono azul y las preguntas agrupadas con divisores. `SupportPresentation.tsx` contiene los estilos; `src/screens/support/SupportScreen.tsx` conserva la acción de correo vigente y `faqs.ts` las seis preguntas actuales. La apariencia `list` de Accordion permite esta agrupación y conserva la apertura independiente, el estado inicial cerrado y la respuesta a movimiento reducido. El header y navbar actuales permanecen iguales.
+
+Notificaciones conserva sus filtros Todas/Sin leer y las acciones de lectura y navegación al pedido. `NotificationsPresentation.tsx` recupera las tarjetas compactas de `4fa1bd3`, con fondo azul suave y un punto para avisos pendientes, íconos por categoría y hora discreta. Se mantiene el texto completo y el botón de acción actual. La pantalla se ubica en `src/screens/notifications/NotificationsScreen.tsx`, y el header y navbar vigentes permanecen iguales.
+
 Recargas mantiene el panel contextual de `WalletScreen` y sus cuatro montos vigentes. `RechargePresentation.tsx` recupera de `4fa1bd3` el saldo azul suave, los montos en tarjetas seleccionables, el campo con símbolo de moneda y el resumen del monto. La confirmación y su feedback se presentan en el footer fijo del panel. La selección, monto inicial, validaciones, acreditación y persistencia permanecen en el flujo actual; la billetera principal y la gestión independiente de métodos de pago conservan su presentación.
 
 Métodos de pago tiene su propia ruta `ClientPaymentMethods`, independiente de `ClientWallet`. `PaymentsPresentation.tsx` recupera las filas blancas con borde y marca de tarjeta, el distintivo Principal y la vista previa azul del alta de tarjeta de `4fa1bd3`. `ClientAddPaymentMethod` permite guardar una tarjeta o una cuenta bancaria del cliente para transferencia. La billetera conserva su presentación anterior, saldo, cargos, recargas y movimientos; sus reglas financieras y las opciones de pago del pedido no cambian.

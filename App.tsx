@@ -1,3 +1,5 @@
+import { SupportScreen } from "./src/screens/support/SupportScreen";
+import { NotificationsScreen } from "./src/screens/notifications/NotificationsScreen";
 import { WalletScreen } from "./src/screens/payments/WalletScreen";
 import { Text, View } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
@@ -33,8 +35,6 @@ import { NewOrderScreen } from "./src/screens/NewOrderScreen";
 import {
   AddressesScreen,
   BillingScreen,
-  NotificationsScreen,
-  SupportScreen,
 } from "./src/screens/AccountScreens";
 import {
   ChatScreen,
