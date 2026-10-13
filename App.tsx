@@ -33,7 +33,7 @@ import {
   ClientScheduleScreen,
 } from "./src/screens/ClientOrderScreens";
 import { NewOrderScreen } from "./src/screens/NewOrderScreen";
-import { BillingScreen } from "./src/screens/AccountScreens";
+import { BillingScreen } from "./src/screens/billing/BillingScreen";
 import {
   ChatScreen,
   DriverMapScreen,

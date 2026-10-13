@@ -8,6 +8,8 @@ La auditoría previa está en [UX_AUDIT.md](UX_AUDIT.md). La [matriz funcional d
 
 ## Tokens
 
+Datos de facturación recupera de `4fa1bd3` la introducción azul suave con ícono de documento, la tarjeta blanca de radio 14 y los campos gris claro con etiquetas compactas. `BillingPresentation.tsx` concentra los estilos; `src/screens/billing/BillingScreen.tsx` conserva los cinco campos, su carga inicial, validación y guardado en el dominio vigente. La acción permanece en el footer fijo y el header y navbar actuales permanecen iguales.
+
 Direcciones guardadas recupera de `4fa1bd3` las filas blancas compactas, los íconos de casa/trabajo, el borde azul y distintivo de la dirección principal y el alta con borde discontinuo. `AddressesPresentation.tsx` contiene la presentación y `src/screens/addresses/AddressesScreen.tsx` conserva el formulario vigente con referencia y coordenadas, las opciones en sheet y la confirmación de eliminación. Las direcciones y referencias se muestran completas; el header y navbar actuales permanecen iguales. No se incorpora el mapa ni la lógica del prototipo histórico.
 
 Seguridad y contraseña recupera de `4fa1bd3` el aviso azul suave con escudo, la tarjeta blanca con borde y los campos gris claro con etiquetas compactas. `PasswordPresentation.tsx` concentra su presentación y `PasswordScreen` conserva validaciones, hash, persistencia, feedback y el botón de guardado en el footer actual. El formulario compartido de contraseña temporal mantiene sus condiciones y cierre de sesión. `Field.labelStyle` permite adaptar las etiquetas únicamente donde se solicita; los demás campos conservan su presentación y los colores de error siguen siendo prioritarios.

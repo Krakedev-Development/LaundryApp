@@ -27,7 +27,7 @@ Las implementaciones de la tabla se encuentran en `src/screens`. Autenticación 
 | ClientPaymentMethods  | payments/PaymentMethodsScreen.tsx                | Tarjetas y cuentas bancarias por cliente, método principal y eliminación confirmada  |
 | ClientAddPaymentMethod | payments/AddPaymentMethodScreen.tsx             | Alta validada de tarjeta o cuenta bancaria para transferencia                        |
 | ClientAddresses       | addresses/AddressesScreen.tsx                    | Añadir, editar, eliminar y seleccionar dirección principal                           |
-| ClientBilling         | AccountScreens.tsx / BillingScreen               | Nombre fiscal, identificación, correo, teléfono, dirección y guardado                |
+| ClientBilling         | billing/BillingScreen.tsx                        | Nombre fiscal, identificación, correo, teléfono, dirección y guardado                |
 | ClientNotifications   | notifications/NotificationsScreen.tsx            | Notificaciones, lectura y enlace al pedido                                           |
 | ClientSupport         | support/SupportScreen.tsx                        | Preguntas frecuentes y contacto con soporte                                          |
 | ClientSecurity        | auth/PasswordScreen.tsx                          | Contraseña actual, nueva, confirmación y validación                                  |

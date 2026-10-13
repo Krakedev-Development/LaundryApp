@@ -23,7 +23,6 @@ import {
   Body,
   Button,
   Card,
-  Field,
   Icon,
   Title,
   useAction,
@@ -34,7 +33,6 @@ import { plans, promos, rewards } from "../domain/catalog";
 import {
   money,
   operationalLabels,
-  type Customer,
 } from "../domain/models";
 import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
 
@@ -287,78 +285,6 @@ export function BenefitsScreen() {
     </Page>
   );
 }
-
-export function BillingScreen() {
-  const { state, execute } = useApp();
-  const c = currentCustomer(state);
-  const a = useAction();
-  const [draft, setDraft] = useState<
-    Pick<
-      Customer,
-      | "billingName"
-      | "billingTaxId"
-      | "billingEmail"
-      | "billingPhone"
-      | "billingAddress"
-    >
-  >({
-    billingName: c.billingName,
-    billingTaxId: c.billingTaxId,
-    billingEmail: c.billingEmail,
-    billingPhone: c.billingPhone,
-    billingAddress: c.billingAddress,
-  });
-  const fields = {
-    billingName: "Nombre o razón social",
-    billingTaxId: "Número tributario",
-    billingEmail: "Correo de facturación",
-    billingPhone: "Teléfono de facturación",
-    billingAddress: "Dirección fiscal",
-  } as const;
-  return (
-    <Page
-      footer={
-        <>
-          <Button
-            label="Guardar datos de facturación"
-            onPress={() =>
-              a.run(
-                () => execute((r) => r.updateBillingData(draft)),
-                "Datos de facturación guardados.",
-              )
-            }
-          />
-        </>
-      }
-    >
-      <Card>
-        <Title>Datos fiscales</Title>
-        <Body muted>
-          Se usarán en tus comprobantes. Revisa el correo y número tributario.
-        </Body>
-        {(Object.keys(fields) as (keyof typeof fields)[]).map((key) => (
-          <Field
-            key={key}
-            label={fields[key]}
-            keyboardType={
-              key === "billingEmail"
-                ? "email-address"
-                : key === "billingPhone"
-                  ? "phone-pad"
-                  : "default"
-            }
-            autoCapitalize={key === "billingEmail" ? "none" : "sentences"}
-            value={draft[key]}
-            onChangeText={(value) => setDraft({ ...draft, [key]: value })}
-          />
-        ))}
-        {a.feedback}
-      </Card>
-    </Page>
-  );
-}
-
-
 
 export function DriverProfileScreen() {
   const { state, execute } = useApp();
