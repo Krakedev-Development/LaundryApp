@@ -56,6 +56,7 @@ import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
 import { contentColors } from "../design-system/classic";
 import { HomeMetric, homeStyles } from "../components/HomePresentation";
 import { ordersStyles } from "../components/OrdersPresentation";
+import { DetailMeta, detailStyles } from "../components/OrderDetailPresentation";
 
 export function ClientHomeScreen() {
   const navigation = useLaundryNavigation();
@@ -376,26 +377,41 @@ export function ClientOrderDetailScreen({
   const closed = terminalStatuses.includes(order.status);
   return (
     <Page>
-      <Card>
-        <Title>{order.id}</Title>
-        <StatusChip status={order.status} />
-        <Body>{modeLabels[order.fulfillmentPlan.mode]}</Body>
-        <Badge>{pricingLabels[order.pricingStatus]}</Badge>
-        <Body>
-          Pago:{" "}
-          {order.paymentStatus === "PAGADO"
-            ? "Pagado"
-            : order.paymentStatus === "PENDIENTE_PESO"
-              ? "Monto por determinar"
-              : "Pendiente"}
+      <Card style={detailStyles.hero}>
+        <View style={detailStyles.heroTop}>
+          <Title style={detailStyles.orderId}>{order.id}</Title>
+          <StatusChip status={order.status} />
+        </View>
+        <Body style={detailStyles.mode}>
+          {modeLabels[order.fulfillmentPlan.mode]}
         </Body>
-        <Body muted>{order.facilityName}</Body>
+        <Badge>{pricingLabels[order.pricingStatus]}</Badge>
+        <DetailMeta icon="cash-outline">
+          <Body style={detailStyles.body}>
+            Pago:{" "}
+            {order.paymentStatus === "PAGADO"
+              ? "Pagado"
+              : order.paymentStatus === "PENDIENTE_PESO"
+                ? "Monto por determinar"
+                : "Pendiente"}
+          </Body>
+        </DetailMeta>
+        <DetailMeta icon="location-outline">
+          <Body muted style={detailStyles.caption}>
+            {order.facilityName}
+          </Body>
+        </DetailMeta>
       </Card>
       {a.feedback}
       {order.adjustments.map((adj) => (
-        <Card key={adj.id}>
-          <Title>Ajuste de planta · {money(adj.amountDifference)}</Title>
-          <Body>{adj.description}</Body>
+        <Card key={adj.id} style={detailStyles.warning}>
+          <View style={detailStyles.warningHeader}>
+            <Icon name="warning-outline" size={16} color="#D97706" />
+            <Title style={detailStyles.warningTitle}>
+              Ajuste de planta · {money(adj.amountDifference)}
+            </Title>
+          </View>
+          <Body style={detailStyles.warningText}>{adj.description}</Body>
           <Badge>
             {adj.status === "PENDING_CUSTOMER"
               ? "Requiere tu aprobación"
@@ -432,9 +448,9 @@ export function ClientOrderDetailScreen({
         </Card>
       ))}
       {order.pricingModel === "PER_WEIGHT" && (
-        <Card>
-          <Title>Pesaje certificado</Title>
-          <Body>
+        <Card style={detailStyles.card}>
+          <Title style={detailStyles.sectionTitle}>Pesaje certificado</Title>
+          <Body style={detailStyles.body}>
             {order.weightLb
               ? `${order.weightLb} lb · ${order.weightKg} kg · ${money(order.pricePerLb)} / lb`
               : `Pendiente en planta · estimado ${order.estimatedWeightLb ?? "—"} lb`}
@@ -483,7 +499,7 @@ export function ClientOrderDetailScreen({
           />
         ))}
       {order.pickupNeedsScheduling && (
-        <Card>
+        <Card style={detailStyles.card}>
           <Body>
             Confirma la recogida a domicilio para continuar este pedido.
           </Body>
@@ -495,109 +511,145 @@ export function ClientOrderDetailScreen({
           />
         </Card>
       )}
-      <Accordion title="Agenda, direcciones y constancias">
-        <Title>Entrada</Title>
-        <Body>
-          {order.legacyInbound?.status === "COMPLETED"
-            ? "Recepción anterior en sede registrada"
-            : "Recogida en domicilio"}
-        </Body>
-        <Body>{order.pickup.addressFull}</Body>
-        <Body muted>
-          {order.pickup.date} · {order.pickup.timeSlot}
-        </Body>
-        <Body muted>{order.pickup.notes}</Body>
-        {order.pickup.garmentCountConfirmed !== undefined && (
-          <Badge>{order.pickup.garmentCountConfirmed} prendas recibidas</Badge>
-        )}
-        {order.pickup.evidencePhotoUri && (
-          <Body muted>Evidencia de recogida adjunta.</Body>
-        )}
-        <Title>Salida</Title>
-        <Body>
-          {order.fulfillmentPlan.outbound.method === "DRIVER"
-            ? "Entrega en domicilio"
-            : "Retiro en sede"}
-        </Body>
-        <Body>{order.delivery.addressFull}</Body>
-        <Body muted>
-          {order.delivery.date} · {order.delivery.timeSlot}
-        </Body>
-        {order.delivery.recipientName && (
+      <Card style={detailStyles.accordionCard}>
+        <Accordion title="Agenda, direcciones y constancias" appearance="list">
+          <Title style={detailStyles.sectionTitle}>Entrada</Title>
           <Body>
-            Recibido por {order.delivery.recipientName} ·{" "}
-            {order.delivery.recipientRelationship}
+            {order.legacyInbound?.status === "COMPLETED"
+              ? "Recepción anterior en sede registrada"
+              : "Recogida en domicilio"}
           </Body>
-        )}
-        {order.delivery.deliveryNotes && (
-          <Body muted>{order.delivery.deliveryNotes}</Body>
-        )}
-        {order.delivery.evidencePhotoUri && (
-          <Body muted>Evidencia de entrega adjunta.</Body>
-        )}
-      </Accordion>
-      <Accordion title={"Prendas y cuidado (" + garmentCount(order) + ")"}>
-        {order.items.map((i) => (
-          <View key={i.id}>
-            <Body>
-              {i.quantity} × {i.garmentType} · {money(i.quantity * i.unitPrice)}
-            </Body>
-            <Body muted>
-              {i.serviceType}
-              {i.notes ? ` · ${i.notes}` : ""}
-            </Body>
-          </View>
-        ))}
-        {!order.items.length && <Body>Servicio por peso.</Body>}
-        {order.extras.map((e) => (
-          <Body key={e.id}>
-            {e.name} · {money(e.price)}
-          </Body>
-        ))}
-      </Accordion>
-      <Accordion title="Pago y valor">
-        <PricingSummary
-          pricing={order.pricing}
-          unknown={order.pricingStatus === "PENDING_WEIGHT"}
-        />
-      </Accordion>
-      {order.assignedDriverId && (
-        <Card>
-          <Icon name="car-outline" />
-          <Title>Chofer asignado</Title>
-          <Body>{order.assignedDriverName}</Body>
+          <Body>{order.pickup.addressFull}</Body>
           <Body muted>
-            {order.assignedDriverVehicle} · {order.assignedDriverPlate}
+            {order.pickup.date} · {order.pickup.timeSlot}
           </Body>
-          <Body muted>Comunícate mediante el chat del pedido.</Body>
-          {canTrack(order) && (
-            <Button
-              label="Seguir chofer en mapa"
-              onPress={() =>
-                navigation.navigate("ClientTracking", { orderId: order.id })
-              }
-            />
+          <Body muted>{order.pickup.notes}</Body>
+          {order.pickup.garmentCountConfirmed !== undefined && (
+            <Badge>
+              {order.pickup.garmentCountConfirmed} prendas recibidas
+            </Badge>
           )}
-          <Button
-            label="Abrir chat con el chofer"
-            secondary
-            onPress={() => navigation.navigate("Chat", { orderId: order.id })}
+          {order.pickup.evidencePhotoUri && (
+            <Body muted>Evidencia de recogida adjunta.</Body>
+          )}
+          <Title style={detailStyles.sectionTitle}>Salida</Title>
+          <Body>
+            {order.fulfillmentPlan.outbound.method === "DRIVER"
+              ? "Entrega en domicilio"
+              : "Retiro en sede"}
+          </Body>
+          <Body>{order.delivery.addressFull}</Body>
+          <Body muted>
+            {order.delivery.date} · {order.delivery.timeSlot}
+          </Body>
+          {order.delivery.recipientName && (
+            <Body>
+              Recibido por {order.delivery.recipientName} ·{" "}
+              {order.delivery.recipientRelationship}
+            </Body>
+          )}
+          {order.delivery.deliveryNotes && (
+            <Body muted>{order.delivery.deliveryNotes}</Body>
+          )}
+          {order.delivery.evidencePhotoUri && (
+            <Body muted>Evidencia de entrega adjunta.</Body>
+          )}
+        </Accordion>
+      </Card>
+      <Card style={detailStyles.accordionCard}>
+        <Accordion
+          title={"Prendas y cuidado (" + garmentCount(order) + ")"}
+          appearance="list"
+        >
+          {order.items.map((i) => (
+            <View key={i.id} style={detailStyles.row}>
+              <Body style={detailStyles.body}>
+                {i.quantity} × {i.garmentType} ·{" "}
+                {money(i.quantity * i.unitPrice)}
+              </Body>
+              <Body muted style={detailStyles.caption}>
+                {i.serviceType}
+                {i.notes ? ` · ${i.notes}` : ""}
+              </Body>
+            </View>
+          ))}
+          {!order.items.length && <Body>Servicio por peso.</Body>}
+          {order.extras.map((e) => (
+            <Body key={e.id}>
+              {e.name} · {money(e.price)}
+            </Body>
+          ))}
+        </Accordion>
+      </Card>
+      <Card style={detailStyles.accordionCard}>
+        <Accordion title="Pago y valor" appearance="list">
+          <PricingSummary
+            pricing={order.pricing}
+            unknown={order.pricingStatus === "PENDING_WEIGHT"}
           />
+        </Accordion>
+      </Card>
+      {order.assignedDriverId && (
+        <Card style={detailStyles.card}>
+          <Title style={detailStyles.sectionTitle}>Chofer asignado</Title>
+          <View style={detailStyles.driverRow}>
+            <View style={detailStyles.driverIcon}>
+              <Icon name="car-outline" size={22} color="#FFFFFF" />
+            </View>
+            <View style={detailStyles.driverInfo}>
+              <Body style={detailStyles.driverName}>
+                {order.assignedDriverName}
+              </Body>
+              <Body muted style={detailStyles.caption}>
+                {order.assignedDriverVehicle} · {order.assignedDriverPlate}
+              </Body>
+            </View>
+          </View>
+          <Body muted style={detailStyles.caption}>
+            Comunícate mediante el chat del pedido.
+          </Body>
+          <View style={detailStyles.actions}>
+            {canTrack(order) && (
+              <Button
+                label="Seguir chofer en mapa"
+                icon="location-outline"
+                variant="secondary"
+                style={detailStyles.action}
+                textStyle={detailStyles.actionText}
+                onPress={() =>
+                  navigation.navigate("ClientTracking", { orderId: order.id })
+                }
+              />
+            )}
+            <Button
+              label="Abrir chat con el chofer"
+              icon="chatbubble-outline"
+              variant="primary"
+              style={detailStyles.action}
+              textStyle={detailStyles.actionText}
+              secondary
+              onPress={() => navigation.navigate("Chat", { orderId: order.id })}
+            />
+          </View>
         </Card>
       )}
-      <Accordion title="Historial de la solicitud">
-        <Timeline events={order.timeline} />
-      </Accordion>
-      {order.handoffs.some((h) => h.status === "USED") && (
-        <Accordion title="Transferencias realizadas">
-          {order.handoffs
-            .filter((h) => h.status === "USED")
-            .map((h) => (
-              <Body key={h.id}>
-                {h.title} · {h.usedAt}
-              </Body>
-            ))}
+      <Card style={detailStyles.accordionCard}>
+        <Accordion title="Historial de la solicitud" appearance="list">
+          <Timeline events={order.timeline} />
         </Accordion>
+      </Card>
+      {order.handoffs.some((h) => h.status === "USED") && (
+        <Card style={detailStyles.accordionCard}>
+          <Accordion title="Transferencias realizadas" appearance="list">
+            {order.handoffs
+              .filter((h) => h.status === "USED")
+              .map((h) => (
+                <Body key={h.id}>
+                  {h.title} · {h.usedAt}
+                </Body>
+              ))}
+          </Accordion>
+        </Card>
       )}
       {!closed && (
         <>

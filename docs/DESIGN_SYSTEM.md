@@ -8,6 +8,8 @@ La auditoría previa está en [UX_AUDIT.md](UX_AUDIT.md). La [matriz funcional d
 
 ## Tokens
 
+Detalle de solicitud recupera de `4fa1bd3` el resumen blanco con borde de radio 14, secciones compactas, novedades ámbar y presentación del chofer con ícono del sistema. `OrderDetailPresentation.tsx` contiene sus estilos. Agenda, prendas, pago, historial y transferencias conservan sus acordeones independientes; las condiciones, datos, callbacks, códigos, pesaje, ajustes, cancelación y agenda siguen en el flujo vigente. Las acciones de mapa y chat se presentan juntas cuando corresponden, con el header y navbar actuales.
+
 Pedidos usa la apariencia `orders` de OrderCard, transmitida por OrderList únicamente desde ClientOrdersScreen. `OrdersPresentation.tsx` recupera de `4fa1bd3` las tarjetas blancas compactas, identificador gris, estado junto al encabezado, íconos de información y pie con divisor. Se mantienen el texto completo de modalidad y servicio, fecha/horario, importe pendiente o confirmado y seguimiento cuando corresponde. Búsqueda, Activos/Historial, filtros, datos, listas virtualizadas y navegación conservan su lógica vigente. Inicio y las listas del chofer conservan sus apariencias actuales, al igual que el header y navbar.
 
 Datos de facturación recupera de `4fa1bd3` la introducción azul suave con ícono de documento, la tarjeta blanca de radio 14 y los campos gris claro con etiquetas compactas. `BillingPresentation.tsx` concentra los estilos; `src/screens/billing/BillingScreen.tsx` conserva los cinco campos, su carga inicial, validación y guardado en el dominio vigente. La acción permanece en el footer fijo y el header y navbar actuales permanecen iguales.
