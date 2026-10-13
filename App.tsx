@@ -1,4 +1,5 @@
 import { SupportScreen } from "./src/screens/support/SupportScreen";
+import { AddressesScreen } from "./src/screens/addresses/AddressesScreen";
 import { NotificationsScreen } from "./src/screens/notifications/NotificationsScreen";
 import { WalletScreen } from "./src/screens/payments/WalletScreen";
 import { Text, View } from "react-native";
@@ -32,10 +33,7 @@ import {
   ClientScheduleScreen,
 } from "./src/screens/ClientOrderScreens";
 import { NewOrderScreen } from "./src/screens/NewOrderScreen";
-import {
-  AddressesScreen,
-  BillingScreen,
-} from "./src/screens/AccountScreens";
+import { BillingScreen } from "./src/screens/AccountScreens";
 import {
   ChatScreen,
   DriverMapScreen,

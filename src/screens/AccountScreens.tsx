@@ -1,13 +1,4 @@
-import {
-  Accordion,
-  ListItem,
-  SegmentedControl,
-} from "../components/presentation";
-import {
-  BottomSheet,
-  ConfirmDialog,
-  FullScreenOverlay,
-} from "../components/overlay/OverlayPortal";
+import { SegmentedControl } from "../components/presentation";
 import { useState } from "react";
 import { Text, View } from "react-native";
 import { Page } from "../components/Page";
@@ -32,8 +23,6 @@ import {
   Body,
   Button,
   Card,
-  Check,
-  Empty,
   Field,
   Icon,
   Title,
@@ -45,7 +34,6 @@ import { plans, promos, rewards } from "../domain/catalog";
 import {
   money,
   operationalLabels,
-  type Address,
   type Customer,
 } from "../domain/models";
 import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
@@ -300,209 +288,6 @@ export function BenefitsScreen() {
   );
 }
 
-const newAddress = (): Address => ({
-  id: `addr-${Date.now()}`,
-  title: "",
-  fullAddress: "",
-  reference: "",
-  isPrimary: false,
-  latitude: -12.0965,
-  longitude: -77.0354,
-});
-export function AddressesScreen() {
-  const { state, execute } = useApp();
-  const c = currentCustomer(state);
-  const a = useAction();
-  const [draft, setDraft] = useState<Address | null>(null),
-    [lat, setLat] = useState(""),
-    [lng, setLng] = useState("");
-  const [options, setOptions] = useState<Address>(),
-    [remove, setRemove] = useState<Address>();
-  const edit = (address: Address) => {
-    setDraft({ ...address });
-    setLat(String(address.latitude));
-    setLng(String(address.longitude));
-  };
-  return (
-    <Page>
-      {!draft && a.feedback}
-      <Button
-        label="Añadir dirección"
-        icon="add"
-        onPress={() => edit(newAddress())}
-      />
-      {draft && (
-        <FullScreenOverlay
-          title="Dirección"
-          visible={!!draft}
-          onClose={() => setDraft(null)}
-          footer={
-            <>
-              <Button
-                label="Guardar dirección"
-                onPress={() => {
-                  if (
-                    a.run(() => {
-                      if (!lat.trim() || !lng.trim())
-                        throw Error("Ingresa las coordenadas.");
-                      execute((r) =>
-                        r.saveAddress({
-                          ...draft,
-                          latitude: Number(lat),
-                          longitude: Number(lng),
-                        }),
-                      );
-                    }, "Dirección guardada.")
-                  )
-                    setDraft(null);
-                }}
-              />
-              <Button
-                label="Cancelar edición"
-                secondary
-                onPress={() => setDraft(null)}
-              />
-            </>
-          }
-        >
-          <Title>
-            {c.addresses.some((addr) => addr.id === draft.id)
-              ? "Editar dirección"
-              : "Nueva dirección"}
-          </Title>
-          <Field
-            label="Nombre de dirección"
-            value={draft.title}
-            onChangeText={(title) => setDraft({ ...draft, title })}
-          />
-          <Field
-            label="Dirección completa"
-            value={draft.fullAddress}
-            onChangeText={(fullAddress) => setDraft({ ...draft, fullAddress })}
-          />
-          <Field
-            label="Referencia"
-            value={draft.reference}
-            onChangeText={(reference) => setDraft({ ...draft, reference })}
-          />
-          <Accordion
-            title="Ubicación para la entrega"
-            subtitle="Coordenadas usadas para orientar al chofer"
-          >
-            <Body muted>
-              Este MVP no convierte la dirección a coordenadas automáticamente.
-              Verifica el punto del domicilio.
-            </Body>
-            <Field
-              label="Latitud"
-              value={lat}
-              onChangeText={setLat}
-              keyboardType="numbers-and-punctuation"
-            />
-            <Field
-              label="Longitud"
-              value={lng}
-              onChangeText={setLng}
-              keyboardType="numbers-and-punctuation"
-            />
-          </Accordion>
-          <Check
-            label="Usar como dirección principal"
-            checked={draft.isPrimary}
-            onChange={(isPrimary) => setDraft({ ...draft, isPrimary })}
-          />
-          {a.feedback}
-        </FullScreenOverlay>
-      )}
-      {c.addresses.length ? (
-        c.addresses.map((addr) => (
-          <Card key={addr.id}>
-            <Icon name="location-outline" />
-            <Title>{addr.title}</Title>
-            {addr.isPrimary && <Badge>Principal</Badge>}
-            <Body>{addr.fullAddress}</Body>
-            <Body muted>{addr.reference}</Body>
-            <Button
-              label={"Opciones de " + addr.title}
-              secondary
-              icon="ellipsis-horizontal"
-              onPress={() => setOptions(addr)}
-            />
-          </Card>
-        ))
-      ) : (
-        <Empty text="Aún no tienes direcciones guardadas." />
-      )}
-      <BottomSheet
-        title={options?.title ?? "Dirección"}
-        visible={!!options}
-        onClose={() => setOptions(undefined)}
-      >
-        {options && (
-          <>
-            <ListItem
-              title={"Editar " + options.title}
-              icon="create-outline"
-              onPress={() => {
-                setOptions(undefined);
-                edit(options);
-              }}
-            />
-            {!options.isPrimary && (
-              <ListItem
-                title={"Usar " + options.title + " como principal"}
-                icon="star-outline"
-                onPress={() => {
-                  a.run(
-                    () => execute((r) => r.setDefaultAddress(options.id)),
-                    "Dirección principal actualizada.",
-                  );
-                  setOptions(undefined);
-                }}
-              />
-            )}
-            <ListItem
-              title={"Eliminar " + options.title}
-              icon="trash-outline"
-              onPress={() => {
-                setOptions(undefined);
-                setRemove(options);
-              }}
-            />
-          </>
-        )}
-      </BottomSheet>
-      <ConfirmDialog
-        title="Eliminar dirección"
-        visible={!!remove}
-        onClose={() => setRemove(undefined)}
-        footer={
-          <>
-            <Button
-              label="Confirmar eliminación"
-              variant="danger"
-              onPress={() => {
-                if (remove)
-                  a.run(
-                    () => execute((r) => r.removeAddress(remove.id)),
-                    "Dirección eliminada.",
-                  );
-                setRemove(undefined);
-              }}
-            />
-            <Button
-              label="Conservar dirección"
-              secondary
-              onPress={() => setRemove(undefined)}
-            />
-          </>
-        }
-      >
-        <Body>Se eliminará {remove?.title} de tus direcciones guardadas.</Body>
-      </ConfirmDialog>
-    </Page>
-  );
-}
 export function BillingScreen() {
   const { state, execute } = useApp();
   const c = currentCustomer(state);
