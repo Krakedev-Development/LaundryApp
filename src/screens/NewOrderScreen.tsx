@@ -13,6 +13,7 @@ import {
   Choice,
   Field,
   IconButton,
+  Icon,
   Title,
   ui,
   useAction,
@@ -20,6 +21,7 @@ import {
 } from "../components/ui";
 import { FulfillmentPicker } from "../components/FulfillmentPicker";
 import { requestStyles } from "../components/FulfillmentPresentation";
+import { ConfirmationGroup, confirmationStyles } from "../components/ConfirmationPresentation";
 import { ExtraContent, GarmentSurface, extraTone, garmentStyles } from "../components/GarmentsExtrasPresentation";
 import { useApp } from "../store/AppProvider";
 import { calculatePricing, currentCustomer } from "../domain/repository";
@@ -48,13 +50,18 @@ const blankLeg = (): Leg => ({
 export function PricingSummary({
   pricing,
   unknown = false,
+  appearance = "default",
 }: {
   pricing: ReturnType<typeof calculatePricing>;
   unknown?: boolean;
+  appearance?: "default" | "confirmation";
 }) {
+  const confirmation = appearance === "confirmation";
   return (
-    <Card>
-      <Title>Resumen de valor</Title>
+    <Card style={confirmation && confirmationStyles.card}>
+      <Title style={confirmation && confirmationStyles.title}>
+        Resumen de valor
+      </Title>
       {(
         [
           [
@@ -70,14 +77,43 @@ export function PricingSummary({
           ["Envío", money(pricing.deliveryFee)],
         ] as const
       ).map(([label, value]) => (
-        <View key={label} style={[ui.row, { justifyContent: "space-between" }]}>
-          <Body>{label}</Body>
-          <Body>{value}</Body>
+        <View
+          key={label}
+          style={
+            confirmation
+              ? confirmationStyles.priceRow
+              : [ui.row, { justifyContent: "space-between" }]
+          }
+        >
+          <Body style={confirmation && confirmationStyles.priceLabel}>
+            {label}
+          </Body>
+          <Body
+            style={
+              confirmation && [
+                confirmationStyles.priceValue,
+                (label === "Promoción" || label === "Beneficio de membresía") &&
+                  confirmationStyles.discount,
+              ]
+            }
+          >
+            {value}
+          </Body>
         </View>
       ))}
-      <View style={[ui.row, { justifyContent: "space-between" }]}>
-        <Title>{unknown ? "Valor final" : "Total"}</Title>
-        <Title>{unknown ? "Por determinar" : money(pricing.total)}</Title>
+      <View
+        style={
+          confirmation
+            ? [confirmationStyles.priceRow, confirmationStyles.totalRow]
+            : [ui.row, { justifyContent: "space-between" }]
+        }
+      >
+        <Title style={confirmation && confirmationStyles.totalLabel}>
+          {unknown ? "Valor final" : "Total"}
+        </Title>
+        <Title style={confirmation && confirmationStyles.totalAmount}>
+          {unknown ? "Por determinar" : money(pricing.total)}
+        </Title>
       </View>
       {unknown && (
         <Body muted>
@@ -262,7 +298,7 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
   return (
     <Page
       scrollResetKey={step}
-      backgroundColor={step < 5 ? "#FFFFFF" : undefined}
+      backgroundColor={step < 5 ? "#FFFFFF" : "#F9FAFB"}
       onBack={() => (step > 1 ? setStep(step - 1) : navigation.goBack())}
       footer={
         <>
@@ -274,9 +310,9 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
                 ? requestStyles.next
                 : step < 5
                   ? garmentStyles.next
-                  : undefined
+                  : confirmationStyles.confirm
             }
-            icon={step < 5 ? "arrow-forward" : undefined}
+            icon={step < 5 ? "arrow-forward" : "checkmark-circle-outline"}
             onPress={next}
           />
           <Button
@@ -521,53 +557,78 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
         )}
         {step === 5 && (
           <>
-            <Card>
-              <Title>Revisa tu agenda</Title>
-              <Body>Entrada: {inbound.addressFull}</Body>
-              <Body muted>
-                {inbound.scheduledDate} · {inbound.timeSlotText}
-              </Body>
-              <Body>Salida: {outbound.addressFull}</Body>
-              <Body muted>
-                {outbound.scheduledDate} · {outbound.timeSlotText}
-              </Body>
-              <Body muted>
+            <Card style={confirmationStyles.card}>
+              <Title style={confirmationStyles.title}>Revisa tu agenda</Title>
+              <ConfirmationGroup icon="location-outline">
+                <Body style={confirmationStyles.address}>
+                  Entrada: {inbound.addressFull}
+                </Body>
+                <Body muted style={confirmationStyles.caption}>
+                  {inbound.scheduledDate} · {inbound.timeSlotText}
+                </Body>
+              </ConfirmationGroup>
+              <ConfirmationGroup icon="location-outline">
+                <Body style={confirmationStyles.address}>
+                  Salida: {outbound.addressFull}
+                </Body>
+                <Body muted style={confirmationStyles.caption}>
+                  {outbound.scheduledDate} · {outbound.timeSlotText}
+                </Body>
+              </ConfirmationGroup>
+              <Body muted style={confirmationStyles.notice}>
                 Cancelación y reprogramación: corte de 60 minutos. Cargo por
                 cancelación tardía: $5.00.
               </Body>
             </Card>
-            <Card>
-              <Field
-                label="Código promocional"
-                autoCapitalize="characters"
-                value={promoInput}
-                onChangeText={setPromoInput}
-              />
-              <Button
-                label="Aplicar promoción"
-                secondary
-                onPress={() =>
-                  a.run(() => {
-                    calculatePricing(
-                      items,
-                      extraIds,
-                      model,
-                      c.membershipTier,
-                      promoInput,
-                    );
-                    setAppliedPromo(
-                      promoInput.trim().toUpperCase() || undefined,
-                    );
-                  }, "Promoción aplicada.")
-                }
-              />
-              {appliedPromo && <Badge>{appliedPromo}</Badge>}
+            <Card style={confirmationStyles.card}>
+              <View style={confirmationStyles.promoRow}>
+                <View style={confirmationStyles.promoField}>
+                  <Field
+                    label="Código promocional"
+                    style={confirmationStyles.input}
+                    labelStyle={confirmationStyles.label}
+                    autoCapitalize="characters"
+                    value={promoInput}
+                    onChangeText={setPromoInput}
+                  />
+                </View>
+                <Button
+                  label="Aplicar promoción"
+                  secondary
+                  variant="primary"
+                  style={confirmationStyles.apply}
+                  textStyle={confirmationStyles.applyText}
+                  onPress={() =>
+                    a.run(() => {
+                      calculatePricing(
+                        items,
+                        extraIds,
+                        model,
+                        c.membershipTier,
+                        promoInput,
+                      );
+                      setAppliedPromo(
+                        promoInput.trim().toUpperCase() || undefined,
+                      );
+                    }, "Promoción aplicada.")
+                  }
+                />
+              </View>
+              {appliedPromo && (
+                <View style={confirmationStyles.promoApplied}>
+                  <Icon name="checkmark-circle" size={16} color="#10B981" />
+                  <Text style={confirmationStyles.promoText}>
+                    {appliedPromo}
+                  </Text>
+                </View>
+              )}
             </Card>
             <PricingSummary
               pricing={pricing}
               unknown={model === "PER_WEIGHT"}
+              appearance="confirmation"
             />
-            <Card>
+            <Card style={confirmationStyles.card}>
               <ListItem
                 title="Elegir método de pago"
                 subtitle={
@@ -587,6 +648,11 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
                 {["Billetera", "Tarjeta"].map((method) => (
                   <Choice
                     key={method}
+                    style={[
+                      confirmationStyles.paymentChoice,
+                      payment === method && confirmationStyles.paymentSelected,
+                    ]}
+                    textStyle={confirmationStyles.paymentText}
                     label={
                       method === "Billetera"
                         ? `Billetera Laundry · ${money(c.walletBalance)}`
