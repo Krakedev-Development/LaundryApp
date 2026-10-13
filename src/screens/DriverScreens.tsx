@@ -43,6 +43,7 @@ import type { ScreenProps } from "../navigation/routes";
 import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
 import { RouteMetadata, routeStyles } from "../components/DriverRoutePresentation";
 import { DriverSectionTitle, DriverServiceMeta, driverServiceStyles } from "../components/DriverServicePresentation";
+import { ordersStyles } from "../components/OrdersPresentation";
 
 function DriverAction({ order }: { order: Order }) {
   const { execute } = useApp();
@@ -240,8 +241,9 @@ export function DriverServicesScreen() {
   );
   return (
     <Page scroll={false}>
-      <Title>Mis servicios</Title>
+      <Title style={ordersStyles.screenTitle}>Mis servicios</Title>
       <SegmentedControl
+        appearance="request"
         value={upcoming ? "next" : "active"}
         onChange={(v) => setUpcoming(v === "next")}
         options={[
@@ -255,6 +257,7 @@ export function DriverServicesScreen() {
         placeholder="Buscar servicios"
       />
       <OrderList
+        appearance="orders"
         orders={orders}
         onDetail={(o) =>
           navigation.navigate("DriverServiceDetail", { orderId: o.id })
