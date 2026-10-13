@@ -11,6 +11,7 @@ import {
 import type { Leg } from "../domain/models";
 import { Badge, Body, Button, Card, Choice, Title } from "./ui";
 import { SegmentedControl } from "./presentation";
+import { ScheduleCalendar } from "./ScheduleCalendar";
 import {
   FulfillmentHint,
   FulfillmentRow,
@@ -186,20 +187,11 @@ export function FulfillmentPicker({
         onClose={() => setPanel(undefined)}
       >
         <Body muted>La reserva se confirma al guardar.</Body>
-        {dates.map((d) => (
-          <Choice
-            key={d}
-            style={
-              appearance === "request" && [
-                requestStyles.choice,
-                requestStyles.date,
-                d === selectedDate && requestStyles.selectedChoice,
-              ]
-            }
-            textStyle={appearance === "request" && requestStyles.choiceText}
-            label={d}
-            selected={d === selectedDate}
-            onPress={() => {
+        {appearance === "request" ? (
+          <ScheduleCalendar
+            dates={dates}
+            value={selectedDate}
+            onChange={(d) => {
               setDate(d);
               onChange({
                 ...value,
@@ -209,7 +201,24 @@ export function FulfillmentPicker({
               });
             }}
           />
-        ))}
+        ) : (
+          dates.map((d) => (
+            <Choice
+              key={d}
+              label={d}
+              selected={d === selectedDate}
+              onPress={() => {
+                setDate(d);
+                onChange({
+                  ...value,
+                  scheduledDate: d,
+                  timeSlotId: undefined,
+                  timeSlotText: "",
+                });
+              }}
+            />
+          ))
+        )}
         {slots
           .filter((s) => s.date === selectedDate)
           .map((slot) => {

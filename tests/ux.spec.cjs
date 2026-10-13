@@ -9,6 +9,36 @@ async function account(page, target) {
   await page.getByRole("tab", { name: "Perfil", exact: true }).click();
   await page.getByRole("button", { name: target, exact: true }).click();
 }
+
+test("calendar month navigation is independent of booking availability and retains the selected date", async ({ page }) => {
+  await page.getByRole("tab", { name: "Solicitar", exact: true }).click();
+  await page.getByRole("button", { name: "Elegir fecha y horario", exact: true }).click();
+  const dates = page.getByRole("radiogroup", { name: "Fecha del servicio", exact: true });
+  const selectedDate = await dates.locator('[aria-checked="true"]').getAttribute("aria-label");
+  const [year, month] = selectedDate.split("-").map(Number);
+  const months = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+  const title = (offset) => {
+    const date = new Date(year, month - 1 + offset, 1);
+    return `${months[date.getMonth()]} ${date.getFullYear()}`;
+  };
+  const previous = page.getByRole("button", { name: "Mes anterior", exact: true });
+  const next = page.getByRole("button", { name: "Mes siguiente", exact: true });
+  await expect(previous).toBeEnabled();
+  await expect(next).toBeEnabled();
+  await previous.click();
+  await expect(page.getByRole("heading", { name: title(-1), exact: true })).toBeVisible();
+  for (const day of await dates.getByRole("radio").all()) await expect(day).toBeDisabled();
+  await next.click();
+  await expect(page.getByRole("radio", { name: selectedDate, exact: true })).toBeChecked();
+  for (let i = 0; i < 12; i++) await next.click();
+  await expect(page.getByRole("heading", { name: title(12), exact: true })).toBeVisible();
+  for (const day of await dates.getByRole("radio").all()) await expect(day).toBeDisabled();
+  for (let i = 0; i < 12; i++) await previous.click();
+  await expect(page.getByRole("heading", { name: title(0), exact: true })).toBeVisible();
+  await expect(page.getByRole("radio", { name: selectedDate, exact: true })).toBeChecked();
+  await page.getByRole("button", { name: "Cerrar panel", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Continuar", exact: true })).toBeDisabled();
+});
 test("sheets dismiss by backdrop and Escape; wizard progress is guarded and its footer remains fixed", async ({
   page,
 }) => {
