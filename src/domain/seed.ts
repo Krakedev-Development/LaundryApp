@@ -1,4 +1,5 @@
 import { facilities, initialSlots } from "./catalog";
+import { initialPaymentMethods } from "./paymentMethods";
 import {
   handoffLabels,
   modeFor,
@@ -367,6 +368,7 @@ export function createSeedState(): AppState {
     ],
     orders: [hh, weight, adj, hs, ss, sh],
     customerCharges: [],
+    paymentMethods: initialPaymentMethods(),
     walletTransactions: [
       {
         id: "tx-1",

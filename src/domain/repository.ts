@@ -1,3 +1,4 @@
+import { addCard, addBankAccount, setDefaultPaymentMethod, removePaymentMethod, type CardInput, type BankAccountInput } from "./paymentMethods";
 import {
   extras,
   facilities,
@@ -300,6 +301,18 @@ export class LaundryRepository {
   }
   logout(): void {
     this.state.session = null;
+  }
+  addPaymentCard(input: CardInput): string {
+    return addCard(this.state, this.client().id, input, this.id("pm"), this.now);
+  }
+  addPaymentBankAccount(input: BankAccountInput): string {
+    return addBankAccount(this.state, this.client().id, input, this.id("pm"));
+  }
+  setDefaultPaymentMethod(id: string): void {
+    setDefaultPaymentMethod(this.state, this.client().id, id);
+  }
+  removePaymentMethod(id: string): void {
+    removePaymentMethod(this.state, this.client().id, id);
   }
   register(
     name: string,

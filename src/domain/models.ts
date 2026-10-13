@@ -303,6 +303,16 @@ export interface WalletTransaction {
   description: string;
   date: string;
 }
+export type PaymentMethod = {
+  id: string;
+  customerId: string;
+  holder: string;
+  last4: string;
+  isDefault: boolean;
+} & (
+  | { kind: "CARD"; brand: "Visa" | "Mastercard" | "Amex"; expiry: string }
+  | { kind: "TRANSFER"; bank: string; accountNumber: string; accountType: "Ahorros" | "Corriente" }
+);
 export interface LoyaltyReward {
   id: string;
   title: string;
@@ -372,6 +382,7 @@ export interface AppState {
   orders: Order[];
   customerCharges: CustomerCharge[];
   walletTransactions: WalletTransaction[];
+  paymentMethods: PaymentMethod[];
   loyaltyRedemptions: LoyaltyRedemption[];
   notifications: NotificationItem[];
   chatMessages: Record<string, ChatMessage[]>;

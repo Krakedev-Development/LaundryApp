@@ -76,7 +76,7 @@ test("search has a useful empty state and clear restores existing orders", async
 test("recharge is contextual, applies once on double tap and persists", async ({
   page,
 }) => {
-  await account(page, "Métodos de pago");
+  await account(page, /^Billetera Laundry ·/);
   await expect(
     page.getByRole("textbox", { name: "Otro monto de recarga", exact: true }),
   ).not.toBeVisible();
@@ -102,7 +102,7 @@ test("recharge is contextual, applies once on double tap and persists", async ({
     page.getByText("Saldo recargado.", { exact: true }),
   ).toBeVisible();
   await page.reload();
-  await account(page, "Métodos de pago");
+  await account(page, /^Billetera Laundry ·/);
   await expect(
     page.getByRole("heading", { name: "$48.50", exact: true }),
   ).toBeVisible();
@@ -172,7 +172,7 @@ test("request cancellation retains the warning and creates the existing late fee
   await expect(
     page.getByText("Cancelado", { exact: true }).filter({ visible: true }),
   ).toBeVisible();
-  await account(page, "Métodos de pago");
+  await account(page, /^Billetera Laundry ·/);
   await page
     .getByRole("button", { name: "Pagar cargo con billetera", exact: true })
     .click();

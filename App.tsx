@@ -1,3 +1,4 @@
+import { WalletScreen } from "./src/screens/payments/WalletScreen";
 import { Text, View } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -14,6 +15,8 @@ import {
 } from "./src/design-system/MotionProvider";
 import { OverlayProvider } from "./src/components/overlay/OverlayProvider";
 import { Skeleton } from "./src/components/presentation";
+import { PaymentMethodsScreen } from "./src/screens/payments/PaymentMethodsScreen";
+import { AddPaymentMethodScreen } from "./src/screens/payments/AddPaymentMethodScreen";
 import { SplashScreen } from "./src/screens/auth/SplashScreen";
 import { LoginScreen } from "./src/screens/auth/LoginScreen";
 import { PasswordScreen } from "./src/screens/auth/PasswordScreen";
@@ -32,7 +35,6 @@ import {
   BillingScreen,
   NotificationsScreen,
   SupportScreen,
-  WalletScreen,
 } from "./src/screens/AccountScreens";
 import {
   ChatScreen,
@@ -161,6 +163,8 @@ function Navigation() {
               />
               <Stack.Screen name="ClientTracking" component={TrackingScreen} />
               <Stack.Screen name="ClientWallet" component={WalletScreen} />
+              <Stack.Screen name="ClientPaymentMethods" component={PaymentMethodsScreen} />
+              <Stack.Screen name="ClientAddPaymentMethod" component={AddPaymentMethodScreen} />
               <Stack.Screen
                 name="ClientAddresses"
                 component={AddressesScreen}

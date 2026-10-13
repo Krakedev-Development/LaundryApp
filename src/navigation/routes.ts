@@ -20,6 +20,8 @@ export type Routes = {
   ClientTracking: { orderId: string };
   Chat: { orderId: string };
   ClientWallet: undefined;
+  ClientPaymentMethods: undefined;
+  ClientAddPaymentMethod: undefined;
   ClientAddresses: undefined;
   ClientBilling: undefined;
   ClientNotifications: undefined;
@@ -69,6 +71,8 @@ export const titles: Record<keyof Routes, string> = {
   ClientTracking: "Seguimiento",
   Chat: "Chat del pedido",
   ClientWallet: "Billetera Laundry",
+  ClientPaymentMethods: "Métodos de pago",
+  ClientAddPaymentMethod: "Agregar método de pago",
   ClientAddresses: "Direcciones guardadas",
   ClientBilling: "Datos de facturación",
   ClientNotifications: "Notificaciones",

@@ -23,7 +23,9 @@ Las implementaciones de la tabla se encuentran en `src/screens`. Autenticación 
 | ClientOrderDetail     | ClientOrderScreens.tsx / ClientOrderDetailScreen | Estados, precios, pagos, QR, ajustes, agenda, prendas, custodia e historial          |
 | ClientTracking        | TrackingAndChatScreens.tsx / TrackingScreen      | Posición simulada, destino, chofer, vehículo, código y chat                          |
 | Chat                  | TrackingAndChatScreens.tsx / ChatScreen          | Mensajes del pedido desde cliente o chofer, teclado y scroll                         |
-| ClientWallet          | AccountScreens.tsx / WalletScreen                | Saldo, recargas, movimientos, métodos demo y pago de cargos                          |
+| ClientWallet          | payments/WalletScreen.tsx                        | Saldo, recargas, movimientos y pago de cargos                                       |
+| ClientPaymentMethods  | payments/PaymentMethodsScreen.tsx                | Tarjetas y cuentas bancarias por cliente, método principal y eliminación confirmada  |
+| ClientAddPaymentMethod | payments/AddPaymentMethodScreen.tsx             | Alta validada de tarjeta o cuenta bancaria para transferencia                        |
 | ClientAddresses       | AccountScreens.tsx / AddressesScreen             | Añadir, editar, eliminar y seleccionar dirección principal                           |
 | ClientBilling         | AccountScreens.tsx / BillingScreen               | Nombre fiscal, identificación, correo, teléfono, dirección y guardado                |
 | ClientNotifications   | AccountScreens.tsx / NotificationsScreen         | Notificaciones, lectura y enlace al pedido                                           |
@@ -42,6 +44,8 @@ Las implementaciones de la tabla se encuentran en `src/screens`. Autenticación 
 La navegación reinicia la pila al cambiar cuenta, rol o estado de verificación, para impedir regresar a un flujo que ya no corresponda a la sesión. Las secciones principales usan el navegador oficial de pestañas de React Navigation con cambios sin animación lateral y estado persistente. El botón físico de Android vuelve a Inicio o Mi ruta desde una pestaña secundaria; los controles «Atrás» de detalles, mapas y formularios vuelven a su pantalla de origen. Abrir un destino existente reutiliza esa pantalla y evita duplicar el historial. Las pestañas conservan Inicio/Pedidos/Solicitar/Beneficios/Cuenta para cliente y Ruta/Servicios/Historial/Cuenta para chofer; Solicitar abre el asistente sobre la sección actual. Los detalles usan un fundido y los menús se cierran al perder foco.
 
 ## Repositorio y reglas de negocio
+
+Los métodos de pago se gestionan en `src/domain/paymentMethods.ts` mediante operaciones de `LaundryRepository`, con registros por cliente y migración aditiva de los datos locales existentes. Una tarjeta conserva marca, titular, vencimiento y últimos cuatro dígitos; el número completo y CVV no se guardan. Una cuenta de transferencia conserva banco, titular, número y tipo de cuenta. El alta, el método principal y la eliminación no descuentan ni recargan la billetera. Esta gestión no ejecuta cobros ni transferencias bancarias reales ni modifica la selección de pago vigente del pedido.
 
 La traducción de `LaundryRepository.kt` está en `src/domain/repository.ts`. Cada acción opera sobre una copia del estado y solo se publica si termina; un error de saldo, cupo o código no descuenta dinero ni modifica el pedido. Los errores de almacenamiento permanecen visibles y admiten reintento.
 

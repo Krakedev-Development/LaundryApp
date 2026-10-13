@@ -2,11 +2,13 @@
 
 ## Alcance y arquitectura
 
-Este rediseño conserva las 30 rutas originales y agrega ClientSchedule para editar una agenda en una pantalla dedicada. No modifica src/domain, src/store, src/services ni assets. Autenticación, verificación KYC obligatoria, contraseña temporal, dos modalidades vigentes (domicilio completo y pick up), precios por prenda/peso, cupos, cobros, cancelación, transferencias, evidencias, puntos, membresías y chat mantienen sus contratos.
+Este rediseño conserva las rutas originales y agrega ClientSchedule para editar una agenda, además de pantallas independientes para consultar y registrar métodos de pago. Autenticación, verificación KYC obligatoria, contraseña temporal, dos modalidades vigentes (domicilio completo y pick up), precios por prenda/peso, cupos, cobros, cancelación, transferencias de prendas, evidencias, puntos, membresías y chat mantienen sus contratos. La gestión de tarjetas y cuentas bancarias se guarda en el dominio y el store existentes, sin modificar assets ni ejecutar pagos reales.
 
 La auditoría previa está en [UX_AUDIT.md](UX_AUDIT.md). La [matriz funcional del MVP](MVP_NUEVO_FLUJO.md) sigue describiendo las reglas del producto. La lógica permanece separada de la presentación.
 
 ## Tokens
+
+Métodos de pago tiene su propia ruta `ClientPaymentMethods`, independiente de `ClientWallet`. `PaymentsPresentation.tsx` recupera las filas blancas con borde y marca de tarjeta, el distintivo Principal y la vista previa azul del alta de tarjeta de `4fa1bd3`. `ClientAddPaymentMethod` permite guardar una tarjeta o una cuenta bancaria del cliente para transferencia. La billetera conserva su presentación anterior, saldo, cargos, recargas y movimientos; sus reglas financieras y las opciones de pago del pedido no cambian.
 
 El contenido recupera el estilo del commit `4fa1bd3` (`chore: upgrade Expo SDK and dependencies, update app icons, and configure plugins`) mediante `src/design-system/classic.ts`. Se toman sus colores de marca, superficies, tipografía compacta, tarjetas con sombra, chips y acentos de promociones y se aplican a las pantallas del flujo actual.
 

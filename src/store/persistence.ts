@@ -1,4 +1,5 @@
 import { migrateFulfillmentPolicy } from "../domain/fulfillmentPolicy";
+import { migratePaymentMethods } from "../domain/paymentMethods";
 import type { AppState } from "../domain/models";
 
 export const STORAGE_KEY = "laundry.native-migration.v1";
@@ -43,7 +44,7 @@ export function decodeState(raw: string): AppState {
         (s.session.role === "DRIVER" && s.session.id !== s.driver.id)))
   )
     throw Error("Los datos locales no son válidos.");
-  return migrateFulfillmentPolicy(s);
+  return migratePaymentMethods(migrateFulfillmentPolicy(s));
 }
 /** Serializes writes so rapid actions and reset cannot overwrite newer state. */
 export class PersistenceQueue {
