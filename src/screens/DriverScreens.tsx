@@ -42,6 +42,7 @@ import {
 import type { ScreenProps } from "../navigation/routes";
 import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
 import { RouteMetadata, routeStyles } from "../components/DriverRoutePresentation";
+import { DriverSectionTitle, DriverServiceMeta, driverServiceStyles } from "../components/DriverServicePresentation";
 
 function DriverAction({ order }: { order: Order }) {
   const { execute } = useApp();
@@ -279,64 +280,86 @@ export function DriverServiceDetailScreen({
   const destination = pickup ? o.pickup : o.delivery;
   return (
     <Page>
-      <Card>
-        <Title>
-          {o.id} · {pickup ? "Recogida" : "Entrega"}
-        </Title>
-        <StatusChip status={o.status} />
-        <Body>{o.customerName}</Body>
+      <Card style={driverServiceStyles.card}>
+        <View style={driverServiceStyles.heroRow}>
+          <Title style={driverServiceStyles.id}>
+            {o.id} · {pickup ? "Recogida" : "Entrega"}
+          </Title>
+          <StatusChip status={o.status} />
+        </View>
+        <DriverServiceMeta icon="person-outline">
+          <Body style={driverServiceStyles.customer}>{o.customerName}</Body>
+        </DriverServiceMeta>
         <Button
           label="Abrir chat con el cliente"
           icon="chatbubble-outline"
           secondary
+          style={driverServiceStyles.secondary}
           onPress={() => navigation.navigate("Chat", { orderId: o.id })}
         />
       </Card>
-      <Card>
-        <Title>Dirección de destino</Title>
-        <Body>{destination.addressFull}</Body>
-        <Body muted>
-          {destination.date} · {destination.timeSlot}
-        </Body>
+      <Card style={driverServiceStyles.card}>
+        <DriverSectionTitle icon="location-outline">
+          Dirección de destino
+        </DriverSectionTitle>
+        <Body style={driverServiceStyles.text}>{destination.addressFull}</Body>
+        <DriverServiceMeta icon="time-outline">
+          <Body muted style={driverServiceStyles.text}>
+            {destination.date} · {destination.timeSlot}
+          </Body>
+        </DriverServiceMeta>
         {pickup && o.pickup.notes && (
-          <Body>Instrucciones: {o.pickup.notes}</Body>
+          <Body style={driverServiceStyles.notice}>
+            Instrucciones: {o.pickup.notes}
+          </Body>
         )}
         <Button
           label="Ver mapa y navegación"
           icon="map-outline"
           secondary
+          variant="primary"
+          style={driverServiceStyles.primary}
           onPress={() => navigation.navigate("DriverMap", { orderId: o.id })}
         />
       </Card>
-      <Accordion title={"Prendas esperadas (" + garmentCount(o) + ")"}>
-        {o.items.map((i) => (
-          <Body key={i.id}>
-            {i.quantity} × {i.garmentType} · {i.serviceType}
-          </Body>
-        ))}
-        {o.pricingModel === "PER_WEIGHT" && (
-          <Body>Servicio por peso. Confirma el conteo real al recoger.</Body>
-        )}
-      </Accordion>
+      <Card style={driverServiceStyles.accordionCard}>
+        <Accordion
+          title={"Prendas esperadas (" + garmentCount(o) + ")"}
+          appearance="list"
+        >
+          {o.items.map((i) => (
+            <Body key={i.id} style={driverServiceStyles.text}>
+              {i.quantity} × {i.garmentType} · {i.serviceType}
+            </Body>
+          ))}
+          {o.pricingModel === "PER_WEIGHT" && (
+            <Body>Servicio por peso. Confirma el conteo real al recoger.</Body>
+          )}
+        </Accordion>
+      </Card>
       <DriverAction order={o} />
       {o.pickup.garmentCountConfirmed !== undefined && (
-        <Accordion title="Constancia de recogida">
-          <Body>
-            {o.pickup.garmentCountConfirmed} prendas · {o.pickup.pickedUpAt}
-          </Body>
-          <Body>{o.pickup.notes}</Body>
-          {o.pickup.evidencePhotoUri && <Badge>Evidencia adjunta</Badge>}
-        </Accordion>
+        <Card style={driverServiceStyles.accordionCard}>
+          <Accordion title="Constancia de recogida" appearance="list">
+            <Body>
+              {o.pickup.garmentCountConfirmed} prendas · {o.pickup.pickedUpAt}
+            </Body>
+            <Body>{o.pickup.notes}</Body>
+            {o.pickup.evidencePhotoUri && <Badge>Evidencia adjunta</Badge>}
+          </Accordion>
+        </Card>
       )}
       {o.delivery.recipientName && (
-        <Accordion title="Constancia de entrega">
-          <Body>
-            {o.delivery.recipientName} · {o.delivery.recipientRelationship}
-          </Body>
-          <Body muted>{o.delivery.deliveredAt}</Body>
-          <Body>{o.delivery.deliveryNotes}</Body>
-          {o.delivery.evidencePhotoUri && <Badge>Evidencia adjunta</Badge>}
-        </Accordion>
+        <Card style={driverServiceStyles.accordionCard}>
+          <Accordion title="Constancia de entrega" appearance="list">
+            <Body>
+              {o.delivery.recipientName} · {o.delivery.recipientRelationship}
+            </Body>
+            <Body muted>{o.delivery.deliveredAt}</Body>
+            <Body>{o.delivery.deliveryNotes}</Body>
+            {o.delivery.evidencePhotoUri && <Badge>Evidencia adjunta</Badge>}
+          </Accordion>
+        </Card>
       )}
       <DemoPlantActions order={o} />
     </Page>
@@ -366,6 +389,8 @@ export function DriverPickupConfirmScreen({
         <>
           <Button
             label="Confirmar recogida"
+            icon="checkmark-circle-outline"
+            style={driverServiceStyles.primary}
             disabled={
               !checked || !Number.isInteger(Number(count)) || Number(count) < 1
             }
@@ -392,18 +417,27 @@ export function DriverPickupConfirmScreen({
       }
     >
       <Badge>{o.id}</Badge>
-      <Card>
-        <Title>Recepción de prendas</Title>
-        <Body>
-          {o.customerName} · {o.pickup.addressFull}
-        </Body>
+      <Card style={driverServiceStyles.card}>
+        <DriverSectionTitle icon="shirt-outline">
+          Recepción de prendas
+        </DriverSectionTitle>
+        <DriverServiceMeta icon="person-outline">
+          <Body style={driverServiceStyles.text}>
+            {o.customerName} · {o.pickup.addressFull}
+          </Body>
+        </DriverServiceMeta>
         {o.items.map((i) => (
-          <Body key={i.id}>
+          <Body
+            key={i.id}
+            style={[driverServiceStyles.text, driverServiceStyles.garment]}
+          >
             {i.quantity} × {i.garmentType}
           </Body>
         ))}
         <Field
           label="Cantidad de prendas recibidas"
+          labelStyle={driverServiceStyles.label}
+          style={driverServiceStyles.count}
           validate={(value) =>
             !Number.isInteger(Number(value)) || Number(value) < 1
               ? "Ingresa una cantidad entera mayor a cero."
@@ -415,31 +449,44 @@ export function DriverPickupConfirmScreen({
         />
         <Check
           label="Verifiqué las prendas con el cliente"
+          style={[
+            driverServiceStyles.check,
+            checked && driverServiceStyles.checked,
+          ]}
           checked={checked}
           onChange={setChecked}
         />
-        <Accordion title="Observaciones y evidencia (opcional)">
-          <Field
-            label="Observaciones de recogida"
-            value={notes}
-            onChangeText={setNotes}
-            multiline
-          />
-          <PhotoAttachment
-            label="Evidencia de recogida (opcional)"
-            uri={photo}
-            onChange={setPhoto}
-          />
-          <Field
-            label="Código de transferencia (opcional)"
-            value={code}
-            onChangeText={setCode}
-          />
-          <QrScanner onScan={setCode} />
-          <Body muted>
-            Si introduces un código, debe corresponder a esta recogida.
-          </Body>
-        </Accordion>
+        <Card style={driverServiceStyles.accordionCard}>
+          <Accordion
+            title="Observaciones y evidencia (opcional)"
+            appearance="list"
+          >
+            <Field
+              label="Observaciones de recogida"
+              labelStyle={driverServiceStyles.label}
+              style={driverServiceStyles.input}
+              value={notes}
+              onChangeText={setNotes}
+              multiline
+            />
+            <PhotoAttachment
+              label="Evidencia de recogida (opcional)"
+              uri={photo}
+              onChange={setPhoto}
+            />
+            <Field
+              label="Código de transferencia (opcional)"
+              labelStyle={driverServiceStyles.label}
+              style={driverServiceStyles.input}
+              value={code}
+              onChangeText={setCode}
+            />
+            <QrScanner onScan={setCode} />
+            <Body muted style={driverServiceStyles.notice}>
+              Si introduces un código, debe corresponder a esta recogida.
+            </Body>
+          </Accordion>
+        </Card>
         {a.feedback}
       </Card>
     </Page>
