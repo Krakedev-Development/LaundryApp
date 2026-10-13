@@ -41,6 +41,7 @@ import {
 } from "../domain/models";
 import type { ScreenProps } from "../navigation/routes";
 import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
+import { RouteMetadata, routeStyles } from "../components/DriverRoutePresentation";
 
 function DriverAction({ order }: { order: Order }) {
   const { execute } = useApp();
@@ -103,11 +104,17 @@ export function DriverRouteScreen() {
   const next = orders[0];
   return (
     <Page>
-      <Card>
-        <Icon name="navigate-outline" size={32} />
-        <Title>Ruta del día</Title>
-        <Badge>{operationalLabels[d.operationalStatus]}</Badge>
-        <Body>
+      <Card style={routeStyles.summary}>
+        <View style={routeStyles.summaryHeader}>
+          <View style={routeStyles.summaryIcon}>
+            <Icon name="navigate-outline" size={22} />
+          </View>
+          <View style={routeStyles.info}>
+            <Title style={routeStyles.title}>Ruta del día</Title>
+            <Badge>{operationalLabels[d.operationalStatus]}</Badge>
+          </View>
+        </View>
+        <Body style={routeStyles.caption}>
           {d.zoneName} · {orders.length} paradas activas
         </Body>
         <ListItem
@@ -125,6 +132,10 @@ export function DriverRouteScreen() {
             (status) => (
               <Choice
                 key={status}
+                style={[
+                  routeStyles.choice,
+                  d.operationalStatus === status && routeStyles.selectedChoice,
+                ]}
                 label={operationalLabels[status]}
                 selected={d.operationalStatus === status}
                 onPress={() => {
@@ -136,27 +147,36 @@ export function DriverRouteScreen() {
           )}
         </BottomSheet>
       </Card>
-      <Title>Siguiente servicio</Title>
+      <Title style={routeStyles.section}>Siguiente servicio</Title>
       {next ? (
-        <Card>
-          <Title>
-            {next.id} · {next.customerName}
-          </Title>
-          <StatusChip status={next.status} />
-          <Body>
-            {pickupStatuses.includes(next.status)
-              ? next.pickup.addressFull
-              : next.delivery.addressFull}
-          </Body>
-          <Body muted>
-            {pickupStatuses.includes(next.status)
-              ? next.pickup.timeSlot
-              : next.delivery.timeSlot}
-          </Body>
+        <Card style={routeStyles.next}>
+          <View style={routeStyles.nextHeader}>
+            <Title style={routeStyles.id}>{next.id}</Title>
+            <StatusChip status={next.status} />
+          </View>
+          <Title style={routeStyles.customer}>{next.customerName}</Title>
+          <RouteMetadata icon="location-outline">
+            <Body style={routeStyles.address}>
+              {pickupStatuses.includes(next.status)
+                ? next.pickup.addressFull
+                : next.delivery.addressFull}
+            </Body>
+          </RouteMetadata>
+          <View style={routeStyles.time}>
+            <RouteMetadata icon="time-outline">
+              <Body muted style={routeStyles.address}>
+                {pickupStatuses.includes(next.status)
+                  ? next.pickup.timeSlot
+                  : next.delivery.timeSlot}
+              </Body>
+            </RouteMetadata>
+          </View>
           <DriverAction order={next} />
           <Button
             label="Ver detalle del siguiente servicio"
             secondary
+            style={routeStyles.secondary}
+            textStyle={routeStyles.secondaryText}
             onPress={() =>
               navigation.navigate("DriverServiceDetail", { orderId: next.id })
             }
@@ -164,17 +184,20 @@ export function DriverRouteScreen() {
           <Button
             label="Abrir chat con el cliente"
             secondary
+            style={routeStyles.secondary}
+            textStyle={routeStyles.secondaryText}
             onPress={() => navigation.navigate("Chat", { orderId: next.id })}
           />
         </Card>
       ) : (
         <Empty text="No hay paradas activas asignadas. Consulta los próximos servicios." />
       )}
-      <Title>Paradas de tu ruta</Title>
+      <Title style={routeStyles.section}>Paradas de tu ruta</Title>
       {orders.slice(1).map((o) => (
         <OrderCard
           key={o.id}
           order={o}
+          appearance="orders"
           onDetail={() =>
             navigation.navigate("DriverServiceDetail", { orderId: o.id })
           }
@@ -183,6 +206,8 @@ export function DriverRouteScreen() {
       <Button
         label="Ver todos mis servicios"
         secondary
+        style={routeStyles.secondary}
+        textStyle={routeStyles.secondaryText}
         onPress={() => navigation.navigate("DriverServices")}
       />
     </Page>
