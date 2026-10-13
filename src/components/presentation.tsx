@@ -178,20 +178,22 @@ export function SegmentedControl<T extends string>({
   options,
   value,
   onChange,
+  appearance = "default",
 }: {
   options: readonly { value: T; label: string }[];
   value: T;
   onChange(value: T): void;
+  appearance?: "default" | "request";
 }) {
   return (
     <View
       accessibilityRole="radiogroup"
       style={{
         flexDirection: "row",
-        padding: 4,
-        gap: 4,
+        padding: appearance === "request" ? 0 : 4,
+        gap: appearance === "request" ? 10 : 4,
         borderRadius: 16,
-        backgroundColor: colors.soft,
+        backgroundColor: appearance === "request" ? "transparent" : colors.soft,
       }}
     >
       {options.map((o) => (
@@ -208,9 +210,17 @@ export function SegmentedControl<T extends string>({
             borderRadius: 12,
             alignItems: "center",
             justifyContent: "center",
-            padding: 6,
+            padding: appearance === "request" ? 12 : 6,
+            borderWidth: appearance === "request" ? 1.5 : 0,
+            borderColor: value === o.value ? "#93C5FD" : "#E5E7EB",
             backgroundColor:
-              value === o.value ? colors.surface : colors.transparent,
+              appearance === "request"
+                ? value === o.value
+                  ? "#EFF6FF"
+                  : "#FFFFFF"
+                : value === o.value
+                  ? colors.surface
+                  : colors.transparent,
           }}
         >
           <Text
@@ -220,6 +230,9 @@ export function SegmentedControl<T extends string>({
                 color: value === o.value ? colors.primary : colors.muted,
                 fontWeight: value === o.value ? "700" : "500",
                 textAlign: "center",
+                ...(appearance === "request"
+                  ? { fontSize: 13, lineHeight: 19 }
+                  : {}),
               },
             ]}
           >

@@ -18,6 +18,7 @@ import {
   useAction,
 } from "../components/ui";
 import { FulfillmentPicker } from "../components/FulfillmentPicker";
+import { requestStyles } from "../components/FulfillmentPresentation";
 import { useApp } from "../store/AppProvider";
 import { calculatePricing, currentCustomer } from "../domain/repository";
 import { extras, garments, services } from "../domain/catalog";
@@ -259,12 +260,15 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
   return (
     <Page
       scrollResetKey={step}
+      backgroundColor={step < 3 ? "#FFFFFF" : undefined}
       onBack={() => (step > 1 ? setStep(step - 1) : navigation.goBack())}
       footer={
         <>
           <Button
             label={step === 5 ? "Confirmar solicitud" : "Continuar"}
             disabled={!canContinue}
+            style={step < 3 ? requestStyles.next : undefined}
+            icon={step < 3 ? "arrow-forward" : undefined}
             onPress={next}
           />
           <Button
@@ -293,22 +297,29 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
           <>
             <FulfillmentPicker
               leg="INBOUND"
+              appearance="request"
               value={inbound}
               onChange={setInbound}
             />
-            <Accordion title="Instrucciones de recogida (opcional)">
-              <Field
-                label="Instrucciones de recogida"
-                value={notes}
-                onChangeText={setNotes}
-                multiline
-              />
-            </Accordion>
+            <Card style={requestStyles.noteCard}>
+              <Accordion
+                title="Instrucciones de recogida (opcional)"
+                appearance="list"
+              >
+                <Field
+                  label="Instrucciones de recogida"
+                  value={notes}
+                  onChangeText={setNotes}
+                  multiline
+                />
+              </Accordion>
+            </Card>
           </>
         )}
         {step === 2 && (
           <FulfillmentPicker
             leg="OUTBOUND"
+            appearance="request"
             value={outbound}
             onChange={setOutbound}
           />

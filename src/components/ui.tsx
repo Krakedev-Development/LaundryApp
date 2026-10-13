@@ -375,11 +375,15 @@ export function Choice({
   selected,
   onPress,
   disabled = false,
+  style,
+  textStyle,
 }: {
   label: string;
   selected: boolean;
   onPress(): void;
   disabled?: boolean;
+  style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
 }) {
   return (
     <Pressable
@@ -407,13 +411,14 @@ export function Choice({
               ? theme.opacity.pressed
               : 1,
         },
+        style,
       ]}
     >
       <Icon
         name={selected ? "radio-button-on" : "radio-button-off"}
         size={20}
       />
-      <Text style={[ui.text, { flexShrink: 1 }]}>{label}</Text>
+      <Text style={[ui.text, { flexShrink: 1 }, textStyle]}>{label}</Text>
     </Pressable>
   );
 }

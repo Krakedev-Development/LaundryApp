@@ -10,17 +10,24 @@ import {
 } from "../domain/repository";
 import type { Leg } from "../domain/models";
 import { Badge, Body, Button, Card, Choice, Title } from "./ui";
-import { ListItem, SegmentedControl } from "./presentation";
+import { SegmentedControl } from "./presentation";
+import {
+  FulfillmentHint,
+  FulfillmentRow,
+  requestStyles,
+} from "./FulfillmentPresentation";
 import { BottomSheet } from "./overlay/OverlayPortal";
 import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
 export function FulfillmentPicker({
   leg,
   value,
   onChange,
+  appearance = "default",
 }: {
   leg: "INBOUND" | "OUTBOUND";
   value: Leg;
   onChange(value: Leg): void;
+  appearance?: "default" | "request";
 }) {
   const { state } = useApp(),
     c = currentCustomer(state),
@@ -51,14 +58,19 @@ export function FulfillmentPicker({
   const customerLabel = "Pick up · retiro en sede";
   return (
     <View style={{ gap: 16 }}>
-      <Card>
-        <Title>
+      <Card style={appearance === "request" && requestStyles.card}>
+        <Title style={appearance === "request" && requestStyles.sectionTitle}>
           {leg === "INBOUND" ? "Recogida a domicilio" : "Cómo recibes tu ropa"}
         </Title>
         {leg === "INBOUND" ? (
-          <Body>Chofer recoge en domicilio</Body>
+          <FulfillmentHint active={appearance === "request"}>
+            <Body style={appearance === "request" && requestStyles.hintText}>
+              Chofer recoge en domicilio
+            </Body>
+          </FulfillmentHint>
         ) : (
           <SegmentedControl
+            appearance={appearance}
             options={[
               { value: "DRIVER", label: driverLabel },
               { value: "CUSTOMER", label: customerLabel },
@@ -67,7 +79,9 @@ export function FulfillmentPicker({
             onChange={changeMethod}
           />
         )}
-        <ListItem
+        <FulfillmentRow
+          appearance={appearance}
+          selected={!!value.addressFull}
           title={value.method === "DRIVER" ? "Elegir dirección" : "Elegir sede"}
           subtitle={value.addressFull || "Selecciona dónde"}
           icon={
@@ -75,7 +89,9 @@ export function FulfillmentPicker({
           }
           onPress={() => setPanel("place")}
         />
-        <ListItem
+        <FulfillmentRow
+          appearance={appearance}
+          selected={!!value.timeSlotId}
           title="Elegir fecha y horario"
           subtitle={
             value.timeSlotId
@@ -96,6 +112,14 @@ export function FulfillmentPicker({
             {c.addresses.map((address) => (
               <Choice
                 key={address.id}
+                style={
+                  appearance === "request" && [
+                    requestStyles.choice,
+                    value.addressId === address.id &&
+                      requestStyles.selectedChoice,
+                  ]
+                }
+                textStyle={appearance === "request" && requestStyles.choiceText}
                 label={address.title + " · " + address.fullAddress}
                 selected={value.addressId === address.id}
                 onPress={() => {
@@ -128,6 +152,15 @@ export function FulfillmentPicker({
             .map((f) => (
               <View key={f.id} style={{ gap: 4 }}>
                 <Choice
+                  style={
+                    appearance === "request" && [
+                      requestStyles.choice,
+                      value.facilityId === f.id && requestStyles.selectedChoice,
+                    ]
+                  }
+                  textStyle={
+                    appearance === "request" && requestStyles.choiceText
+                  }
                   label={f.name + " · " + f.address}
                   selected={value.facilityId === f.id}
                   onPress={() => {
@@ -156,6 +189,14 @@ export function FulfillmentPicker({
         {dates.map((d) => (
           <Choice
             key={d}
+            style={
+              appearance === "request" && [
+                requestStyles.choice,
+                requestStyles.date,
+                d === selectedDate && requestStyles.selectedChoice,
+              ]
+            }
+            textStyle={appearance === "request" && requestStyles.choiceText}
             label={d}
             selected={d === selectedDate}
             onPress={() => {
@@ -180,6 +221,16 @@ export function FulfillmentPicker({
             return (
               <View key={slot.id} style={{ gap: 4 }}>
                 <Choice
+                  style={
+                    appearance === "request" && [
+                      requestStyles.choice,
+                      value.timeSlotId === slot.id &&
+                        requestStyles.selectedChoice,
+                    ]
+                  }
+                  textStyle={
+                    appearance === "request" && requestStyles.choiceText
+                  }
                   label={slot.date + " · " + slotRange(slot)}
                   disabled={!available && slot.id !== value.timeSlotId}
                   selected={value.timeSlotId === slot.id}
