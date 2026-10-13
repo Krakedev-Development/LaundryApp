@@ -21,6 +21,7 @@ import {
 } from "../components/ui";
 import { FulfillmentPicker } from "../components/FulfillmentPicker";
 import { requestStyles } from "../components/FulfillmentPresentation";
+import { ScheduledCheck, ScheduledInfo, scheduledStyles } from "../components/ScheduledPresentation";
 import { ConfirmationGroup, confirmationStyles } from "../components/ConfirmationPresentation";
 import { ExtraContent, GarmentSurface, extraTone, garmentStyles } from "../components/GarmentsExtrasPresentation";
 import { useApp } from "../store/AppProvider";
@@ -268,21 +269,41 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
     );
   if (confirmedId)
     return (
-      <Page>
-        <Card>
-          <Title>Solicitud agendada</Title>
-          <Badge>{confirmedId}</Badge>
-          <Body>{modeLabels[modeFor(inbound.method, outbound.method)]}</Body>
-          <Body>
-            {inbound.scheduledDate} · {inbound.timeSlotText}
-          </Body>
-          <Body>
-            {model === "PER_WEIGHT"
-              ? "El pago se confirma después del pesaje certificado."
-              : `Pago demo confirmado: ${money(pricing.total)}.`}
-          </Body>
+      <Page
+        backgroundColor="#F9FAFB"
+        contentContainerStyle={scheduledStyles.page}
+      >
+        <Card style={scheduledStyles.card}>
+          <ScheduledCheck />
+          <Title style={scheduledStyles.title}>Solicitud agendada</Title>
+          <View style={scheduledStyles.id}>
+            <Badge>{confirmedId}</Badge>
+          </View>
+          <View style={scheduledStyles.info}>
+            <ScheduledInfo icon="location-outline">
+              <Body style={scheduledStyles.text}>
+                {modeLabels[modeFor(inbound.method, outbound.method)]}
+              </Body>
+            </ScheduledInfo>
+            <View style={scheduledStyles.divider} />
+            <ScheduledInfo icon="calendar-outline">
+              <Body style={scheduledStyles.text}>
+                {inbound.scheduledDate} · {inbound.timeSlotText}
+              </Body>
+            </ScheduledInfo>
+            <View style={scheduledStyles.divider} />
+            <ScheduledInfo icon="wallet-outline">
+              <Body style={scheduledStyles.text}>
+                {model === "PER_WEIGHT"
+                  ? "El pago se confirma después del pesaje certificado."
+                  : `Pago demo confirmado: ${money(pricing.total)}.`}
+              </Body>
+            </ScheduledInfo>
+          </View>
           <Button
             label="Ver mi solicitud"
+            icon="arrow-forward"
+            style={scheduledStyles.action}
             onPress={() =>
               navigation.replace("ClientOrderDetail", { orderId: confirmedId })
             }
@@ -290,6 +311,8 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
           <Button
             label="Volver al inicio"
             secondary
+            style={scheduledStyles.secondary}
+            textStyle={scheduledStyles.secondaryText}
             onPress={() => navigation.navigate("ClientHome")}
           />
         </Card>
