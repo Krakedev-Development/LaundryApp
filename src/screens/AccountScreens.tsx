@@ -11,7 +11,6 @@ import {
 import { useState } from "react";
 import { Text, View } from "react-native";
 import { Page } from "../components/Page";
-import { AccountDemoTools } from "../components/AccountDemoTools";
 import {
   BenefitIcon,
   PointsSummary,
@@ -126,7 +125,6 @@ export function ClientProfileScreen() {
           onPress={() => navigation.navigate("ClientSupport")}
         />
       </ProfileSection>
-      <AccountDemoTools />
       <ProfileLogout onPress={() => execute((r) => r.logout())} />
     </Page>
   );
@@ -610,7 +608,6 @@ export function DriverProfileScreen() {
           </Body>
         </View>
       </ProfileSection>
-      <AccountDemoTools />
       <ProfileLogout onPress={() => execute((r) => r.logout())} />
     </Page>
   );

@@ -9,10 +9,10 @@ test.beforeEach(async ({ page }) => {
 async function switchRole(page, role) {
   await page.getByRole("tab", { name: "Perfil", exact: true }).click();
   await page
-    .getByRole("button", { name: "Herramientas de demostración", exact: true })
+    .getByRole("button", { name: "Cerrar sesión", exact: true })
     .click();
   await page
-    .getByRole("button", { name: `Cambiar a ${role} demo`, exact: true })
+    .getByRole("button", { name: role === "chofer" ? "Chofer demo" : "Cliente demo", exact: true })
     .click();
 }
 async function slot(page) {

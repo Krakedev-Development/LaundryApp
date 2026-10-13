@@ -66,7 +66,7 @@ Los logos oficiales se conservan. Personas, documentos y evidencias se represent
 - useAction: errores humanos, confirmación visible y exclusión de envíos asincrónicos simultáneos. Las operaciones síncronas siguen siendo transacciones del dominio.
 - HandoffCard/HandoffCodeSheet: código a demanda, QR/manual y regeneración con feedback.
 
-En desarrollo, Perfil → Herramientas de demostración → Catálogo de componentes permite inspeccionar variantes, selección, validación, carga y estados. Está condicionado por **DEV** y no altera datos del producto.
+Perfil no presenta herramientas de demostración ni acceso al catálogo de componentes.
 
 ## Navegación
 
@@ -108,7 +108,7 @@ El MVP usa AsyncStorage local. No se agregan pull-to-refresh, indicadores de con
 
 Listas de solicitudes, servicios, historial, movimientos, notificaciones y chat usan FlatList fuera de un ScrollView padre. El seguimiento solo ejecuta su simulación cuando está visible, el tramo está en camino y el usuario permite movimiento. El mapa es dominante y conserva la advertencia demo y los enlaces reales de Google Maps/Waze.
 
-Las acciones de demostración se agrupan en Perfil → Herramientas de demostración mediante AccountDemoTools. Cambio de cuenta demo, reset con confirmación y catálogo de desarrollo conservan su comportamiento; los paneles se cierran al salir de Cuenta. Estas opciones deben retirarse al conectar el producto a servicios de producción. El rediseño no cambia el alcance local del prototipo.
+Las herramientas de demostración se retiraron del perfil de cliente y chofer. Los accesos de cliente demo y chofer demo permanecen en el login. El alcance local del prototipo se conserva.
 
 ## Accesibilidad y adaptación
 
