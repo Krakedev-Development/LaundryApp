@@ -55,6 +55,7 @@ import type { ScreenProps } from "../navigation/routes";
 import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
 import { contentColors } from "../design-system/classic";
 import { HomeMetric, homeStyles } from "../components/HomePresentation";
+import { ordersStyles } from "../components/OrdersPresentation";
 
 export function ClientHomeScreen() {
   const navigation = useLaundryNavigation();
@@ -163,7 +164,7 @@ export function ClientOrdersScreen() {
   );
   return (
     <Page scroll={false}>
-      <Title>Mis solicitudes</Title>
+      <Title style={ordersStyles.screenTitle}>Mis solicitudes</Title>
       <SegmentedControl
         value={history ? "history" : "active"}
         onChange={(v) => setHistory(v === "history")}
@@ -181,10 +182,13 @@ export function ClientOrdersScreen() {
         label={mode === "ALL" ? "Filtrar modalidad" : modeLabels[mode]}
         icon="options-outline"
         secondary
+        style={ordersStyles.filter}
+        textStyle={ordersStyles.filterText}
         onPress={() => setFilters(true)}
       />
       <OrderList
         orders={orders}
+        appearance="orders"
         onDetail={(o) =>
           navigation.navigate("ClientOrderDetail", { orderId: o.id })
         }

@@ -2,6 +2,7 @@ import { contentColors } from "../design-system/classic";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Body, Button, Card, Icon, Title, ui } from "./ui";
 import { StatusChip } from "./presentation";
+import { OrderMetadata, ordersStyles } from "./OrdersPresentation";
 import {
   canTrack,
   garmentCount,
@@ -18,11 +19,18 @@ export function OrderCard({
   order: Order;
   onDetail(): void;
   onTrack?(): void;
-  appearance?: "default" | "home";
+  appearance?: "default" | "home" | "orders";
 }) {
   const home = appearance === "home";
+  const orders = appearance === "orders";
   return (
-    <Card style={[{ padding: 0 }, home && homeOrderStyles.card]}>
+    <Card
+      style={[
+        { padding: 0 },
+        home && homeOrderStyles.card,
+        orders && ordersStyles.card,
+      ]}
+    >
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={"Ver detalle de " + order.id}
@@ -33,37 +41,81 @@ export function OrderCard({
           opacity: pressed ? 0.8 : 1,
         })}
       >
-        <View style={[ui.row, { justifyContent: "space-between" }]}>
-          <Title style={home && homeOrderStyles.title}>{order.id}</Title>
-          <Icon name="chevron-forward" size={18} />
+        <View
+          style={
+            orders
+              ? ordersStyles.header
+              : [ui.row, { justifyContent: "space-between" }]
+          }
+        >
+          <Title
+            style={orders ? ordersStyles.id : home && homeOrderStyles.title}
+          >
+            {order.id}
+          </Title>
+          <OrderMetadataContainer
+            active={orders}
+            style={ordersStyles.headerStatus}
+          >
+            {orders && <StatusChip status={order.status} />}
+            <Icon name="chevron-forward" size={18} />
+          </OrderMetadataContainer>
         </View>
-        <StatusChip status={order.status} />
-        <Body muted style={home && homeOrderStyles.caption}>
-          {modeLabels[order.fulfillmentPlan.mode]}
-        </Body>
-        <Body muted style={home && homeOrderStyles.caption}>
-          {order.pricingModel === "PER_WEIGHT"
-            ? "Ropa por peso · $2.20 / lb"
-            : garmentCount(order) +
-              " prendas · " +
-              (order.items[0]?.serviceType ?? "Lavado y cuidado")}
-        </Body>
+        {!orders && <StatusChip status={order.status} />}
+        <OrderMetadataRow active={orders} icon="location-outline">
+          <Body
+            muted
+            style={orders ? ordersStyles.mode : home && homeOrderStyles.caption}
+          >
+            {modeLabels[order.fulfillmentPlan.mode]}
+          </Body>
+        </OrderMetadataRow>
+        <OrderMetadataRow active={orders} icon="water-outline">
+          <Body
+            muted
+            style={
+              orders ? ordersStyles.service : home && homeOrderStyles.caption
+            }
+          >
+            {order.pricingModel === "PER_WEIGHT"
+              ? "Ropa por peso · $2.20 / lb"
+              : garmentCount(order) +
+                " prendas · " +
+                (order.items[0]?.serviceType ?? "Lavado y cuidado")}
+          </Body>
+        </OrderMetadataRow>
         <View
           style={[
-            ui.row,
+            orders ? ordersStyles.footer : ui.row,
             {
               justifyContent: "space-between",
               borderTopWidth: 1,
-              borderTopColor: home ? "#BFDBFE" : contentColors.divider,
+              borderTopColor: orders
+                ? "#F3F4F6"
+                : home
+                  ? "#BFDBFE"
+                  : contentColors.divider,
               paddingTop: 8,
               marginTop: 4,
             },
           ]}
         >
-          <Body muted style={home && homeOrderStyles.caption}>
-            {order.pickup.date} · {order.pickup.timeSlot}
-          </Body>
-          <Body style={home && homeOrderStyles.amount}>
+          <OrderMetadataContainer active={orders} style={ordersStyles.time}>
+            {orders && <Icon name="time-outline" size={12} color="#9CA3AF" />}
+            <Body
+              muted
+              style={
+                orders ? ordersStyles.caption : home && homeOrderStyles.caption
+              }
+            >
+              {order.pickup.date} · {order.pickup.timeSlot}
+            </Body>
+          </OrderMetadataContainer>
+          <Body
+            style={
+              orders ? ordersStyles.amount : home && homeOrderStyles.amount
+            }
+          >
             {order.pricingStatus === "PENDING_WEIGHT"
               ? "Monto por determinar"
               : money(order.pricing.total)}
@@ -76,12 +128,42 @@ export function OrderCard({
             label="Seguir chofer"
             icon="navigate-outline"
             secondary
+            style={orders && ordersStyles.trackAction}
+            textStyle={orders && ordersStyles.trackText}
             onPress={onTrack}
           />
         </View>
       )}
     </Card>
   );
+}
+
+function OrderMetadataRow({
+  active,
+  icon,
+  children,
+}: {
+  active: boolean;
+  icon: React.ComponentProps<typeof Icon>["name"];
+  children: React.ReactNode;
+}) {
+  return active ? (
+    <OrderMetadata icon={icon}>{children}</OrderMetadata>
+  ) : (
+    <>{children}</>
+  );
+}
+
+function OrderMetadataContainer({
+  active,
+  style,
+  children,
+}: {
+  active: boolean;
+  style: React.ComponentProps<typeof View>["style"];
+  children: React.ReactNode;
+}) {
+  return active ? <View style={style}>{children}</View> : <>{children}</>;
 }
 
 const homeOrderStyles = StyleSheet.create({

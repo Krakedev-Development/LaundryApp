@@ -7,11 +7,13 @@ export function OrderList({
   onDetail,
   onTrack,
   onClear,
+  appearance = "default",
 }: {
   orders: Order[];
   onDetail(order: Order): void;
   onTrack?(order: Order): void;
   onClear?(): void;
+  appearance?: "default" | "orders";
 }) {
   return (
     <FlatList
@@ -20,6 +22,7 @@ export function OrderList({
       renderItem={({ item }) => (
         <OrderCard
           order={item}
+          appearance={appearance}
           onDetail={() => onDetail(item)}
           onTrack={onTrack ? () => onTrack(item) : undefined}
         />
