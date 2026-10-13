@@ -256,6 +256,7 @@ export function IconButton({
 }
 export function Field({
   label,
+  labelStyle,
   leadingIcon,
   labelAccessory,
   help,
@@ -267,6 +268,7 @@ export function Field({
   ...props
 }: TextInputProps & {
   label: string;
+  labelStyle?: StyleProp<TextStyle>;
   leadingIcon?: IconName;
   labelAccessory?: React.ReactNode;
   help?: string;
@@ -303,8 +305,10 @@ export function Field({
             ui.muted,
             {
               fontWeight: "600",
-              color: problem ? contentColors.danger : contentColors.text,
+              color: contentColors.text,
             },
+            labelStyle,
+            problem && { color: contentColors.danger },
           ]}
         >
           {label}

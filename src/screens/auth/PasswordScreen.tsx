@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { Page } from "../../components/Page";
-import { Body, Button, Card, Field, Icon, Title, useAction } from "../../components/ui";
+import { Body, Button, Card, Field, useAction } from "../../components/ui";
+import {
+  PasswordHint,
+  passwordStyles,
+} from "../../components/PasswordPresentation";
 import { useApp } from "../../store/AppProvider";
 import { passwordHash } from "../../services/passwordHash";
 
@@ -16,6 +20,8 @@ export function PasswordScreen({ forced = false }: { forced?: boolean }) {
         <>
           <Button
             label="Guardar contraseña"
+            style={passwordStyles.saveAction}
+            textStyle={passwordStyles.saveText}
             disabled={!password || !confirm || (!forced && !current)}
             busy={a.busy}
             onPress={() => {
@@ -40,19 +46,21 @@ export function PasswordScreen({ forced = false }: { forced?: boolean }) {
         </>
       }
     >
-      <Card>
-        <Icon name="lock-closed-outline" size={38} />
-        <Title>
-          {forced ? "Crea tu contraseña definitiva" : "Actualizar contraseña"}
-        </Title>
-        <Body>
-          {forced
-            ? "Tu cuenta tiene una contraseña temporal. Debes cambiarla antes de ingresar a la ruta."
-            : "Ingresa tu contraseña actual y una nueva contraseña."}
-        </Body>
+      <PasswordHint
+        title={
+          forced ? "Crea tu contraseña definitiva" : "Actualizar contraseña"
+        }
+      >
+        {forced
+          ? "Tu cuenta tiene una contraseña temporal. Debes cambiarla antes de ingresar a la ruta."
+          : "Ingresa tu contraseña actual y una nueva contraseña."}
+      </PasswordHint>
+      <Card style={passwordStyles.card}>
         {!forced && (
           <Field
             label="Contraseña actual"
+            labelStyle={passwordStyles.label}
+            style={passwordStyles.input}
             secureTextEntry
             value={current}
             onChangeText={setCurrent}
@@ -60,6 +68,8 @@ export function PasswordScreen({ forced = false }: { forced?: boolean }) {
         )}
         <Field
           label="Nueva contraseña"
+          labelStyle={passwordStyles.label}
+          style={passwordStyles.input}
           help="Mínimo 8 caracteres, una mayúscula y un número."
           secureTextEntry
           value={password}
@@ -67,6 +77,8 @@ export function PasswordScreen({ forced = false }: { forced?: boolean }) {
         />
         <Field
           label="Confirmar contraseña"
+          labelStyle={passwordStyles.label}
+          style={passwordStyles.input}
           validate={(v) =>
             v !== password ? "Las contraseñas no coinciden." : undefined
           }
@@ -74,7 +86,9 @@ export function PasswordScreen({ forced = false }: { forced?: boolean }) {
           value={confirm}
           onChangeText={setConfirm}
         />
-        <Body muted>Mínimo 8 caracteres, una mayúscula y un número.</Body>
+        <Body muted style={passwordStyles.requirement}>
+          Mínimo 8 caracteres, una mayúscula y un número.
+        </Body>
         {a.feedback}
 
         {forced && (

@@ -8,6 +8,8 @@ La auditoría previa está en [UX_AUDIT.md](UX_AUDIT.md). La [matriz funcional d
 
 ## Tokens
 
+Seguridad y contraseña recupera de `4fa1bd3` el aviso azul suave con escudo, la tarjeta blanca con borde y los campos gris claro con etiquetas compactas. `PasswordPresentation.tsx` concentra su presentación y `PasswordScreen` conserva validaciones, hash, persistencia, feedback y el botón de guardado en el footer actual. El formulario compartido de contraseña temporal mantiene sus condiciones y cierre de sesión. `Field.labelStyle` permite adaptar las etiquetas únicamente donde se solicita; los demás campos conservan su presentación y los colores de error siguen siendo prioritarios.
+
 Ayuda y soporte recupera de `4fa1bd3` las secciones con títulos compactos, la tarjeta blanca de contacto con ícono azul y las preguntas agrupadas con divisores. `SupportPresentation.tsx` contiene los estilos; `src/screens/support/SupportScreen.tsx` conserva la acción de correo vigente y `faqs.ts` las seis preguntas actuales. La apariencia `list` de Accordion permite esta agrupación y conserva la apertura independiente, el estado inicial cerrado y la respuesta a movimiento reducido. El header y navbar actuales permanecen iguales.
 
 Notificaciones conserva sus filtros Todas/Sin leer y las acciones de lectura y navegación al pedido. `NotificationsPresentation.tsx` recupera las tarjetas compactas de `4fa1bd3`, con fondo azul suave y un punto para avisos pendientes, íconos por categoría y hora discreta. Se mantiene el texto completo y el botón de acción actual. La pantalla se ubica en `src/screens/notifications/NotificationsScreen.tsx`, y el header y navbar vigentes permanecen iguales.
