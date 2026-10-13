@@ -426,10 +426,14 @@ export function Check({
   label,
   checked,
   onChange,
+  children,
+  style,
 }: {
   label: string;
   checked: boolean;
   onChange(value: boolean): void;
+  children?: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
 }) {
   return (
     <Pressable
@@ -441,10 +445,14 @@ export function Check({
         tactile("selection");
         onChange(!checked);
       }}
-      style={[ui.row, { minHeight: theme.layout.touch }]}
+      style={[ui.row, { minHeight: theme.layout.touch }, style]}
     >
-      <Icon name={checked ? "checkbox" : "square-outline"} />
-      <Text style={[ui.text, { flex: 1 }]}>{label}</Text>
+      {children ?? (
+        <>
+          <Icon name={checked ? "checkbox" : "square-outline"} />
+          <Text style={[ui.text, { flex: 1 }]}>{label}</Text>
+        </>
+      )}
     </Pressable>
   );
 }

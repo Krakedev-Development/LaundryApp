@@ -2,7 +2,7 @@ import { Accordion, ListItem, Stepper } from "../components/presentation";
 import { BottomSheet } from "../components/overlay/OverlayPortal";
 import { MotionSection } from "../design-system/MotionProvider";
 import { useRef, useState } from "react";
-import { View } from "react-native";
+import { Text, View } from "react-native";
 import { Page } from "../components/Page";
 import {
   Badge,
@@ -16,9 +16,11 @@ import {
   Title,
   ui,
   useAction,
+  type IconName,
 } from "../components/ui";
 import { FulfillmentPicker } from "../components/FulfillmentPicker";
 import { requestStyles } from "../components/FulfillmentPresentation";
+import { ExtraContent, GarmentSurface, extraTone, garmentStyles } from "../components/GarmentsExtrasPresentation";
 import { useApp } from "../store/AppProvider";
 import { calculatePricing, currentCustomer } from "../domain/repository";
 import { extras, garments, services } from "../domain/catalog";
@@ -260,15 +262,21 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
   return (
     <Page
       scrollResetKey={step}
-      backgroundColor={step < 3 ? "#FFFFFF" : undefined}
+      backgroundColor={step < 5 ? "#FFFFFF" : undefined}
       onBack={() => (step > 1 ? setStep(step - 1) : navigation.goBack())}
       footer={
         <>
           <Button
             label={step === 5 ? "Confirmar solicitud" : "Continuar"}
             disabled={!canContinue}
-            style={step < 3 ? requestStyles.next : undefined}
-            icon={step < 3 ? "arrow-forward" : undefined}
+            style={
+              step < 3
+                ? requestStyles.next
+                : step < 5
+                  ? garmentStyles.next
+                  : undefined
+            }
+            icon={step < 5 ? "arrow-forward" : undefined}
             onPress={next}
           />
           <Button
@@ -326,23 +334,37 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
         )}
         {step === 3 && (
           <>
-            <Card>
-              <Title>Cómo calculamos el servicio</Title>
+            <Card style={garmentStyles.card}>
+              <Title style={garmentStyles.sectionTitle}>
+                Cómo calculamos el servicio
+              </Title>
               <Choice
                 label="Por prenda · Precio fijo"
+                style={[
+                  garmentStyles.choice,
+                  model === "FIXED" && garmentStyles.selectedChoice,
+                ]}
+                textStyle={garmentStyles.choiceText}
                 selected={model === "FIXED"}
                 onPress={() => setModel("FIXED")}
               />
               <Choice
                 label="Ropa por peso · $2.20 / lb"
+                style={[
+                  garmentStyles.choice,
+                  model === "PER_WEIGHT" && garmentStyles.selectedChoice,
+                ]}
+                textStyle={garmentStyles.choiceText}
                 selected={model === "PER_WEIGHT"}
                 onPress={() => setModel("PER_WEIGHT")}
               />
             </Card>
             {model === "PER_WEIGHT" ? (
-              <Card>
+              <Card style={garmentStyles.card}>
                 <Field
                   label="Peso estimado en libras"
+                  style={garmentStyles.input}
+                  labelStyle={garmentStyles.label}
                   validate={(value) =>
                     !Number.isFinite(Number(value)) || Number(value) <= 0
                       ? "Ingresa un peso mayor a cero."
@@ -358,7 +380,7 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
               </Card>
             ) : (
               <>
-                <Card>
+                <Card style={garmentStyles.card}>
                   <ListItem
                     title="Elegir servicio"
                     subtitle={service}
@@ -374,6 +396,11 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
                       <Choice
                         key={s.id}
                         label={`${s.name} · adicional ${money(s.extraPrice)}`}
+                        style={[
+                          garmentStyles.choice,
+                          service === s.name && garmentStyles.selectedChoice,
+                        ]}
+                        textStyle={garmentStyles.choiceText}
                         selected={service === s.name}
                         onPress={() => {
                           setService(s.name);
@@ -394,25 +421,42 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
                     ))}
                   </BottomSheet>
                 </Card>
-                <Card>
-                  <Title>Catálogo completo</Title>
+                <Card style={garmentStyles.catalog}>
+                  <Title style={garmentStyles.sectionTitle}>
+                    Catálogo completo
+                  </Title>
                   {garments.map((g) => {
                     const selected = items.find((i) => i.id === g.id);
                     return (
-                      <View
+                      <GarmentSurface
                         key={g.id}
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: 4,
-                          borderBottomWidth: 1,
-                          borderBottomColor: ui.card.borderColor,
-                          paddingVertical: 8,
-                        }}
+                        icon={g.iconKey as IconName}
+                        controls={
+                          <>
+                            <View style={garmentStyles.quantityButton}>
+                              <IconButton
+                                label={"Quitar " + g.name}
+                                icon="remove"
+                                onPress={() => changeCount(g.id, -1)}
+                                disabled={!selected}
+                              />
+                            </View>
+                            <Text style={garmentStyles.quantity}>
+                              {selected?.quantity ?? 0}
+                            </Text>
+                            <View style={garmentStyles.quantityButton}>
+                              <IconButton
+                                label={"Agregar " + g.name}
+                                icon="add"
+                                onPress={() => changeCount(g.id, 1)}
+                              />
+                            </View>
+                          </>
+                        }
                       >
                         <View style={{ flex: 1, gap: 4 }}>
-                          <Body>{g.name}</Body>
-                          <Body muted>
+                          <Body style={garmentStyles.name}>{g.name}</Body>
+                          <Body muted style={garmentStyles.description}>
                             {g.category} · {g.estimatedHours} h ·{" "}
                             {money(
                               selected?.unitPrice ??
@@ -425,22 +469,12 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
                             por unidad
                           </Body>
                           {selected && (
-                            <Body muted>{selected.serviceType}</Body>
+                            <Body muted style={garmentStyles.service}>
+                              {selected.serviceType}
+                            </Body>
                           )}
                         </View>
-                        <IconButton
-                          label={"Quitar " + g.name}
-                          icon="remove"
-                          onPress={() => changeCount(g.id, -1)}
-                          disabled={!selected}
-                        />
-                        <Badge>{selected?.quantity ?? 0}</Badge>
-                        <IconButton
-                          label={"Agregar " + g.name}
-                          icon="add"
-                          onPress={() => changeCount(g.id, 1)}
-                        />
-                      </View>
+                      </GarmentSurface>
                     );
                   })}
                 </Card>
@@ -449,12 +483,21 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
           </>
         )}
         {step === 4 && (
-          <Card>
-            <Title>Personaliza tu cuidado</Title>
+          <Card style={garmentStyles.catalog}>
+            <Title style={garmentStyles.sectionTitle}>
+              Personaliza tu cuidado
+            </Title>
             {extras.map((e) => (
               <View key={e.id} style={{ gap: 4 }}>
                 <Check
                   label={`${e.name} · ${money(e.price)}`}
+                  style={[
+                    garmentStyles.extra,
+                    extraIds.includes(e.id) && garmentStyles.selectedExtra,
+                    extraIds.includes(e.id) && {
+                      borderColor: extraTone(e.id).color,
+                    },
+                  ]}
                   checked={extraIds.includes(e.id)}
                   onChange={(selected) =>
                     setExtraIds(
@@ -463,8 +506,15 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
                         : extraIds.filter((id) => id !== e.id),
                     )
                   }
-                />
-                <Body muted>{e.description}</Body>
+                >
+                  <ExtraContent
+                    id={e.id}
+                    name={e.name}
+                    description={e.description}
+                    price={money(e.price)}
+                    checked={extraIds.includes(e.id)}
+                  />
+                </Check>
               </View>
             ))}
           </Card>
