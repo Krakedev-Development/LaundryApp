@@ -1,14 +1,13 @@
 import { contentTheme } from "../../design-system/classic";
 import { BottomSheet } from "../../components/overlay/OverlayPortal";
 import { useState } from "react";
-import { FlatList, View } from "react-native";
+import { FlatList, Text, View } from "react-native";
 import { Page } from "../../components/Page";
 import {
   Badge,
   Body,
   Button,
   Card,
-  Choice,
   Empty,
   Field,
   Icon,
@@ -18,6 +17,12 @@ import {
 import { useApp } from "../../store/AppProvider";
 import { currentCustomer } from "../../domain/repository";
 import { money } from "../../domain/models";
+import {
+  RechargeAmountChoice,
+  RechargeBalance,
+  RechargeSummary,
+  rechargeStyles,
+} from "../../components/RechargePresentation";
 
 export function WalletScreen() {
   const { state, execute } = useApp();
@@ -134,39 +139,56 @@ export function WalletScreen() {
         title="Recargar billetera"
         visible={recharge}
         onClose={() => setRecharge(false)}
+        footer={
+          <>
+            {a.feedback}
+            <Button
+              label="Confirmar recarga · Demo"
+              icon="wallet-outline"
+              style={rechargeStyles.confirm}
+              disabled={!Number.isFinite(Number(amount)) || Number(amount) <= 0}
+              onPress={() => {
+                if (
+                  a.run(
+                    () => execute((r) => r.addWalletCredit(Number(amount))),
+                    "Saldo recargado.",
+                  )
+                )
+                  setRecharge(false);
+              }}
+            />
+            <Body muted>
+              La recarga se registra en este dispositivo. No se procesa una
+              tarjeta real.
+            </Body>
+          </>
+        }
       >
-        {["10", "20", "50", "100"].map((n) => (
-          <Choice
-            key={n}
-            label={money(Number(n))}
-            selected={amount === n}
-            onPress={() => setAmount(n)}
+        <RechargeBalance balance={c.walletBalance} />
+        <Title style={rechargeStyles.sectionLabel}>Selecciona un monto</Title>
+        <View style={rechargeStyles.amounts}>
+          {["10", "20", "50", "100"].map((n) => (
+            <RechargeAmountChoice
+              key={n}
+              label={money(Number(n))}
+              selected={amount === n}
+              onPress={() => setAmount(n)}
+            />
+          ))}
+        </View>
+        <View style={rechargeStyles.inputContainer}>
+          <Field
+            label="Otro monto de recarga"
+            keyboardType="decimal-pad"
+            value={amount}
+            onChangeText={setAmount}
+            style={rechargeStyles.input}
           />
-        ))}
-        <Field
-          label="Otro monto de recarga"
-          keyboardType="decimal-pad"
-          value={amount}
-          onChangeText={setAmount}
-        />
-        {a.feedback}
-        <Button
-          label="Confirmar recarga · Demo"
-          disabled={!Number.isFinite(Number(amount)) || Number(amount) <= 0}
-          onPress={() => {
-            if (
-              a.run(
-                () => execute((r) => r.addWalletCredit(Number(amount))),
-                "Saldo recargado.",
-              )
-            )
-              setRecharge(false);
-          }}
-        />
-        <Body muted>
-          La recarga se registra en este dispositivo. No se procesa una tarjeta
-          real.
-        </Body>
+          <Text pointerEvents="none" style={rechargeStyles.currency}>
+            $
+          </Text>
+        </View>
+        <RechargeSummary amount={amount} />
       </BottomSheet>
     </Page>
   );

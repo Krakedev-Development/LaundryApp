@@ -8,6 +8,8 @@ La auditoría previa está en [UX_AUDIT.md](UX_AUDIT.md). La [matriz funcional d
 
 ## Tokens
 
+Recargas mantiene el panel contextual de `WalletScreen` y sus cuatro montos vigentes. `RechargePresentation.tsx` recupera de `4fa1bd3` el saldo azul suave, los montos en tarjetas seleccionables, el campo con símbolo de moneda y el resumen del monto. La confirmación y su feedback se presentan en el footer fijo del panel. La selección, monto inicial, validaciones, acreditación y persistencia permanecen en el flujo actual; la billetera principal y la gestión independiente de métodos de pago conservan su presentación.
+
 Métodos de pago tiene su propia ruta `ClientPaymentMethods`, independiente de `ClientWallet`. `PaymentsPresentation.tsx` recupera las filas blancas con borde y marca de tarjeta, el distintivo Principal y la vista previa azul del alta de tarjeta de `4fa1bd3`. `ClientAddPaymentMethod` permite guardar una tarjeta o una cuenta bancaria del cliente para transferencia. La billetera conserva su presentación anterior, saldo, cargos, recargas y movimientos; sus reglas financieras y las opciones de pago del pedido no cambian.
 
 El contenido recupera el estilo del commit `4fa1bd3` (`chore: upgrade Expo SDK and dependencies, update app icons, and configure plugins`) mediante `src/design-system/classic.ts`. Se toman sus colores de marca, superficies, tipografía compacta, tarjetas con sombra, chips y acentos de promociones y se aplican a las pantallas del flujo actual.
