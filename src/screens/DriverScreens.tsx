@@ -631,8 +631,9 @@ export function DriverHistoryScreen() {
     });
   return (
     <Page scroll={false}>
-      <Title>Historial de servicios</Title>
+      <Title style={ordersStyles.screenTitle}>Historial de servicios</Title>
       <SegmentedControl
+        appearance="classic"
         value={filter}
         onChange={setFilter}
         options={["Hoy", "Esta semana", "Todos"].map((f) => ({
@@ -641,11 +642,13 @@ export function DriverHistoryScreen() {
         }))}
       />
       <SearchField
+        appearance="classic"
         value={search}
         onChange={setSearch}
         placeholder="Buscar en historial"
       />
       <OrderList
+        appearance="orders"
         orders={orders}
         onDetail={(o) =>
           navigation.navigate("DriverServiceDetail", { orderId: o.id })

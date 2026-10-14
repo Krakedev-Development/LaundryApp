@@ -183,18 +183,26 @@ export function SegmentedControl<T extends string>({
   options: readonly { value: T; label: string }[];
   value: T;
   onChange(value: T): void;
-  appearance?: "default" | "request";
+  appearance?: "default" | "request" | "classic";
 }) {
   return (
     <View
       accessibilityRole="radiogroup"
-      style={{
-        flexDirection: "row",
-        padding: appearance === "request" ? 0 : 4,
-        gap: appearance === "request" ? 10 : 4,
-        borderRadius: 16,
-        backgroundColor: appearance === "request" ? "transparent" : colors.soft,
-      }}
+      style={[
+        {
+          flexDirection: "row",
+          padding: appearance === "request" ? 0 : 4,
+          gap: appearance === "request" ? 10 : 4,
+          borderRadius: 16,
+          backgroundColor:
+            appearance === "request" ? "transparent" : colors.soft,
+        },
+        appearance === "classic" && {
+          padding: 0,
+          gap: 8,
+          backgroundColor: "transparent",
+        },
+      ]}
     >
       {options.map((o) => (
         <Pressable
@@ -204,24 +212,33 @@ export function SegmentedControl<T extends string>({
           accessibilityState={{ checked: value === o.value }}
           aria-checked={value === o.value}
           onPress={() => onChange(o.value)}
-          style={{
-            flex: 1,
-            minHeight: 48,
-            borderRadius: 12,
-            alignItems: "center",
-            justifyContent: "center",
-            padding: appearance === "request" ? 12 : 6,
-            borderWidth: appearance === "request" ? 1.5 : 0,
-            borderColor: value === o.value ? "#93C5FD" : "#E5E7EB",
-            backgroundColor:
-              appearance === "request"
-                ? value === o.value
-                  ? "#EFF6FF"
-                  : "#FFFFFF"
-                : value === o.value
-                  ? colors.surface
-                  : colors.transparent,
-          }}
+          style={[
+            {
+              flex: 1,
+              minHeight: 48,
+              borderRadius: 12,
+              alignItems: "center",
+              justifyContent: "center",
+              padding: appearance === "request" ? 12 : 6,
+              borderWidth: appearance === "request" ? 1.5 : 0,
+              borderColor: value === o.value ? "#93C5FD" : "#E5E7EB",
+              backgroundColor:
+                appearance === "request"
+                  ? value === o.value
+                    ? "#EFF6FF"
+                    : "#FFFFFF"
+                  : value === o.value
+                    ? colors.surface
+                    : colors.transparent,
+            },
+            appearance === "classic" && {
+              borderRadius: 8,
+              padding: 8,
+              borderWidth: 1.2,
+              borderColor: value === o.value ? colors.primary : "#E5E7EB",
+              backgroundColor: value === o.value ? colors.primary : "#FFFFFF",
+            },
+          ]}
         >
           <Text
             style={[
@@ -233,6 +250,12 @@ export function SegmentedControl<T extends string>({
                 ...(appearance === "request"
                   ? { fontSize: 13, lineHeight: 19 }
                   : {}),
+              },
+              appearance === "classic" && {
+                fontSize: 12,
+                lineHeight: 18,
+                fontWeight: "600",
+                color: value === o.value ? "#FFFFFF" : colors.muted,
               },
             ]}
           >
@@ -247,14 +270,26 @@ export function SearchField({
   value,
   onChange,
   placeholder = "Buscar",
+  appearance = "default",
 }: {
   value: string;
   onChange(value: string): void;
   placeholder?: string;
+  appearance?: "default" | "classic";
 }) {
   return (
     <View
-      style={[ui.input, ui.row, { paddingVertical: 0, flexWrap: "nowrap" }]}
+      style={[
+        ui.input,
+        ui.row,
+        { paddingVertical: 0, flexWrap: "nowrap" },
+        appearance === "classic" && {
+          backgroundColor: "#FFFFFF",
+          borderRadius: 10,
+          borderWidth: 1.2,
+          paddingHorizontal: 12,
+        },
+      ]}
     >
       <Icon name="search" size={20} />
       <TextInput
@@ -263,7 +298,10 @@ export function SearchField({
         placeholderTextColor={colors.muted}
         value={value}
         onChangeText={onChange}
-        style={{ flex: 1, minHeight: 50, color: colors.text, fontSize: 16 }}
+        style={[
+          { flex: 1, minHeight: 50, color: colors.text, fontSize: 16 },
+          appearance === "classic" && { fontSize: 14 },
+        ]}
         returnKeyType="search"
       />
       {value !== "" && (
