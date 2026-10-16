@@ -8,6 +8,10 @@ La auditoría previa está en [UX_AUDIT.md](UX_AUDIT.md). La [matriz funcional d
 
 ## Tokens
 
+Mis solicitudes presenta Activos e Historial como iconos en el extremo derecho de la misma fila del título mediante OrdersHeader. El control mantiene nombres accesibles, rol de selección, indicadores de estado y targets de 48 puntos. La búsqueda y el filtro de modalidad conservan su posición relativa y comportamiento; el listado y sus rutas siguen vigentes. ClientOrdersScreen vive en `screens/orders` y el archivo anterior conserva su exportación compatible.
+
+ProfileStats del perfil de cliente usa una tarjeta blanca de radio 12, valores centrados destacados y divisor vertical corto, siguiendo `4fa1bd3` y la captura de referencia. Su implementación vive en `components/profile/ProfileStats.tsx`; los otros componentes del perfil se separaron conservando sus estilos y callbacks. Membresía y puntos se leen de la cuenta activa, sin valores fijos ni acciones nuevas. Header, navbar y navegación se mantienen.
+
 Historial del chofer recupera de `4fa1bd3` los filtros blancos de radio 8 con selección azul sólida, buscador compacto y tarjetas blancas de radio 12. Usa la apariencia opcional `classic` de SegmentedControl/SearchField y `orders` de OrderList; los demás consumidores conservan su apariencia. Las opciones vigentes Hoy/Esta semana/Todos, cálculo por entrega/cancelación/creación, búsqueda por identificador o cliente, pedidos visibles, limpieza de filtros y navegación al detalle mantienen sus contratos. Header y navbar siguen vigentes.
 
 Servicios del chofer adapta las tarjetas compactas de `4fa1bd3` mediante la apariencia `orders` existente: superficies blancas de radio 12, identificadores grises, estados, metadatos con íconos y separadores suaves. El título usa OrdersPresentation y los filtros Activos/Próximos usan la apariencia `request` del selector, con selección azul suave. Búsqueda, clasificación, pedidos visibles, información mostrada, estados vacíos y navegación al detalle conservan sus contratos actuales. Header, navbar y las demás pantallas mantienen su presentación.

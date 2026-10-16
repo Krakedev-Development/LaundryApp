@@ -2,16 +2,14 @@ import {
   Accordion,
   ListItem,
   SegmentedControl,
-  SearchField,
   StatusChip,
   Timeline,
-  useSearch,
 } from "../components/presentation";
 import {
   BottomSheet,
   ConfirmDialog,
 } from "../components/overlay/OverlayPortal";
-import { OrderList } from "../components/OrderList";
+
 import { useState } from "react";
 import { Text, View } from "react-native";
 import { Page } from "../components/Page";
@@ -20,7 +18,6 @@ import {
   Body,
   Button,
   Card,
-  Choice,
   Empty,
   Field,
   Icon,
@@ -45,18 +42,19 @@ import {
   modeLabels,
   money,
   pricingLabels,
-  statusLabels,
   terminalStatuses,
   type Leg,
-  type Mode,
   type Order,
 } from "../domain/models";
 import type { ScreenProps } from "../navigation/routes";
 import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
 import { contentColors } from "../design-system/classic";
 import { HomeMetric, homeStyles } from "../components/HomePresentation";
-import { ordersStyles } from "../components/OrdersPresentation";
-import { DetailMeta, detailStyles } from "../components/OrderDetailPresentation";
+
+import {
+  DetailMeta,
+  detailStyles,
+} from "../components/OrderDetailPresentation";
 
 export function ClientHomeScreen() {
   const navigation = useLaundryNavigation();
@@ -141,94 +139,7 @@ export function ClientHomeScreen() {
     </Page>
   );
 }
-export function ClientOrdersScreen() {
-  const navigation = useLaundryNavigation(),
-    { state } = useApp();
-  const [history, setHistory] = useState(false),
-    [mode, setMode] = useState<Mode | "ALL">("ALL"),
-    [search, setSearch] = useState(""),
-    [filters, setFilters] = useState(false);
-  const query = useSearch(search);
-  const orders = visibleOrders(state).filter(
-    (o) =>
-      terminalStatuses.includes(o.status) === history &&
-      (mode === "ALL" || o.fulfillmentPlan.mode === mode) &&
-      (
-        o.id +
-        " " +
-        modeLabels[o.fulfillmentPlan.mode] +
-        " " +
-        statusLabels[o.status]
-      )
-        .toLocaleLowerCase()
-        .includes(query),
-  );
-  return (
-    <Page scroll={false}>
-      <Title style={ordersStyles.screenTitle}>Mis solicitudes</Title>
-      <SegmentedControl
-        value={history ? "history" : "active"}
-        onChange={(v) => setHistory(v === "history")}
-        options={[
-          { value: "active", label: "Activos" },
-          { value: "history", label: "Historial" },
-        ]}
-      />
-      <SearchField
-        value={search}
-        onChange={setSearch}
-        placeholder="Buscar solicitudes"
-      />
-      <Button
-        label={mode === "ALL" ? "Filtrar modalidad" : modeLabels[mode]}
-        icon="options-outline"
-        secondary
-        style={ordersStyles.filter}
-        textStyle={ordersStyles.filterText}
-        onPress={() => setFilters(true)}
-      />
-      <OrderList
-        orders={orders}
-        appearance="orders"
-        onDetail={(o) =>
-          navigation.navigate("ClientOrderDetail", { orderId: o.id })
-        }
-        onTrack={(o) =>
-          navigation.navigate("ClientTracking", { orderId: o.id })
-        }
-        onClear={() => {
-          setSearch("");
-          setMode("ALL");
-        }}
-      />
-      <BottomSheet
-        title="Filtrar modalidad"
-        visible={filters}
-        onClose={() => setFilters(false)}
-      >
-        <Choice
-          label="Todas las modalidades"
-          selected={mode === "ALL"}
-          onPress={() => {
-            setMode("ALL");
-            setFilters(false);
-          }}
-        />
-        {Object.entries(modeLabels).map(([key, label]) => (
-          <Choice
-            key={key}
-            label={label}
-            selected={mode === key}
-            onPress={() => {
-              setMode(key as Mode);
-              setFilters(false);
-            }}
-          />
-        ))}
-      </BottomSheet>
-    </Page>
-  );
-}
+export { ClientOrdersScreen } from "./orders/ClientOrdersScreen";
 export function ClientScheduleScreen({ route }: ScreenProps<"ClientSchedule">) {
   const { state } = useApp();
   const navigation = useLaundryNavigation();
