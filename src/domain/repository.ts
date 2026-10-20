@@ -1,3 +1,8 @@
+import {
+  isCustomerHandoff,
+  type CustomerHandoffType,
+} from "./customerHandoffs";
+import { demoOrderTracking } from "./fixtures/orderTracking";
 import { authenticateSession } from "@laundry/mobile-auth";
 import {
   addCard,
@@ -27,7 +32,6 @@ import {
   type Address,
   type AppState,
   type Customer,
-  type HandoffType,
   type Leg,
   type Method,
   type Order,
@@ -289,8 +293,7 @@ export class LaundryRepository {
       "CLIENT",
     );
   }
-  demoLogin(role: Role): void {
-    if (role !== "CLIENT") throw Error("Esta app es exclusiva para clientes.");
+  demoLogin(): void {
     this.state.session = { id: "cust-1", role: "CLIENT" };
   }
   logout(): void {
@@ -350,12 +353,10 @@ export class LaundryRepository {
     this.state.accounts.push({ id, email, role: "CLIENT", passwordHash });
     this.state.session = { id, role: "CLIENT" };
   }
-  changePassword(currentHash: string, newHash: string, forced = false): void {
+  changePassword(currentHash: string, newHash: string): void {
     const a = this.state.accounts.find((a) => a.id === this.state.session?.id);
-    if (!a || (!forced && a.passwordHash !== currentHash))
+    if (!a || a.passwordHash !== currentHash)
       throw Error("La contraseña actual es incorrecta.");
-    if (forced)
-      throw Error("Esta cuenta no tiene un cambio obligatorio pendiente.");
     a.passwordHash = newHash;
   }
   saveKycDocument(documentType: string, documentId: string, uri: string): void {
@@ -489,7 +490,6 @@ export class LaundryRepository {
       this.debit(c, pricing.total, id, `Pago de ${id}`, input.paymentMethod);
     const inbound = clone(input.inbound),
       outbound = clone(input.outbound);
-    const driver = this.state.driver;
     const order: Order = {
       id,
       customerId: c.id,
@@ -518,14 +518,7 @@ export class LaundryRepository {
       },
       facilityName:
         inbound.facilityName ?? outbound.facilityName ?? facilities[0].name,
-      assignedDriverId:
-        inbound.method === "DRIVER" || outbound.method === "DRIVER"
-          ? driver.id
-          : undefined,
-      assignedDriverName: driver.name,
-      assignedDriverPhone: driver.phone,
-      assignedDriverVehicle: `${driver.vehicleModel} (${driver.vehicleColor})`,
-      assignedDriverPlate: driver.vehiclePlate,
+      ...clone(demoOrderTracking),
       paymentMethod: input.paymentMethod,
       paymentStatus:
         input.pricingModel === "FIXED" ? "PAGADO" : "PENDIENTE_PESO",
@@ -571,8 +564,12 @@ export class LaundryRepository {
     );
     return order;
   }
-  private addHandoff(o: Order, type: HandoffType, pending = false): void {
-    if (type === "CUSTOMER_TO_FACILITY")
+  private addHandoff(
+    o: Order,
+    type: CustomerHandoffType,
+    pending = false,
+  ): void {
+    if (!isCustomerHandoff({ type }))
       throw Error("El ingreso del cliente en sede ya no está disponible.");
     if (
       o.handoffs.some(
@@ -587,23 +584,10 @@ export class LaundryRepository {
     h.createdAt = this.stamp();
     o.handoffs.push(h);
   }
-  private consume(o: Order, type: HandoffType, code?: string): void {
-    if (type === "CUSTOMER_TO_FACILITY")
-      throw Error("El ingreso del cliente en sede ya no está disponible.");
-    let h = o.handoffs.find((h) => h.type === type && h.status === "ACTIVE");
-    if (!h) {
-      this.addHandoff(o, type);
-      h = o.handoffs.find((h) => h.type === type && h.status === "ACTIVE")!;
-    }
-    if (code && code !== h.fallbackCode && code !== h.qrToken)
-      throw Error("El código no corresponde a esta transferencia.");
-    h.status = "USED";
-    h.usedAt = this.stamp();
-  }
   regenerateHandoffCode(orderId: string, handoffId: string): void {
     const o = this.order(orderId, "CLIENT");
     const h = o.handoffs.find((h) => h.id === handoffId);
-    if (!h || h.type === "CUSTOMER_TO_FACILITY" || h.status !== "ACTIVE")
+    if (!h || !isCustomerHandoff(h) || h.status !== "ACTIVE")
       throw Error("El código ya no está activo.");
     const oldCode = h.fallbackCode;
     do {
@@ -783,7 +767,6 @@ export class LaundryRepository {
       o.fulfillmentPlan.inbound.method,
       o.fulfillmentPlan.outbound.method,
     );
-    if (!o.pickupNeedsScheduling) o.assignedDriverId = this.state.driver.id;
     this.state.rescheduleRequests.unshift({
       id: this.id("reschedule"),
       orderId,
@@ -851,91 +834,6 @@ export class LaundryRepository {
     this.debit(c, ch.amount, "CARGO", ch.reason, method);
     ch.status = "PAID";
     ch.paidAt = this.stamp();
-  }
-  advancePlantOperation(orderId: string, measuredLb?: number): void {
-    const o = this.order(orderId);
-    this.active(o);
-    switch (o.status) {
-      case "AT_FACILITY":
-        this.event(
-          o,
-          o.pricingModel === "PER_WEIGHT" ? "WEIGHING" : "IN_PROCESS",
-        );
-        break;
-      case "WEIGHING": {
-        if (o.pricingStatus === "CALCULATED")
-          throw Error("Confirma el peso y paga desde el cliente.");
-        if (!measuredLb || !Number.isFinite(measuredLb) || measuredLb <= 0)
-          throw Error("Ingresa el peso certificado en libras.");
-        o.weightLb = measuredLb;
-        o.weightKg = round(measuredLb * 0.45359237);
-        o.pricing.itemsSubtotal = round(measuredLb * o.pricePerLb);
-        const c = this.state.customers.find((c) => c.id === o.customerId)!;
-        o.pricing.membershipBenefitDiscount = round(
-          (o.pricing.itemsSubtotal *
-            (plans.find((p) => p.name === c.membershipTier)
-              ?.garmentDiscountPercent ?? 0)) /
-            100,
-        );
-        const p = promos.find(
-          (p) =>
-            p.code === o.promotionCode &&
-            p.validUntil >= today(this.now) &&
-            o.pricing.itemsSubtotal >= p.minOrderAmount,
-        );
-        o.pricing.discount = p
-          ? round(
-              p.discountPercent
-                ? (o.pricing.itemsSubtotal * p.discountPercent) / 100
-                : p.fixedDiscount,
-            )
-          : 0;
-        o.pricing.total = round(
-          Math.max(
-            0,
-            o.pricing.itemsSubtotal +
-              o.pricing.extrasTotal -
-              o.pricing.discount -
-              o.pricing.membershipBenefitDiscount,
-          ),
-        );
-        o.pricingStatus = "CALCULATED";
-        o.paymentStatus = "PENDIENTE";
-        this.notify(
-          o,
-          "Peso certificado",
-          "Revisa el peso final y confirma el pago.",
-        );
-        break;
-      }
-      case "IN_PROCESS":
-        this.event(o, "QUALITY_CONTROL");
-        break;
-      case "QUALITY_CONTROL": {
-        const customer = o.fulfillmentPlan.outbound.method === "CUSTOMER";
-        this.event(o, customer ? "READY_FOR_PICKUP" : "READY_FOR_DELIVERY");
-        this.addHandoff(
-          o,
-          customer ? "FACILITY_TO_CUSTOMER" : "DRIVER_TO_CUSTOMER",
-          !customer,
-        );
-        break;
-      }
-      case "READY_FOR_DELIVERY":
-        o.assignedDriverId = this.state.driver.id;
-        this.event(o, "DELIVERY_ASSIGNED");
-        break;
-      case "READY_FOR_PICKUP":
-        this.consume(o, "FACILITY_TO_CUSTOMER");
-        o.fulfillmentPlan.outbound.status = "COMPLETED";
-        o.fulfillmentPlan.outbound.completedAt = this.stamp();
-        this.event(o, "COMPLETED");
-        break;
-      default:
-        throw Error(
-          "No hay una operación de planta disponible en este estado.",
-        );
-    }
   }
   sendChatMessage(orderId: string, text: string): void {
     const o = this.order(orderId);

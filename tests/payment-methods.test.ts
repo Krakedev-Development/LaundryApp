@@ -175,7 +175,6 @@ test("default changes and deletion remain scoped to each customer", () => {
       ),
     /acceso/,
   );
-  assert.throws(() => transact(state, (repo) => repo.demoLogin("DRIVER"), now), /exclusiva/);
   const anonymous = transact(state, (repo) => repo.logout(), now).state;
   assert.throws(
     () => transact(anonymous, (repo) => repo.addPaymentCard(card), now),

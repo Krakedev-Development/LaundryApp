@@ -2,7 +2,7 @@
 
 ## Alcance y arquitectura
 
-Este rediseño conserva las rutas originales y agrega ClientSchedule para editar una agenda, además de pantallas independientes para consultar y registrar métodos de pago. Autenticación, verificación KYC obligatoria, contraseña temporal, dos modalidades vigentes (domicilio completo y pick up), precios por prenda/peso, cupos, cobros, cancelación, transferencias de prendas, evidencias, puntos, membresías y chat mantienen sus contratos. La gestión de tarjetas y cuentas bancarias se guarda en el dominio y el store existentes, sin modificar assets ni ejecutar pagos reales.
+Este rediseño conserva las rutas originales y agrega ClientSchedule para editar una agenda, además de pantallas independientes para consultar y registrar métodos de pago. Autenticación, verificación KYC obligatoria, dos modalidades vigentes (domicilio completo y pick up), precios por prenda/peso, cupos, cobros, cancelación, transferencias de prendas, evidencias, puntos, membresías y chat mantienen sus contratos. La gestión de tarjetas y cuentas bancarias se guarda en el dominio y el store existentes, sin modificar assets ni ejecutar pagos reales.
 
 La auditoría previa está en [UX_AUDIT.md](UX_AUDIT.md). La [matriz funcional del MVP](MVP_NUEVO_FLUJO.md) sigue describiendo las reglas del producto. La lógica permanece separada de la presentación.
 
@@ -12,13 +12,9 @@ Mis solicitudes presenta Activos e Historial como iconos en el extremo derecho d
 
 ProfileStats del perfil de cliente usa una tarjeta blanca de radio 12, valores centrados destacados y divisor vertical corto, siguiendo `4fa1bd3` y la captura de referencia. Su implementación vive en `components/profile/ProfileStats.tsx`; los otros componentes del perfil se separaron conservando sus estilos y callbacks. Membresía y puntos se leen de la cuenta activa, sin valores fijos ni acciones nuevas. Header, navbar y navegación se mantienen.
 
-Historial del chofer recupera de `4fa1bd3` los filtros blancos de radio 8 con selección azul sólida, buscador compacto y tarjetas blancas de radio 12. Usa la apariencia opcional `classic` de SegmentedControl/SearchField y `orders` de OrderList; los demás consumidores conservan su apariencia. Las opciones vigentes Hoy/Esta semana/Todos, cálculo por entrega/cancelación/creación, búsqueda por identificador o cliente, pedidos visibles, limpieza de filtros y navegación al detalle mantienen sus contratos. Header y navbar siguen vigentes.
 
-Servicios del chofer adapta las tarjetas compactas de `4fa1bd3` mediante la apariencia `orders` existente: superficies blancas de radio 12, identificadores grises, estados, metadatos con íconos y separadores suaves. El título usa OrdersPresentation y los filtros Activos/Próximos usan la apariencia `request` del selector, con selección azul suave. Búsqueda, clasificación, pedidos visibles, información mostrada, estados vacíos y navegación al detalle conservan sus contratos actuales. Header, navbar y las demás pantallas mantienen su presentación.
 
-Detalle de servicio y Confirmar recogida del chofer usan `DriverServicePresentation.tsx`, adaptado de las tarjetas blancas y títulos con íconos de `4fa1bd3`. El detalle conserva cliente, destino, horarios, instrucciones, prendas, constancias y acciones operativas actuales. La recogida mantiene conteo entero obligatorio, verificación con el cliente, observaciones, foto real y código/QR opcionales, con confirmación en el footer fijo. Los callbacks y validaciones permanecen vigentes; no se restauran los botones de cambio directo de estado del prototipo histórico. Header, navbar y las demás pantallas del chofer conservan su presentación.
 
-Mi ruta del chofer recupera de `4fa1bd3` las tarjetas blancas compactas, títulos de sección de 14 puntos y metadatos con íconos. `DriverRoutePresentation.tsx` adapta ese tratamiento al resumen de disponibilidad y siguiente servicio actuales; las demás paradas usan la apariencia `orders` existente de OrderCard. Disponibilidad, selección/orden de paradas, acciones operativas, detalle, chat y servicios conservan sus callbacks. Servicios, Historial y el detalle del chofer conservan su presentación, al igual que el header con el logo y navbar vigentes. No se restaura el saludo de perfil del header histórico.
 
 Solicitud agendada mantiene la pantalla de resultado vigente y usa `ScheduledPresentation.tsx` para presentar el visto verde, título centrado, identificador y resumen en tarjeta blanca. La paleta y las superficies provienen de la confirmación de `4fa1bd3`, que finalizaba con un aviso de pago exitoso en lugar de una pantalla equivalente. El visto confirma la creación de la solicitud; el mensaje de pago por peso sigue pendiente del pesaje. Los datos, creación única y accesos Ver mi solicitud/Volver al inicio conservan sus callbacks y navegación actuales.
 
@@ -32,13 +28,12 @@ Entrada y Salida de Nueva solicitud usan la apariencia `request` de FulfillmentP
 
 Detalle de solicitud recupera de `4fa1bd3` el resumen blanco con borde de radio 14, secciones compactas, novedades ámbar y presentación del chofer con ícono del sistema. `OrderDetailPresentation.tsx` contiene sus estilos. Agenda, prendas, pago, historial y transferencias conservan sus acordeones independientes; las condiciones, datos, callbacks, códigos, pesaje, ajustes, cancelación y agenda siguen en el flujo vigente. Las acciones de mapa y chat se presentan juntas cuando corresponden, con el header y navbar actuales.
 
-Pedidos usa la apariencia `orders` de OrderCard, transmitida por OrderList únicamente desde ClientOrdersScreen. `OrdersPresentation.tsx` recupera de `4fa1bd3` las tarjetas blancas compactas, identificador gris, estado junto al encabezado, íconos de información y pie con divisor. Se mantienen el texto completo de modalidad y servicio, fecha/horario, importe pendiente o confirmado y seguimiento cuando corresponde. Búsqueda, Activos/Historial, filtros, datos, listas virtualizadas y navegación conservan su lógica vigente. Inicio y las listas del chofer conservan sus apariencias actuales, al igual que el header y navbar.
 
 Datos de facturación recupera de `4fa1bd3` la introducción azul suave con ícono de documento, la tarjeta blanca de radio 14 y los campos gris claro con etiquetas compactas. `BillingPresentation.tsx` concentra los estilos; `src/screens/billing/BillingScreen.tsx` conserva los cinco campos, su carga inicial, validación y guardado en el dominio vigente. La acción permanece en el footer fijo y el header y navbar actuales permanecen iguales.
 
 Direcciones guardadas recupera de `4fa1bd3` las filas blancas compactas, los íconos de casa/trabajo, el borde azul y distintivo de la dirección principal y el alta con borde discontinuo. `AddressesPresentation.tsx` contiene la presentación y `src/screens/addresses/AddressesScreen.tsx` conserva el formulario vigente con referencia y coordenadas, las opciones en sheet y la confirmación de eliminación. Las direcciones y referencias se muestran completas; el header y navbar actuales permanecen iguales. No se incorpora el mapa ni la lógica del prototipo histórico.
 
-Seguridad y contraseña recupera de `4fa1bd3` el aviso azul suave con escudo, la tarjeta blanca con borde y los campos gris claro con etiquetas compactas. `PasswordPresentation.tsx` concentra su presentación y `PasswordScreen` conserva validaciones, hash, persistencia, feedback y el botón de guardado en el footer actual. El formulario compartido de contraseña temporal mantiene sus condiciones y cierre de sesión. `Field.labelStyle` permite adaptar las etiquetas únicamente donde se solicita; los demás campos conservan su presentación y los colores de error siguen siendo prioritarios.
+Seguridad y contraseña recupera de `4fa1bd3` el aviso azul suave con escudo, la tarjeta blanca con borde y los campos gris claro con etiquetas compactas. `PasswordPresentation.tsx` concentra su presentación y `PasswordScreen` conserva validaciones, hash, persistencia, feedback y el botón de guardado en el footer actual. `Field.labelStyle` permite adaptar las etiquetas únicamente donde se solicita; los demás campos conservan su presentación y los colores de error siguen siendo prioritarios.
 
 Ayuda y soporte recupera de `4fa1bd3` las secciones con títulos compactos, la tarjeta blanca de contacto con ícono azul y las preguntas agrupadas con divisores. `SupportPresentation.tsx` contiene los estilos; `src/screens/support/SupportScreen.tsx` conserva la acción de correo vigente y `faqs.ts` las seis preguntas actuales. La apariencia `list` de Accordion permite esta agrupación y conserva la apertura independiente, el estado inicial cerrado y la respuesta a movimiento reducido. El header y navbar actuales permanecen iguales.
 
@@ -100,25 +95,25 @@ Perfil no presenta herramientas de demostración ni acceso al catálogo de compo
 
 ## Navegación
 
-ClientMainTabs conserva Inicio, Pedidos, Beneficios y el acceso a la cuenta, rotulado Perfil en la barra. Solicitar inicia el flujo guiado desde el botón circular central azul con signo verde, sin texto visible y con nombre accesible Solicitar. DriverMainTabs conserva Mi ruta, Servicios, Historial y Perfil, sin añadir acciones de cliente. Cambiar de pestaña conserva búsqueda, filtros y estado de la sección. Los detalles usan la pila nativa existente y se reutilizan por orderId.
+ClientMainTabs conserva Inicio, Pedidos, Beneficios y el acceso a la cuenta, rotulado Perfil en la barra. Solicitar inicia el flujo guiado desde el botón circular central azul con signo verde, sin texto visible y con nombre accesible Solicitar. Cambiar de pestaña conserva búsqueda, filtros y estado de la sección. Los detalles usan la pila nativa existente y se reutilizan por orderId.
 
-La barra inferior sigue la referencia adjunta: fondo blanco, íconos de 16 puntos y etiquetas de 10 puntos; la selección se identifica con azul, ícono con relleno y texto más marcado, sin rellenar la celda. Inicio, Pedidos, Beneficios y Perfil usan sus íconos de contorno cuando están inactivos y sus variantes con relleno al seleccionarse. Beneficios conserva el regalo y Perfil usa la persona; el estado de Perfil también es consistente en la barra del chofer. El botón central tiene diámetro de 48 puntos y sombra suave; las áreas de interacción conservan al menos 48 puntos y el safe area inferior. NavigationBar comparte esta presentación entre secciones principales y pantallas secundarias. Se mantienen los destinos, el evento tabPress, la respuesta háptica y la lógica de selección existentes.
+La barra inferior sigue la referencia adjunta: fondo blanco, íconos de 16 puntos y etiquetas de 10 puntos; la selección se identifica con azul, ícono con relleno y texto más marcado, sin rellenar la celda. Inicio, Pedidos, Beneficios y Perfil usan sus íconos de contorno cuando están inactivos y sus variantes con relleno al seleccionarse. Beneficios conserva el regalo y Perfil usa la persona. El botón central tiene diámetro de 48 puntos y sombra suave; las áreas de interacción conservan al menos 48 puntos y el safe area inferior. NavigationBar comparte esta presentación entre secciones principales y pantallas secundarias. Se mantienen los destinos, el evento tabPress, la respuesta háptica y la lógica de selección existentes.
 
 La app móvil no presenta menú lateral. El header de secciones principales conserva el logo oficial centrado y el acceso a notificaciones del cliente. Las pantallas secundarias muestran Atrás, título y notificaciones cuando corresponden. La barra inferior conserva los accesos principales y Cuenta agrupa las opciones de cuenta.
 
-El perfil de Cuenta muestra el nombre y correo de la cuenta activa, sin mostrar su rol, tanto para cliente como para chofer. Se conserva el estilo centrado del commit `4fa1bd3`, el logo oficial y los estados de verificación/disponibilidad vigentes. Los datos se leen del store actual, incluyendo cuentas registradas por el usuario.
+El perfil de Cuenta muestra el nombre y correo de la cuenta activa, sin mostrar su rol. Se conserva el estilo centrado del commit `4fa1bd3`, el logo oficial y los estados de verificación vigentes. Los datos se leen del store actual, incluyendo cuentas registradas por el usuario.
 
 La solicitud conserva Entrada → Salida → Prendas → Extras → Confirmación. La CTA permanece al pie, no habilita pasos incompletos y el contenido vuelve arriba al cambiar de etapa. Atrás del header/Android retrocede una etapa; se deshabilita el gesto de salida de iOS durante el wizard para evitar abandonarlo involuntariamente. Al terminar se mantiene el resultado con acceso al pedido.
 
-ClientSchedule recibe orderId, edita entrada/salida con las mismas reglas de corte/cupos y vuelve al detalle existente después de guardar. Los formularios de registro, seguridad, facturación, dirección y confirmaciones del chofer usan acciones fijas cuando su extensión lo requiere.
+ClientSchedule recibe orderId, edita entrada/salida con las mismas reglas de corte/cupos y vuelve al detalle existente después de guardar. Los formularios de registro, seguridad, facturación, dirección usan acciones fijas cuando su extensión lo requiere.
 
 ## Paneles y confirmaciones
 
 OverlayProvider ofrece un único Modal nativo mediante OverlayHost. BottomSheet, ConfirmDialog y FullScreenOverlay son los portales activos; los consumidores no crean Modal adicionales. La app no usa el portal Drawer para navegar ni presentar el perfil.
 
-- Sheet: selección de dirección/sede, fecha/horario, servicio, pago, filtros, disponibilidad, relación del destinatario y adjuntos.
+- Sheet: selección de dirección/sede, fecha/horario, servicio, pago, filtros, adjuntos.
 - Dialog: cancelación, eliminación de dirección y restablecimiento demo.
-- Full: formularios de dirección, cámara QR y catálogo de desarrollo.
+- Full: formularios de dirección y catálogo de desarrollo.
 
 Solo existe una presentación activa. Una nueva presentación cierra la anterior y todos los portales se retiran al salir de la pantalla. Las opciones se cierran antes de navegar, abrir la cámara/galería o confirmar una acción. Los propietarios del estado de paneles sucesivos deben permanecer en la pantalla: por ejemplo, el código del seguimiento se presenta desde TrackingScreen después de cerrar el resumen, evitando perder su estado al desmontar el contenido del panel anterior.
 
@@ -136,9 +131,9 @@ interaction.ts encapsula Expo Haptics, compatible con SDK 57. Solo usa selecció
 
 El MVP usa AsyncStorage local. No se agregan pull-to-refresh, indicadores de conexión, respuestas de chat, spinners de red ni ETA ficticios. Las listas reaccionan a cambios reales del store; la renovación de agenda al volver al primer plano sigue en AppProvider.
 
-Listas de solicitudes, servicios, historial, movimientos, notificaciones y chat usan FlatList fuera de un ScrollView padre. El seguimiento solo ejecuta su simulación cuando está visible, el tramo está en camino y el usuario permite movimiento. El mapa es dominante y conserva la advertencia demo y los enlaces reales de Google Maps/Waze.
+Listas de solicitudes, servicios, historial, movimientos, notificaciones y chat usan FlatList fuera de un ScrollView padre. El seguimiento solo ejecuta su simulación cuando está visible, el tramo está en camino y el usuario permite movimiento. El mapa es dominante y conserva la advertencia demo.
 
-Las herramientas de demostración se retiraron del perfil de cliente y chofer. Los accesos de cliente demo y chofer demo permanecen en el login. El alcance local del prototipo se conserva.
+Las herramientas de demostración se retiraron del perfil del cliente. El acceso de cliente demo permanece en el login. El alcance local del prototipo se conserva.
 
 ## Accesibilidad y adaptación
 

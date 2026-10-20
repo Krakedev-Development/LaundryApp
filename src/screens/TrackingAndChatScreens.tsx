@@ -1,3 +1,4 @@
+import { isCustomerHandoff } from "../domain/customerHandoffs";
 import { useIsFocused } from "@react-navigation/native";
 import { BottomSheet } from "../components/overlay/OverlayPortal";
 import { ListItem, StatusChip } from "../components/presentation";
@@ -68,16 +69,16 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
       </Page>
     );
   const destination = destinationFor(o),
-    d = state.driver;
+    position = o.trackingPosition ?? destination;
   const code = o.handoffs.find((h) => h.id === codeId && h.status === "ACTIVE");
   const active = ["HEADING_TO_PICKUP", "OUT_FOR_DELIVERY"].includes(o.status);
   const origin = {
     latitude:
-      d.currentLat +
-      (destination.latitude - d.currentLat) * (active ? progress : 0),
+      position.latitude +
+      (destination.latitude - position.latitude) * (active ? progress : 0),
     longitude:
-      d.currentLng +
-      (destination.longitude - d.currentLng) * (active ? progress : 0),
+      position.longitude +
+      (destination.longitude - position.longitude) * (active ? progress : 0),
   };
   return (
     <Page
@@ -130,7 +131,7 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
           ruta vial calculada ni a GPS en tiempo real.
         </Body>
         {o.handoffs
-          .filter((h) => h.status === "ACTIVE")
+          .filter((h) => isCustomerHandoff(h) && h.status === "ACTIVE")
           .map((h) => (
             <ListItem
               key={h.id}

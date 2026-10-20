@@ -8,7 +8,7 @@ import {
 import { useApp } from "../../store/AppProvider";
 import { passwordHash } from "../../services/passwordHash";
 
-export function PasswordScreen({ forced = false }: { forced?: boolean }) {
+export function PasswordScreen() {
   const { execute } = useApp();
   const a = useAction();
   const [current, setCurrent] = useState(""),
@@ -22,7 +22,7 @@ export function PasswordScreen({ forced = false }: { forced?: boolean }) {
             label="Guardar contraseña"
             style={passwordStyles.saveAction}
             textStyle={passwordStyles.saveText}
-            disabled={!password || !confirm || (!forced && !current)}
+            disabled={!password || !confirm || !current}
             busy={a.busy}
             onPress={() => {
               void a.asyncRun(async () => {
@@ -36,7 +36,7 @@ export function PasswordScreen({ forced = false }: { forced?: boolean }) {
                   passwordHash(current),
                   passwordHash(password),
                 ]);
-                execute((r) => r.changePassword(currentHash, hash, forced));
+                execute((r) => r.changePassword(currentHash, hash));
                 setCurrent("");
                 setPassword("");
                 setConfirm("");
@@ -46,26 +46,18 @@ export function PasswordScreen({ forced = false }: { forced?: boolean }) {
         </>
       }
     >
-      <PasswordHint
-        title={
-          forced ? "Crea tu contraseña definitiva" : "Actualizar contraseña"
-        }
-      >
-        {forced
-          ? "Tu cuenta tiene una contraseña temporal. Debes cambiarla antes de ingresar a la ruta."
-          : "Ingresa tu contraseña actual y una nueva contraseña."}
+      <PasswordHint title="Actualizar contraseña">
+        Ingresa tu contraseña actual y una nueva contraseña.
       </PasswordHint>
       <Card style={passwordStyles.card}>
-        {!forced && (
-          <Field
-            label="Contraseña actual"
-            labelStyle={passwordStyles.label}
-            style={passwordStyles.input}
-            secureTextEntry
-            value={current}
-            onChangeText={setCurrent}
-          />
-        )}
+        <Field
+          label="Contraseña actual"
+          labelStyle={passwordStyles.label}
+          style={passwordStyles.input}
+          secureTextEntry
+          value={current}
+          onChangeText={setCurrent}
+        />
         <Field
           label="Nueva contraseña"
           labelStyle={passwordStyles.label}
@@ -90,14 +82,6 @@ export function PasswordScreen({ forced = false }: { forced?: boolean }) {
           Mínimo 8 caracteres, una mayúscula y un número.
         </Body>
         {a.feedback}
-
-        {forced && (
-          <Button
-            label="Cerrar sesión"
-            secondary
-            onPress={() => execute((r) => r.logout())}
-          />
-        )}
       </Card>
     </Page>
   );

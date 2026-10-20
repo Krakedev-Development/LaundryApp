@@ -1,33 +1,19 @@
-# Clean Code: aplicación gradual
+﻿# Arquitectura del cliente
 
-Se aplican las reglas de `LAUNDRY_CLEAN_CODE_RULES.md` a los módulos intervenidos, preservando comportamiento y presentación.
+LaundryApp contiene exclusivamente acceso, registro/verificación, solicitudes, seguimiento, pagos, beneficios y cuenta del cliente.
 
-## Restricciones vigentes
+- `navigation`: árbol único de React Navigation, pestañas y rutas del cliente.
+- `screens`: composición de pantallas del cliente; sin rutas operativas ni acceso a otras sesiones.
+- `features`: formularios, selecciones y acciones del cliente.
+- `domain/repository.ts`: operaciones de la cuenta activa, agenda, solicitudes, pagos y códigos del cliente.
+- `domain/models.ts`: cuentas y sesiones CLIENT; contratos de lectura para estados, contacto, mensajes y constancias recibidas.
+- `domain/customerHandoffs.ts`: alcance de códigos del cliente; excluye operaciones internas de custodia.
+- `domain/fixtures/orderTracking.ts`: datos de lectura para solicitudes del MVP local, sin estado ni acciones operativas.
+- `store`: persistencia y compatibilidad de datos anteriores; conserva datos del cliente y descarta sesiones ajenas.
+- `services`: contraseñas y archivos del cliente.
 
-- Únicamente `HOME_HOME` y `HOME_STORE`: recogida a domicilio en ambas modalidades.
-- Mantener rutas, contratos, persistencia, permisos, validaciones y diseño actuales.
-- Archivos nuevos de hasta 100 líneas; hasta 150 sólo con una responsabilidad que lo justifique.
-- Pantallas de composición, estado de formularios en features y selectores sin dependencias de React.
-- Reutilizar componentes, tokens y repositorios existentes; no agregar dependencias especulativas.
-- Una migración de navegación requiere un alcance propio y validación completa del reemplazo.
+El login comparte una presentación y una validación de credenciales genéricas. Los avisos específicos se reciben por composición desde la aplicación que los necesita. LaundryApp solo configura registro y acceso demo del cliente.
 
-## Primera etapa
+Los módulos nuevos mantienen una responsabilidad y hasta 100 líneas, con máximo de 150 cuando la responsabilidad lo justifica. Los módulos heredados grandes continúan sujetos a extracción gradual, sin reescrituras ajenas a cada funcionalidad. El dominio no depende de React Native, Expo ni almacenamiento.
 
-- `screens/driver`: seis pantallas independientes.
-- `features/driver/ui`: acciones y secciones visuales del chofer.
-- `features/driver/model`: estado y envío de confirmaciones de recogida/entrega.
-- `entities/order/model/driverOrderSelectors.ts`: selección de servicios e historial.
-- `DriverScreens.tsx`: exportaciones compatibles con la navegación vigente.
-
-No se modifican repositorios, estados del pedido, precios, agenda, custodia ni evidencias.
-
-## Validación de esta etapa
-
-- TypeScript y exportaciones Expo para web y Android.
-- 24 pruebas de negocio existentes y recorrido UI completo del chofer.
-- Equivalencia de selectores y comparación de capturas con la versión previa.
-- En este entorno `tsx` falla al consultar `uv_os_get_passwd`; las pruebas se ejecutaron con el cargador TypeScript ya existente en los tests de LaundryWeb, sin añadir paquetes ni dependencias de ejecución entre aplicaciones.
-
-## Continuación
-
-Los módulos heredados de solicitudes, cuenta, UI y repositorio siguen pendientes de separación por responsabilidad. Su existencia no implica que esta etapa declare terminada la aplicación de Clean Code a todo el proyecto.
+Se conservan las modalidades HOME_HOME y HOME_STORE, el diseño, el header, la navegación inferior, los precios, la agenda y las decisiones del cliente. No se agregan dependencias especulativas ni conexión a backend.

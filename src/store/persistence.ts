@@ -15,7 +15,6 @@ export function decodeState(raw: string): AppState {
     s.version !== 1 ||
     !Array.isArray(s.customers) ||
     !s.customers.length ||
-    !s.driver ||
     !Array.isArray(s.accounts) ||
     !Array.isArray(s.orders) ||
     !Array.isArray(s.timeSlots) ||

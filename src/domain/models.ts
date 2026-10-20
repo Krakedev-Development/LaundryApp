@@ -1,7 +1,5 @@
-export type Role = "CLIENT" | "DRIVER";
+export type Role = "CLIENT";
 export type KycStatus = "NOT_SUBMITTED" | "PENDING" | "APPROVED" | "REJECTED";
-export type OperationalStatus =
-  "AVAILABLE" | "ON_SERVICE" | "BREAK" | "OFFLINE";
 export type Method = "DRIVER" | "CUSTOMER";
 export type Mode = "HOME_HOME" | "HOME_STORE";
 export type PricingModel = "FIXED" | "PER_WEIGHT";
@@ -46,12 +44,6 @@ export const statusLabels = {
 export const modeLabels: Record<Mode, string> = {
   HOME_HOME: "Domicilio completo · recogida y entrega",
   HOME_STORE: "Pick up · recogida a domicilio y retiro en sede",
-};
-export const operationalLabels: Record<OperationalStatus, string> = {
-  AVAILABLE: "Disponible",
-  ON_SERVICE: "En servicio",
-  BREAK: "En pausa",
-  OFFLINE: "Desconectado",
 };
 export const pricingLabels: Record<PricingStatus, string> = {
   ESTIMATED: "Estimado",
@@ -104,19 +96,6 @@ export interface Customer {
   billingEmail: string;
   billingPhone: string;
   billingAddress: string;
-}
-export interface Driver {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  vehicleModel: string;
-  vehicleColor: string;
-  vehiclePlate: string;
-  facilityName: string;
-  zoneName: string;
-  currentLat: number;
-  currentLng: number;
 }
 export interface Facility {
   id: string;
@@ -260,6 +239,7 @@ export interface Order {
   pickup: PickupInfo;
   delivery: DeliveryInfo;
   facilityName: string;
+  trackingPosition?: Readonly<{ latitude: number; longitude: number }>;
   assignedDriverId?: string;
   assignedDriverName?: string;
   assignedDriverPhone?: string;
@@ -351,7 +331,7 @@ export interface ChatMessage {
   orderId: string;
   senderId: string;
   senderName: string;
-  senderRole: Role;
+  senderRole: "CLIENT" | "DRIVER";
   text: string;
   timestamp: string;
 }
@@ -378,7 +358,6 @@ export interface Session {
 export interface AppState {
   version: 1;
   customers: Customer[];
-  driver: Driver;
   session: Session | null;
   accounts: Account[];
   orders: Order[];
@@ -410,11 +389,6 @@ export const pickupStatuses: OrderStatus[] = [
   "ARRIVED_FOR_PICKUP",
   "PICKED_UP",
   "HEADING_TO_FACILITY",
-];
-export const deliveryStatuses: OrderStatus[] = [
-  "DELIVERY_ASSIGNED",
-  "OUT_FOR_DELIVERY",
-  "ARRIVED_FOR_DELIVERY",
 ];
 export function modeFor(inbound: Method, outbound: Method): Mode {
   if (inbound !== "DRIVER" || !["DRIVER", "CUSTOMER"].includes(outbound))

@@ -1,3 +1,4 @@
+import { demoOrderTracking } from "./fixtures/orderTracking";
 import { facilities, initialSlots } from "./catalog";
 import { initialPaymentMethods } from "./paymentMethods";
 import {
@@ -164,12 +165,7 @@ function seedOrder(
       timeSlot: outLeg.timeSlotText,
     },
     facilityName: facilities[0].name,
-    assignedDriverId:
-      inbound === "DRIVER" || outbound === "DRIVER" ? "drv-1" : undefined,
-    assignedDriverName: "Carlos Mendoza",
-    assignedDriverPhone: "+51 912 345 678",
-    assignedDriverVehicle: "Renault Kangoo Maxi (Blanco)",
-    assignedDriverPlate: "ABC-789",
+    ...demoOrderTracking,
     paymentMethod: "Billetera Laundry",
     paymentStatus: "PAGADO",
     createdAt: "Hoy 14:15",
@@ -334,19 +330,6 @@ export function createSeedState(): AppState {
   return {
     version: 1,
     customers: [seedCustomer()],
-    driver: {
-      id: "drv-1",
-      name: "Carlos Mendoza",
-      email: "carlos.mendoza@laundryfresh.com",
-      phone: "+51 912 345 678",
-      vehicleModel: "Renault Kangoo Maxi",
-      vehicleColor: "Blanco",
-      vehiclePlate: "ABC-789",
-      facilityName: facilities[0].name,
-      zoneName: "Zona Centro - Miraflores",
-      currentLat: -12.094,
-      currentLng: -77.032,
-    },
     session: { id: "cust-1", role: "CLIENT" },
     accounts: [
       {

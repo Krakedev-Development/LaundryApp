@@ -9,7 +9,7 @@ export function LoginScreen() {
       initialEmail="maria.torres@gmail.com"
       demoLabel="Cliente demo"
       onLogin={(email, hash) => execute((repo) => repo.login(email, hash))}
-      onDemo={() => execute((repo) => repo.demoLogin("CLIENT"))}
+      onDemo={() => execute((repo) => repo.demoLogin())}
       onRegister={() => navigation.navigate("RegisterStep1")}
     />
   );

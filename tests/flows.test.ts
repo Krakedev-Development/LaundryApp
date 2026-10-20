@@ -88,9 +88,10 @@ test("per-weight order defers debit until certified weight, then pays once and e
   assert.equal(h.state.customers[0].walletBalance, balance);
   assert.equal(h.state.customers[0].loyaltyPoints, 1540);
   assert.throws(() => h.run((r) => r.confirmWeightAndPay(o.id)), /pesaje/);
-  intake(h, o.id);
-  h.run((r) => r.advancePlantOperation(o.id));
-  h.run((r) => r.advancePlantOperation(o.id, 5));
+  const received = h.state.orders.find(order => order.id === o.id)!;
+  Object.assign(received, {status: "WEIGHING", pricingStatus: "CALCULATED", paymentStatus: "PENDIENTE", weightLb: 5, weightKg: 2.27});
+  received.fulfillmentPlan.inbound.status = "COMPLETED";
+  Object.assign(received.pricing, { itemsSubtotal: 11, membershipBenefitDiscount: 1.32, total: 9.68 });
   assert.equal(h.state.orders[0].weightKg, 2.27);
   assert.equal(h.state.orders[0].pricing.total, 9.68);
   h.run((r) => r.confirmWeightAndPay(o.id));
@@ -408,8 +409,3 @@ test("completed local intake stays historical without requiring another pickup o
   assert.deepEqual(next.handoffs[0], receipt);
   assert.deepEqual(next.timeline, order.timeline);
 });
-function intake(h:ReturnType<typeof harness>,id:string){
-const order=h.state.orders.find(order=>order.id===id)!;
-order.status='AT_FACILITY';order.fulfillmentPlan.inbound.status='COMPLETED';
-order.handoffs.filter(h=>h.type==='CUSTOMER_TO_DRIVER').forEach(h=>{h.status='USED';});
-}
