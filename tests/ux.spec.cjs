@@ -210,7 +210,7 @@ test("request cancellation retains the warning and creates the existing late fee
     page.getByText("Cargo regularizado.", { exact: true }),
   ).toBeVisible();
 });
-test("email and password validation is contextual and temporary password cannot bypass security", async ({
+test("email validation is contextual and client login exposes only its own demo", async ({
   page,
 }) => {
   await page.getByRole("tab", { name: "Perfil", exact: true }).click();
@@ -234,40 +234,9 @@ test("email and password validation is contextual and temporary password cannot 
   await expect(page.getByRole("button", { name: "Chofer con contraseña temporal · Demo", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Conocer Laundry", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Acceso rápido del prototipo", exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: "Chofer demo", exact: true }).click();
-  await expect(page.getByRole("tab", { name: "Mi ruta", exact: true })).toBeVisible();
-  // Seed the existing security condition without restoring a removed login control.
-  await expect.poll(() => page.evaluate(() => {
-    const raw = localStorage.getItem("laundry.native-migration.v1");
-    return raw ? JSON.parse(raw).session?.role : null;
-  })).toBe("DRIVER");
-  await page.evaluate(() => {
-    const key = "laundry.native-migration.v1";
-    const state = JSON.parse(localStorage.getItem(key));
-    state.driver.mustChangePassword = true;
-    localStorage.setItem(key, JSON.stringify(state));
-  });
-  await page.reload();
-  await expect(page.getByRole("tablist")).not.toBeVisible();
-  await page.getByLabel("Nueva contraseña", { exact: true }).fill("nueva");
-  await page.getByLabel("Nueva contraseña", { exact: true }).blur();
-  await expect(
-    page.getByText("Usa 8 caracteres, una mayúscula y un número.", {
-      exact: true,
-    }),
-  ).toBeVisible();
-  await page
-    .getByLabel("Nueva contraseña", { exact: true })
-    .fill("NuevaClave1");
-  await page
-    .getByLabel("Confirmar contraseña", { exact: true })
-    .fill("NuevaClave1");
-  await page
-    .getByRole("button", { name: "Guardar contraseña", exact: true })
-    .click();
-  await expect(
-    page.getByRole("tab", { name: "Mi ruta", exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Chofer demo", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Cliente demo", exact: true }).click();
+  await expect(page.getByRole("tab", { name: "Inicio", exact: true })).toBeVisible();
 });
 for (const viewport of [
   { width: 320, height: 640 },

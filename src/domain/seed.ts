@@ -14,7 +14,6 @@ import {
   type OrderItem,
   type OrderStatus,
 } from "./models";
-
 export const DEMO_PASSWORD_HASH =
   "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92";
 export function seedCustomer(): Customer {
@@ -340,16 +339,13 @@ export function createSeedState(): AppState {
       name: "Carlos Mendoza",
       email: "carlos.mendoza@laundryfresh.com",
       phone: "+51 912 345 678",
-      operationalStatus: "AVAILABLE",
       vehicleModel: "Renault Kangoo Maxi",
       vehicleColor: "Blanco",
       vehiclePlate: "ABC-789",
       facilityName: facilities[0].name,
       zoneName: "Zona Centro - Miraflores",
-      mustChangePassword: false,
       currentLat: -12.094,
       currentLng: -77.032,
-      completedDeliveriesCount: 34,
     },
     session: { id: "cust-1", role: "CLIENT" },
     accounts: [
@@ -357,12 +353,6 @@ export function createSeedState(): AppState {
         id: "cust-1",
         email: "maria.torres@gmail.com",
         role: "CLIENT",
-        passwordHash: DEMO_PASSWORD_HASH,
-      },
-      {
-        id: "drv-1",
-        email: "carlos.mendoza@laundryfresh.com",
-        role: "DRIVER",
         passwordHash: DEMO_PASSWORD_HASH,
       },
     ],

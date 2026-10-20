@@ -3,21 +3,15 @@ import { tactile } from "../design-system/interaction";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { clientTabs, driverTabs, type Tab } from "../navigation/primaryTabs";
+import { clientTabs, type Tab } from "../navigation/primaryTabs";
 import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
 import { colors, Icon, type IconName } from "./ui";
-
 const selectedIcons: Partial<Record<Tab["route"], IconName>> = {
   ClientHome: "home",
   ClientOrders: "receipt",
   ClientBenefits: "gift",
   ClientProfile: "person",
-  DriverRoute: "navigate",
-  DriverServices: "list",
-  DriverHistory: "time",
-  DriverProfile: "person",
 };
-
 export function NavigationBar({
   tabs,
   activeRoute,
@@ -28,10 +22,7 @@ export function NavigationBar({
   onSelect(route: Tab["route"]): void;
 }) {
   return (
-    <View
-      accessibilityRole="tablist"
-      style={styles.bar}
-    >
+    <View accessibilityRole="tablist" style={styles.bar}>
       {tabs.map((tab) => {
         const selected = activeRoute === tab.route;
         const primaryAction = tab.route === "ClientNewOrderWizard";
@@ -60,7 +51,11 @@ export function NavigationBar({
               <>
                 <View style={styles.iconSlot}>
                   <Icon
-                    name={selected ? selectedIcons[tab.route] ?? tab.icon : tab.icon}
+                    name={
+                      selected
+                        ? (selectedIcons[tab.route] ?? tab.icon)
+                        : tab.icon
+                    }
                     size={16}
                     color={ink}
                   />
@@ -81,7 +76,6 @@ export function NavigationBar({
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   bar: {
     flexDirection: "row",
@@ -104,7 +98,12 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   iconSlot: { height: 20, alignItems: "center", justifyContent: "center" },
-  label: { fontSize: 10, lineHeight: 14, textAlign: "center", letterSpacing: 0.1 },
+  label: {
+    fontSize: 10,
+    lineHeight: 14,
+    textAlign: "center",
+    letterSpacing: 0.1,
+  },
   primaryAction: {
     width: 48,
     height: 48,
@@ -120,12 +119,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
 });
-
-export function MainTabBar({
-  state,
-  navigation,
-  role,
-}: BottomTabBarProps & { role: "CLIENT" | "DRIVER" }) {
+export function MainTabBar({ state, navigation }: BottomTabBarProps) {
   const appNavigation = useLaundryNavigation();
   return (
     <SafeAreaView
@@ -133,7 +127,7 @@ export function MainTabBar({
       style={{ backgroundColor: colors.surface }}
     >
       <NavigationBar
-        tabs={role === "CLIENT" ? clientTabs : driverTabs}
+        tabs={clientTabs}
         activeRoute={state.routes[state.index].name}
         onSelect={(name) => {
           if (name === "ClientNewOrderWizard") {

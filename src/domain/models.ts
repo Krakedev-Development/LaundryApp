@@ -110,16 +110,13 @@ export interface Driver {
   name: string;
   email: string;
   phone: string;
-  operationalStatus: OperationalStatus;
   vehicleModel: string;
   vehicleColor: string;
   vehiclePlate: string;
   facilityName: string;
   zoneName: string;
-  mustChangePassword: boolean;
   currentLat: number;
   currentLng: number;
-  completedDeliveriesCount: number;
 }
 export interface Facility {
   id: string;
@@ -311,7 +308,12 @@ export type PaymentMethod = {
   isDefault: boolean;
 } & (
   | { kind: "CARD"; brand: "Visa" | "Mastercard" | "Amex"; expiry: string }
-  | { kind: "TRANSFER"; bank: string; accountNumber: string; accountType: "Ahorros" | "Corriente" }
+  | {
+      kind: "TRANSFER";
+      bank: string;
+      accountNumber: string;
+      accountType: "Ahorros" | "Corriente";
+    }
 );
 export interface LoyaltyReward {
   id: string;
@@ -371,7 +373,7 @@ export interface Account {
 }
 export interface Session {
   id: string;
-  role: Role;
+  role: "CLIENT";
 }
 export interface AppState {
   version: 1;

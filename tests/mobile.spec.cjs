@@ -1,20 +1,10 @@
 const { test, expect } = require("@playwright/test");
-
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
   await page.evaluate(() => localStorage.clear());
   await page.reload();
   await expect(page.getByText("Ropa fresca, tiempo para ti.")).toBeVisible();
 });
-async function switchRole(page, role) {
-  await page.getByRole("tab", { name: "Perfil", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Cerrar sesión", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: role === "chofer" ? "Chofer demo" : "Cliente demo", exact: true })
-    .click();
-}
 async function slot(page) {
   await page
     .getByRole("button", { name: "Elegir fecha y horario", exact: true })
@@ -86,36 +76,6 @@ test("client sections preserve filters and the bottom bar while switching tabs",
     ).toBeChecked();
   }
 });
-
-test("driver sections retain the service filter when leaving and returning", async ({
-  page,
-}) => {
-  await switchRole(page, "chofer");
-  await page.getByRole("tab", { name: "Servicios", exact: true }).click();
-  await page.getByRole("radio", { name: "Próximos", exact: true }).click();
-  for (const name of ["Perfil", "Historial", "Mi ruta", "Servicios"]) {
-    await page.getByRole("tab", { name, exact: true }).click();
-    await expect(page.getByRole("tab", { name, exact: true })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-    await expect(page.getByRole("tablist")).toHaveCount(1);
-    await expect(
-      page.getByRole("button", { name: "Abrir menú lateral", exact: true }),
-    ).toHaveCount(0);
-    if (name === "Perfil") {
-      await expect(page.getByText("Carlos Mendoza", { exact: true })).toBeVisible();
-      await expect(
-        page.getByText("carlos.mendoza@laundryfresh.com", { exact: true }),
-      ).toBeVisible();
-      await expect(page.getByText("Chofer", { exact: true })).toHaveCount(0);
-    }
-  }
-  await expect(
-    page.getByRole("radio", { name: "Próximos", exact: true }),
-  ).toBeChecked();
-});
-
 test("returning from tracking reuses the order detail and back returns to its origin", async ({
   page,
 }) => {
@@ -140,7 +100,6 @@ test("returning from tracking reuses the order detail and back returns to its or
     page.getByRole("button", { name: "Atrás", exact: true }),
   ).not.toBeVisible();
 });
-
 test("opening addresses from a request preserves its draft and returns to the same step", async ({
   page,
 }) => {
@@ -181,7 +140,6 @@ test("opening addresses from a request preserves its draft and returns to the sa
     }),
   ).toBeVisible();
 });
-
 test("profile lives in account without a role; billing and addresses persist across reload", async ({
   page,
 }) => {
@@ -343,110 +301,6 @@ for (const inbound of ["domicilio"])
       ).toBeVisible();
     });
   }
-test("driver pickup, plant, delivery, recipient and history form a complete route", async ({
-  page,
-}) => {
-  await switchRole(page, "chofer");
-  await page
-    .getByRole("button", { name: "Marcar llegada al domicilio", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Confirmar recogida de prendas", exact: true })
-    .click();
-  await expect(
-    page.getByRole("button", { name: "Confirmar recogida", exact: true }),
-  ).toBeDisabled();
-  await page
-    .getByRole("button", {
-      name: "Observaciones y evidencia (opcional)",
-      exact: true,
-    })
-    .click();
-  await page
-    .getByRole("textbox", { name: "Observaciones de recogida", exact: true })
-    .fill("Bolsa sellada");
-  await page
-    .getByRole("textbox", {
-      name: "Código de transferencia (opcional)",
-      exact: true,
-    })
-    .fill("482910");
-  await page
-    .getByRole("checkbox", {
-      name: "Verifiqué las prendas con el cliente",
-      exact: true,
-    })
-    .click();
-  await page
-    .getByRole("button", { name: "Confirmar recogida", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Ir a planta central", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Confirmar entrega en planta", exact: true })
-    .click();
-  await switchRole(page, "cliente");
-  await page
-    .getByRole("button", { name: "Ver detalle de SOL-4587", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Herramientas de planta · Demo", exact: true })
-    .click();
-  for (const action of [
-    "Simular ingreso a lavado",
-    "Simular control de calidad",
-    "Simular prendas listas",
-    "Simular asignación de entrega",
-  ])
-    await page
-      .getByRole("button", { name: `${action} · Demo`, exact: true })
-      .click();
-  await switchRole(page, "chofer");
-  await page
-    .getByRole("button", { name: "Iniciar navegación de entrega", exact: true })
-    .click();
-  await expect(
-    page.getByRole("button", { name: "Navegar con Google Maps", exact: true }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Atrás", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Marcar llegada a entrega", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Confirmar entrega al cliente", exact: true })
-    .click();
-  await page
-    .getByRole("textbox", { name: "Nombre de quien recibe", exact: true })
-    .fill("Ana Torres");
-  await page
-    .getByRole("button", { name: "Relación con el cliente", exact: true })
-    .click();
-  await page.getByRole("radio", { name: "Familiar", exact: true }).click();
-  await page
-    .getByRole("checkbox", {
-      name: "Confirmo la entrega completa a la persona indicada",
-      exact: true,
-    })
-    .click();
-  await page
-    .getByRole("button", { name: "Confirmar entrega", exact: true })
-    .click();
-  await page.getByRole("tab", { name: "Historial", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Ver detalle de SOL-4587", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Constancia de entrega", exact: true })
-    .click();
-  await expect(
-    page.getByText("Ana Torres · Familiar", { exact: true }),
-  ).toBeVisible();
-  await page.screenshot({
-    path: "test-results/driver-completed.png",
-    fullPage: true,
-  });
-});
 test("registration verification rejection and resubmission unlock the new client", async ({
   page,
 }) => {

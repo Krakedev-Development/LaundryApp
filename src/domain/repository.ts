@@ -1,4 +1,12 @@
-import { addCard, addBankAccount, setDefaultPaymentMethod, removePaymentMethod, type CardInput, type BankAccountInput } from "./paymentMethods";
+import { authenticateSession } from "@laundry/mobile-auth";
+import {
+  addCard,
+  addBankAccount,
+  setDefaultPaymentMethod,
+  removePaymentMethod,
+  type CardInput,
+  type BankAccountInput,
+} from "./paymentMethods";
 import {
   extras,
   facilities,
@@ -9,7 +17,7 @@ import {
   rewards,
   services,
 } from "./catalog";
-import { createSeedState, DEMO_PASSWORD_HASH, seedHandoff } from "./seed";
+import { createSeedState, seedHandoff } from "./seed";
 import {
   modeFor,
   pickupStatuses,
@@ -22,7 +30,6 @@ import {
   type HandoffType,
   type Leg,
   type Method,
-  type OperationalStatus,
   type Order,
   type OrderItem,
   type OrderPricing,
@@ -31,7 +38,6 @@ import {
   type Role,
   type TimeSlot,
 } from "./models";
-
 export const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 export function today(now = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -60,7 +66,6 @@ export function initializeState(now = new Date()): AppState {
   refreshSchedule(s, now);
   return s;
 }
-/** Keep existing reservations and add a rolling week when the demo is reopened. */
 export function refreshSchedule(s: AppState, now = new Date()): void {
   for (let day = 0; day <= 7; day++) {
     const date = today(new Date(now.getTime() + day * 86400000));
@@ -93,12 +98,8 @@ export function currentCustomer(s: AppState): Customer {
   return s.customers.find((c) => c.id === s.session?.id) ?? s.customers[0];
 }
 export function visibleOrders(s: AppState): Order[] {
-  if (!s.session) return [];
-  return s.orders.filter((o) =>
-    s.session!.role === "CLIENT"
-      ? o.customerId === s.session!.id
-      : o.assignedDriverId === s.session!.id,
-  );
+  if (!s.session || s.session.role !== "CLIENT") return [];
+  return s.orders.filter((o) => o.customerId === s.session!.id);
 }
 export function slotContext(
   leg: "INBOUND" | "OUTBOUND",
@@ -191,8 +192,6 @@ export interface CreateOrderInput {
   paymentMethod: string;
   notes: string;
 }
-
-/** Operations run on a cloned state. A failed operation never partially commits. */
 export class LaundryRepository {
   constructor(
     public state: AppState,
@@ -213,11 +212,6 @@ export class LaundryRepository {
     const o = visibleOrders(this.state).find((o) => o.id === id);
     if (!o || (role && this.state.session?.role !== role))
       throw Error("No tienes acceso a esta solicitud.");
-    if (
-      this.state.session?.role === "DRIVER" &&
-      this.state.driver.mustChangePassword
-    )
-      throw Error("Cambia tu contraseña temporal antes de iniciar servicios.");
     return o;
   }
   private active(o: Order): void {
@@ -288,22 +282,28 @@ export class LaundryRepository {
     }
   }
   login(email: string, passwordHash: string): void {
-    const account = this.state.accounts.find(
-      (a) =>
-        a.email.toLowerCase() === email.trim().toLowerCase() &&
-        a.passwordHash === passwordHash,
+    this.state.session = authenticateSession(
+      this.state.accounts,
+      email,
+      passwordHash,
+      "CLIENT",
     );
-    if (!account) throw Error("Correo o contraseña incorrectos.");
-    this.state.session = { id: account.id, role: account.role };
   }
   demoLogin(role: Role): void {
-    this.state.session = { id: role === "CLIENT" ? "cust-1" : "drv-1", role };
+    if (role !== "CLIENT") throw Error("Esta app es exclusiva para clientes.");
+    this.state.session = { id: "cust-1", role: "CLIENT" };
   }
   logout(): void {
     this.state.session = null;
   }
   addPaymentCard(input: CardInput): string {
-    return addCard(this.state, this.client().id, input, this.id("pm"), this.now);
+    return addCard(
+      this.state,
+      this.client().id,
+      input,
+      this.id("pm"),
+      this.now,
+    );
   }
   addPaymentBankAccount(input: BankAccountInput): string {
     return addBankAccount(this.state, this.client().id, input, this.id("pm"));
@@ -354,13 +354,9 @@ export class LaundryRepository {
     const a = this.state.accounts.find((a) => a.id === this.state.session?.id);
     if (!a || (!forced && a.passwordHash !== currentHash))
       throw Error("La contraseña actual es incorrecta.");
-    if (
-      forced &&
-      (a.role !== "DRIVER" || !this.state.driver.mustChangePassword)
-    )
-      throw Error("No hay cambio obligatorio pendiente.");
+    if (forced)
+      throw Error("Esta cuenta no tiene un cambio obligatorio pendiente.");
     a.passwordHash = newHash;
-    if (a.role === "DRIVER") this.state.driver.mustChangePassword = false;
   }
   saveKycDocument(documentType: string, documentId: string, uri: string): void {
     const c = this.client();
@@ -856,104 +852,6 @@ export class LaundryRepository {
     ch.status = "PAID";
     ch.paidAt = this.stamp();
   }
-  driverAction(
-    orderId: string,
-    action:
-      | "START_PICKUP"
-      | "ARRIVE_PICKUP"
-      | "GO_FACILITY"
-      | "ARRIVE_FACILITY"
-      | "START_DELIVERY"
-      | "ARRIVE_DELIVERY",
-  ): void {
-    const o = this.order(orderId, "DRIVER");
-    const transitions: Record<typeof action, [OrderStatus, OrderStatus]> = {
-      START_PICKUP: ["PICKUP_ASSIGNED", "HEADING_TO_PICKUP"],
-      ARRIVE_PICKUP: ["HEADING_TO_PICKUP", "ARRIVED_FOR_PICKUP"],
-      GO_FACILITY: ["PICKED_UP", "HEADING_TO_FACILITY"],
-      ARRIVE_FACILITY: ["HEADING_TO_FACILITY", "AT_FACILITY"],
-      START_DELIVERY: ["DELIVERY_ASSIGNED", "OUT_FOR_DELIVERY"],
-      ARRIVE_DELIVERY: ["OUT_FOR_DELIVERY", "ARRIVED_FOR_DELIVERY"],
-    };
-    const [from, to] = transitions[action];
-    if (o.status !== from)
-      throw Error("La acción no corresponde al estado actual.");
-    if (["BREAK", "OFFLINE"].includes(this.state.driver.operationalStatus))
-      throw Error("Ponte disponible antes de continuar el servicio.");
-    if (action === "START_PICKUP")
-      o.fulfillmentPlan.inbound.status = "IN_PROGRESS";
-    if (action === "START_DELIVERY") {
-      if (o.paymentStatus !== "PAGADO")
-        throw Error("El pedido requiere pago antes del despacho.");
-      o.fulfillmentPlan.outbound.status = "IN_PROGRESS";
-      o.canChangeOutboundMethod = false;
-      o.handoffs
-        .filter(
-          (h) => h.type === "DRIVER_TO_CUSTOMER" && h.status === "PENDING",
-        )
-        .forEach((h) => {
-          h.status = "ACTIVE";
-        });
-      this.addHandoff(o, "DRIVER_TO_CUSTOMER");
-      this.addHandoff(o, "FACILITY_TO_DRIVER");
-      this.consume(o, "FACILITY_TO_DRIVER");
-    }
-    if (action === "ARRIVE_FACILITY") {
-      this.consume(o, "DRIVER_TO_FACILITY");
-      o.fulfillmentPlan.inbound.status = "COMPLETED";
-      o.fulfillmentPlan.inbound.completedAt = this.stamp();
-      this.state.driver.operationalStatus = "AVAILABLE";
-    } else this.state.driver.operationalStatus = "ON_SERVICE";
-    this.event(o, to);
-  }
-  driverConfirmPickup(
-    orderId: string,
-    count: number,
-    notes: string,
-    photoUri?: string,
-    code?: string,
-  ): void {
-    const o = this.order(orderId, "DRIVER");
-    if (o.status !== "ARRIVED_FOR_PICKUP")
-      throw Error("Marca la llegada antes de confirmar.");
-    if (!Number.isSafeInteger(count) || count <= 0)
-      throw Error("Ingresa un conteo de prendas válido.");
-    this.consume(o, "CUSTOMER_TO_DRIVER", code);
-    this.addHandoff(o, "DRIVER_TO_FACILITY");
-    Object.assign(o.pickup, {
-      garmentCountConfirmed: count,
-      notes: notes.trim() || o.pickup.notes,
-      pickedUpAt: this.stamp(),
-      evidencePhotoUri: photoUri,
-    });
-    this.event(o, "PICKED_UP", `${count} prendas recibidas y verificadas.`);
-  }
-  driverConfirmDelivery(
-    orderId: string,
-    name: string,
-    relationship: string,
-    notes: string,
-    photoUri?: string,
-    code?: string,
-  ): void {
-    const o = this.order(orderId, "DRIVER");
-    if (o.status !== "ARRIVED_FOR_DELIVERY" || !name.trim())
-      throw Error("Confirma llegada y nombre de quien recibe.");
-    this.consume(o, "DRIVER_TO_CUSTOMER", code);
-    Object.assign(o.delivery, {
-      recipientName: name.trim(),
-      recipientRelationship: relationship,
-      deliveryNotes: notes.trim(),
-      deliveredAt: this.stamp(),
-      evidencePhotoUri: photoUri,
-    });
-    o.fulfillmentPlan.outbound.status = "COMPLETED";
-    o.fulfillmentPlan.outbound.completedAt = this.stamp();
-    this.state.driver.operationalStatus = "AVAILABLE";
-    this.state.driver.completedDeliveriesCount++;
-    this.event(o, "DELIVERED", `Entregado a ${name.trim()} (${relationship}).`);
-  }
-  /** Native prototype's local plant simulator; no administrative mobile account. */
   advancePlantOperation(orderId: string, measuredLb?: number): void {
     const o = this.order(orderId);
     this.active(o);
@@ -1043,8 +941,7 @@ export class LaundryRepository {
     const o = this.order(orderId);
     if (!text.trim()) throw Error("Escribe un mensaje.");
     const session = this.state.session!;
-    const sender =
-      session.role === "CLIENT" ? this.client() : this.state.driver;
+    const sender = this.client();
     (this.state.chatMessages[o.id] ??= []).push({
       id: this.id("msg"),
       orderId,
@@ -1089,11 +986,6 @@ export class LaundryRepository {
     const c = this.client();
     if (!plans.some((p) => p.name === name)) throw Error("Plan inválido.");
     c.membershipTier = name;
-  }
-  setDriverOperationalStatus(status: OperationalStatus): void {
-    if (this.state.session?.role !== "DRIVER")
-      throw Error("Se requiere sesión de chofer.");
-    this.state.driver.operationalStatus = status;
   }
   saveAddress(address: Address): void {
     const c = this.client();
@@ -1154,12 +1046,6 @@ export class LaundryRepository {
       (n) => n.id === id && n.customerId === c.id,
     );
     if (n) n.isRead = true;
-  }
-  simulateTemporaryPassword(): void {
-    this.state.driver.mustChangePassword = true;
-    this.state.accounts.find((a) => a.role === "DRIVER")!.passwordHash =
-      DEMO_PASSWORD_HASH;
-    this.demoLogin("DRIVER");
   }
 }
 export function transact<T>(

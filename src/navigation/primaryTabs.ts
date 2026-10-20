@@ -17,21 +17,11 @@ export const clientTabs: Tab[] = [
   { route: "ClientBenefits", label: "Beneficios", icon: "gift-outline" },
   { route: "ClientProfile", label: "Perfil", icon: "person-outline" },
 ];
-export const driverTabs: Tab[] = [
-  { route: "DriverRoute", label: "Mi ruta", icon: "navigate-outline" },
-  { route: "DriverServices", label: "Servicios", icon: "list-outline" },
-  { route: "DriverHistory", label: "Historial", icon: "time-outline" },
-  { route: "DriverProfile", label: "Perfil", icon: "person-outline" },
-];
 export function primaryTabTarget(name: keyof Routes) {
   if (
     name !== "ClientNewOrderWizard" &&
     clientTabs.some((tab) => tab.route === name)
-  ) {
+  )
     return { name: "ClientTabs", screen: name } as const;
-  }
-  if (driverTabs.some((tab) => tab.route === name)) {
-    return { name: "DriverTabs", screen: name } as const;
-  }
   return undefined;
 }

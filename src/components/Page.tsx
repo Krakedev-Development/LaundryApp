@@ -23,7 +23,6 @@ import { Button, colors, IconButton, ui } from "./ui";
 import { NavigationBar } from "./NavigationBar";
 import {
   clientTabs,
-  driverTabs,
   primaryTabTarget,
   type Tab,
 } from "../navigation/primaryTabs";
@@ -36,10 +35,6 @@ const fullScreen = [
   "ClientNewOrderWizard",
   "ClientTracking",
   "Chat",
-  "DriverMap",
-  "DriverPickupConfirm",
-  "DriverDeliveryConfirm",
-  "DriverChangePassword",
 ];
 export function Logo() {
   return (
@@ -73,18 +68,13 @@ export function Page({
     route = useRoute();
   const name = route.name as keyof Routes;
   const scrollRef = useRef<ScrollView>(null);
-  const isClient = state.session?.role === "CLIENT";
-  const tabs = isClient ? clientTabs : driverTabs,
+
+  const tabs = clientTabs,
     primary = primaryTabTarget(name);
   const activeTab = useNavigationState((s) => {
     if (s.type === "tab") return s.routes[s.index].name;
-    const nested = s.routes.find(
-      (r) => r.name === (isClient ? "ClientTabs" : "DriverTabs"),
-    )?.state;
-    return (
-      nested?.routes[nested.index ?? 0]?.name ??
-      (isClient ? "ClientHome" : "DriverRoute")
-    );
+    const nested = s.routes.find((r) => r.name === "ClientTabs")?.state;
+    return nested?.routes[nested.index ?? 0]?.name ?? "ClientHome";
   });
   useEffect(() => {
     scrollRef.current?.scrollTo({ y: 0, animated: false });
@@ -100,10 +90,7 @@ export function Page({
     }, [onBack]),
   );
   const authenticated =
-    !!state.session &&
-    (isClient
-      ? currentCustomer(state).kycStatus === "APPROVED"
-      : !state.driver.mustChangePassword);
+    !!state.session && currentCustomer(state).kycStatus === "APPROVED";
   const navigate = (target: Tab["route"] | "ClientNotifications") =>
     navigation.navigate(target);
   const back = () =>
@@ -111,13 +98,11 @@ export function Page({
       ? onBack()
       : navigation.canGoBack()
         ? navigation.goBack()
-        : navigate(isClient ? "ClientHome" : "DriverRoute");
+        : navigate("ClientHome");
   const showTabs = authenticated && !primary && !fullScreen.includes(name);
-  const notification =
-    isClient &&
-    state.notifications.some(
-      (n) => n.customerId === currentCustomer(state).id && !n.isRead,
-    );
+  const notification = state.notifications.some(
+    (n) => n.customerId === currentCustomer(state).id && !n.isRead,
+  );
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: backgroundColor ?? colors.background }}
@@ -164,7 +149,7 @@ export function Page({
                   {titles[name]}
                 </Text>
               )}
-              {authenticated && isClient ? (
+              {authenticated ? (
                 <View>
                   <IconButton
                     label="Ver notificaciones"
@@ -204,12 +189,14 @@ export function Page({
             ref={scrollRef}
             style={{
               flex: 1,
-              backgroundColor: backgroundColor ?? contentTheme.colors.background,
+              backgroundColor:
+                backgroundColor ?? contentTheme.colors.background,
             }}
             contentContainerStyle={[
               {
                 padding: contentTheme.spacing.screen,
-                backgroundColor: backgroundColor ?? contentTheme.colors.background,
+                backgroundColor:
+                  backgroundColor ?? contentTheme.colors.background,
                 gap: 16,
                 paddingBottom: 28,
                 width: "100%",
@@ -229,7 +216,8 @@ export function Page({
               {
                 flex: 1,
                 padding: contentTheme.spacing.screen,
-                backgroundColor: backgroundColor ?? contentTheme.colors.background,
+                backgroundColor:
+                  backgroundColor ?? contentTheme.colors.background,
                 gap: 16,
                 width: "100%",
                 maxWidth: theme.layout.maxWidth,

@@ -1,3 +1,5 @@
+> Documento histórico anterior a la separación de roles. Para la arquitectura y rutas actuales consulta [ROLE_SPLIT.md](ROLE_SPLIT.md).
+
 # Migración Android a Expo
 
 La migración tomó como referencia el prototipo Kotlin recibido. Sus 30 rutas tienen una ruta correspondiente en `src/navigation/routes.ts` y un registro en `App.tsx` o `src/navigation/MainTabs.tsx`. El proyecto Android Studio original se eliminó después de la migración; las tablas siguientes conservan el inventario de pantallas y acciones implementadas en Expo. La aplicación y sus pruebas usan únicamente el código React Native de este repositorio.

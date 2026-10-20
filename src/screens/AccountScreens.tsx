@@ -11,7 +11,6 @@ import {
   promoTone,
 } from "../components/BenefitsPresentation";
 import {
-  ProfileDetail,
   ProfileHero,
   ProfileLogout,
   ProfileRow,
@@ -30,12 +29,8 @@ import {
 import { useApp } from "../store/AppProvider";
 import { currentCustomer } from "../domain/repository";
 import { plans, promos, rewards } from "../domain/catalog";
-import {
-  money,
-  operationalLabels,
-} from "../domain/models";
+import { money } from "../domain/models";
 import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
-
 export function ClientProfileScreen() {
   const navigation = useLaundryNavigation();
   const { state, execute } = useApp();
@@ -145,15 +140,24 @@ export function BenefitsScreen() {
                   ]}
                 >
                   <View style={benefitStyles.promoHeading}>
-                    <Icon name="pricetag-outline" color={promoTone(index).ink} />
+                    <Icon
+                      name="pricetag-outline"
+                      color={promoTone(index).ink}
+                    />
                     <Title
-                      style={[benefitStyles.promoTitle, { color: promoTone(index).ink }]}
+                      style={[
+                        benefitStyles.promoTitle,
+                        { color: promoTone(index).ink },
+                      ]}
                     >
                       {p.code}
                     </Title>
                   </View>
                   <Body
-                    style={[benefitStyles.promoDescription, { color: promoTone(index).ink }]}
+                    style={[
+                      benefitStyles.promoDescription,
+                      { color: promoTone(index).ink },
+                    ]}
                   >
                     {p.description}
                   </Body>
@@ -197,10 +201,14 @@ export function BenefitsScreen() {
                 <BenefitIcon name="gift-outline" />
                 <View style={benefitStyles.rewardInfo}>
                   <Title style={benefitStyles.rewardTitle}>{r.title}</Title>
-                  <Text style={benefitStyles.rewardCost}>{r.pointsCost} puntos</Text>
+                  <Text style={benefitStyles.rewardCost}>
+                    {r.pointsCost} puntos
+                  </Text>
                 </View>
               </View>
-              <Body style={benefitStyles.rewardDescription}>{r.description}</Body>
+              <Body style={benefitStyles.rewardDescription}>
+                {r.description}
+              </Body>
               <Button
                 label={`Canjear ${r.title}`}
                 style={benefitStyles.rewardButton}
@@ -242,34 +250,62 @@ export function BenefitsScreen() {
             >
               {c.membershipTier === plan.name && (
                 <View
-                  style={[benefitStyles.planBadge, { backgroundColor: membershipTone(plan.id).soft }]}
+                  style={[
+                    benefitStyles.planBadge,
+                    { backgroundColor: membershipTone(plan.id).soft },
+                  ]}
                 >
-                  <Icon name="checkmark-circle" size={14} color={membershipTone(plan.id).ink} />
-                  <Text style={[benefitStyles.planBadgeText, { color: membershipTone(plan.id).ink }]}>
+                  <Icon
+                    name="checkmark-circle"
+                    size={14}
+                    color={membershipTone(plan.id).ink}
+                  />
+                  <Text
+                    style={[
+                      benefitStyles.planBadgeText,
+                      { color: membershipTone(plan.id).ink },
+                    ]}
+                  >
                     Plan actual
                   </Text>
                 </View>
               )}
               <View style={benefitStyles.planHeader}>
-                <Title style={[benefitStyles.planName, { color: membershipTone(plan.id).ink }]}>
+                <Title
+                  style={[
+                    benefitStyles.planName,
+                    { color: membershipTone(plan.id).ink },
+                  ]}
+                >
                   {plan.name}
                 </Title>
                 <View style={benefitStyles.planPriceRow}>
-                  <Text style={benefitStyles.planPrice}>{money(plan.priceMonthly)}</Text>
-                  <Body muted style={benefitStyles.planPeriod}>/ mes</Body>
+                  <Text style={benefitStyles.planPrice}>
+                    {money(plan.priceMonthly)}
+                  </Text>
+                  <Body muted style={benefitStyles.planPeriod}>
+                    / mes
+                  </Body>
                 </View>
               </View>
               <View style={benefitStyles.features}>
                 {plan.benefits.map((b) => (
                   <View key={b} style={benefitStyles.feature}>
-                    <Icon name="checkmark-circle" size={15} color={membershipTone(plan.id).ink} />
+                    <Icon
+                      name="checkmark-circle"
+                      size={15}
+                      color={membershipTone(plan.id).ink}
+                    />
                     <Body style={benefitStyles.featureText}>{b}</Body>
                   </View>
                 ))}
               </View>
               <Button
                 label={`Elegir plan ${plan.name} · Demo`}
-                style={[benefitStyles.planButton, { backgroundColor: membershipTone(plan.id).ink }]}
+                style={[
+                  benefitStyles.planButton,
+                  { backgroundColor: membershipTone(plan.id).ink },
+                ]}
                 disabled={c.membershipTier === plan.name}
                 onPress={() =>
                   a.run(
@@ -282,44 +318,6 @@ export function BenefitsScreen() {
           ))}
         </>
       )}
-    </Page>
-  );
-}
-
-export function DriverProfileScreen() {
-  const { state, execute } = useApp();
-  const d = state.driver;
-  return (
-    <Page>
-      <ProfileHero title={d.name} email={d.email}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-          <Icon name="car-outline" size={18} />
-          <Badge>{operationalLabels[d.operationalStatus]}</Badge>
-        </View>
-      </ProfileHero>
-      <ProfileSection title="Vehículo asignado">
-        <ProfileDetail label="Vehículo" icon="car-outline">
-          {d.vehicleModel} · {d.vehicleColor}
-        </ProfileDetail>
-        <ProfileDetail label="Placa" icon="pricetag-outline">
-          {d.vehiclePlate}
-        </ProfileDetail>
-        <ProfileDetail label="Sede" icon="business-outline">
-          {d.facilityName}
-        </ProfileDetail>
-        <ProfileDetail label="Zona" icon="location-outline" last>
-          {d.zoneName}
-        </ProfileDetail>
-      </ProfileSection>
-      <ProfileSection title="Historial de ruta">
-        <View style={{ padding: 16, gap: 8 }}>
-          <Title>{d.completedDeliveriesCount} entregas completadas</Title>
-          <Body muted>
-            Consulta los servicios finalizados en el historial de tu ruta.
-          </Body>
-        </View>
-      </ProfileSection>
-      <ProfileLogout onPress={() => execute((r) => r.logout())} />
     </Page>
   );
 }

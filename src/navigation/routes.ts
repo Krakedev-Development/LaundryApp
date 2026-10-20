@@ -27,28 +27,14 @@ export type Routes = {
   ClientNotifications: undefined;
   ClientSupport: undefined;
   ClientSecurity: undefined;
-  DriverRoute: undefined;
-  DriverServices: undefined;
-  DriverHistory: undefined;
-  DriverProfile: undefined;
-  DriverServiceDetail: { orderId: string };
-  DriverMap: { orderId: string };
-  DriverPickupConfirm: { orderId: string };
-  DriverDeliveryConfirm: { orderId: string };
-  DriverChangePassword: undefined;
 };
 export type ClientTabRoutes = Pick<
   Routes,
   "ClientHome" | "ClientOrders" | "ClientBenefits" | "ClientProfile"
 >;
-export type DriverTabRoutes = Pick<
-  Routes,
-  "DriverRoute" | "DriverServices" | "DriverHistory" | "DriverProfile"
->;
-export type PrimaryRoute = keyof ClientTabRoutes | keyof DriverTabRoutes;
+export type PrimaryRoute = keyof ClientTabRoutes;
 export type RootRoutes = Omit<Routes, PrimaryRoute> & {
   ClientTabs: NavigatorScreenParams<ClientTabRoutes> | undefined;
-  DriverTabs: NavigatorScreenParams<DriverTabRoutes> | undefined;
 };
 export type ScreenProps<T extends keyof Routes> = {
   route: RouteProp<Routes, T>;
@@ -78,13 +64,4 @@ export const titles: Record<keyof Routes, string> = {
   ClientNotifications: "Notificaciones",
   ClientSupport: "Ayuda y soporte",
   ClientSecurity: "Seguridad y contraseña",
-  DriverRoute: "Mi ruta",
-  DriverServices: "Mis servicios",
-  DriverHistory: "Historial",
-  DriverProfile: "Mi cuenta",
-  DriverServiceDetail: "Detalle de servicio",
-  DriverMap: "Mapa y navegación",
-  DriverPickupConfirm: "Confirmar recogida",
-  DriverDeliveryConfirm: "Confirmar entrega",
-  DriverChangePassword: "Cambiar contraseña",
 };

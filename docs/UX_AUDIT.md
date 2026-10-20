@@ -1,3 +1,5 @@
+> Documento histórico anterior a la separación de roles. Para la arquitectura y rutas actuales consulta [ROLE_SPLIT.md](ROLE_SPLIT.md).
+
 # Auditoría UX de LaundryApp
 
 Se revisaron las 30 rutas, sus componentes y acciones antes de cambiar la interfaz. Stack: Expo SDK 57, React Native 0.86, TypeScript, React Navigation con pestañas y pila nativa. Los datos, reglas, autenticación y persistencia pertenecen a src/domain y src/store; permanecen fuera del rediseño. Cámara, QR, archivos, mapas y navegación externa conservan sus contratos.

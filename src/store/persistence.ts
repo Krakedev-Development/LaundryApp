@@ -1,3 +1,4 @@
+import { migrateClientAudience } from "./clientMigration";
 import { migrateFulfillmentPolicy } from "../domain/fulfillmentPolicy";
 import { migratePaymentMethods } from "../domain/paymentMethods";
 import type { AppState } from "../domain/models";
@@ -26,6 +27,7 @@ export function decodeState(raw: string): AppState {
     !s.chatMessages
   )
     throw Error("Los datos locales no tienen un formato compatible.");
+  migrateClientAudience(s);
   if (
     s.customers.some(
       (c) =>
@@ -36,14 +38,10 @@ export function decodeState(raw: string): AppState {
         !Number.isFinite(c.loyaltyPoints),
     ) ||
     (s.session &&
-      (!s.accounts.some(
-        (a) => a.id === s.session!.id && a.role === s.session!.role,
-      ) ||
-        (s.session.role === "CLIENT" &&
-          !s.customers.some((c) => c.id === s.session!.id)) ||
-        (s.session.role === "DRIVER" && s.session.id !== s.driver.id)))
+      (!s.accounts.some((a) => a.id === s.session!.id && a.role === "CLIENT") ||
+        !s.customers.some((c) => c.id === s.session!.id)))
   )
-    throw Error("Los datos locales no son válidos.");
+    throw Error("Los datos locales no son validos.");
   return migratePaymentMethods(migrateFulfillmentPolicy(s));
 }
 /** Serializes writes so rapid actions and reset cannot overwrite newer state. */
