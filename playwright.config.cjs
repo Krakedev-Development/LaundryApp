@@ -23,7 +23,7 @@ module.exports = defineConfig({
   webServer: {
     command: staticUi
       ? "node scripts/serve-ui.cjs dist-geo 8084"
-      : "npm run web -- --port 8083",
+      : "pnpm run web -- --port 8083",
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 180000,

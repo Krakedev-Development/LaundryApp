@@ -10,13 +10,13 @@ Requiere Node.js 22.13 o superior y una compilación de desarrollo Expo SDK 57. 
 
 ```bash
 cd LaundryApp
-npm ci
-npm run android
-# En macOS: npm run ios
-# Después de instalar la compilación: npm run start:lan -- --clear
+pnpm install --frozen-lockfile
+pnpm run android
+# En macOS: pnpm run ios
+# Después de instalar la compilación: pnpm run start:lan -- --clear
 ```
 
-Abre la compilación de desarrollo instalada. Expo Go muestra un aviso cuando se intenta abrir el mapa; no incluye las dependencias nativas de Mapbox. El teléfono y el equipo deben estar en la misma red. Para navegador: `npm run web`. El servidor debe anunciar la IP Wi-Fi, no localhost. Si Expo elige una interfaz virtual, configura `REACT_NATIVE_PACKAGER_HOSTNAME` con la IP Wi-Fi actual. Para túnel: `npm run start:tunnel -- --clear`.
+Abre la compilación de desarrollo instalada. Expo Go muestra un aviso cuando se intenta abrir el mapa; no incluye las dependencias nativas de Mapbox. El teléfono y el equipo deben estar en la misma red. Para navegador: `pnpm run web`. El servidor debe anunciar la IP Wi-Fi, no localhost. Si Expo elige una interfaz virtual, configura `REACT_NATIVE_PACKAGER_HOSTNAME` con la IP Wi-Fi actual. Para túnel: `pnpm run start:tunnel -- --clear`.
 
 ## Cuentas de demostración
 
@@ -72,18 +72,18 @@ Esta demo no sincroniza instalaciones diferentes ni escribe en LaundryWeb. Compa
 ## Verificación
 
 ```bash
-npm run typecheck
-npm test
-npx expo install --check
-npx expo-doctor
-npx expo export --platform all
+pnpm run typecheck
+pnpm test
+pnpm exec expo install --check
+pnpm exec expo-doctor
+pnpm exec expo export --platform all
 ```
 
 Las pruebas de dominio cubren precios, KYC, pagos sin duplicados, permisos, privacidad de asignaciones, recogida/planta/entrega, puntos y sincronización. Las pruebas de interfaz usan Playwright; en Windows con Chrome instalado:
 
 ```powershell
 $env:PLAYWRIGHT_CHANNEL = 'chrome'
-npm run test:ui
+pnpm run test:ui
 ```
 
-En CI, instala el navegador con `npx playwright install chromium`. Capturas, trazas, reportes, exportaciones, dependencias, cachés, archivos nativos generados y variables locales están en `.gitignore`. Solo se incluyen código, lockfile, configuración pública, datos ficticios y logos pequeños necesarios para la app.
+En CI, instala el navegador con `pnpm exec playwright install chromium`. Capturas, trazas, reportes, exportaciones, dependencias, cachés, archivos nativos generados y variables locales están en `.gitignore`. Solo se incluyen código, lockfile, configuración pública, datos ficticios y logos pequeños necesarios para la app.

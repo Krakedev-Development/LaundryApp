@@ -10,11 +10,11 @@ El token móvil debe ser público, dedicado y sin restricciones de URL. Nunca us
 
 @rnmapbox/maps requiere código nativo. Expo Go no proporciona el mapa principal. La app muestra un mensaje de desarrollo si se abre allí; el flujo soportado utiliza una compilación propia.
 
-- npm run android: compilar y ejecutar con Android SDK, JDK y dispositivo/emulador configurados.
-- npm run ios: compilar y ejecutar en macOS con Xcode.
-- npm run start:dev: iniciar Metro para la compilación de desarrollo.
+- pnpm run android: compilar y ejecutar con Android SDK, JDK y dispositivo/emulador configurados.
+- pnpm run ios: compilar y ejecutar en macOS con Xcode.
+- pnpm run start:dev: iniciar Metro para la compilación de desarrollo.
 - EAS: configurar la cuenta/proyecto Expo y ejecutar eas build --profile development --platform android o ios. eas.json incluye perfiles development y preview. Estas compilaciones remotas no se lanzan automáticamente.
-- npm run web conserva una vista textual para pruebas de los flujos; el mapa nativo principal es Android/iOS y no utiliza WebView.
+- pnpm run web conserva una vista textual para pruebas de los flujos; el mapa nativo principal es Android/iOS y no utiliza WebView.
 
 La exportación Expo de bundles Android/iOS verifica Metro/Hermes; no reemplaza la compilación de Gradle/Xcode ni las pruebas de dispositivo.
 
@@ -44,16 +44,16 @@ Las aplicaciones no se sincronizan. node scripts/sync-demo-seed.cjs prepara dato
 
 ## Validar
 
-- npm run typecheck
-- npm test
-- npm run test:ui
-- npx expo config --type prebuild
-- npx expo export --platform all --output-dir dist-geo
+- pnpm run typecheck
+- pnpm test
+- pnpm run test:ui
+- pnpm exec expo config --type prebuild
+- pnpm exec expo export --platform all --output-dir dist-geo
 
 En Windows con Edge instalado y sin Chromium de Playwright, definir PLAYWRIGHT_CHANNEL=msedge para UI. Los tests cubren el ciclo local, autorización, pagos, cobertura, conservación de pines y los contratos geoespaciales.
 
 Aún se deben validar permisos y mapas reales en Android e iOS con un token autorizado. Las credenciales Mapbox/Expo/Apple y los dispositivos no se incluyen en el repositorio.
 
-Para comprobar UI sobre una exportación estable, ejecutar primero el export anterior y definir EXPO_UI_STATIC=true antes de npm run test:ui. Ese modo sirve dist-geo en localhost:8084 y evita recargas de Metro durante el recorrido.
+Para comprobar UI sobre una exportación estable, ejecutar primero el export anterior y definir EXPO_UI_STATIC=true antes de pnpm run test:ui. Ese modo sirve dist-geo en localhost:8084 y evita recargas de Metro durante el recorrido.
 
 Validación realizada: revisión de tipos, 26 pruebas de dominio/geo, exportaciones Web/Android/iOS y los cuatro recorridos UI en Edge. No se generaron APK/IPA; faltan Android SDK y entorno macOS/Xcode en este equipo para verificar el enlace nativo y los mapas en dispositivos.
