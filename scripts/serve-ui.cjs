@@ -17,7 +17,7 @@ const mime = {
 };
 if (!fs.existsSync(path.join(root, "index.html")))
   throw new Error(
-    "Exporta primero: npx expo export --platform all --output-dir dist-geo",
+    "Exporta primero: pnpm exec expo export --platform all --output-dir dist-geo",
   );
 http
   .createServer((req, res) => {

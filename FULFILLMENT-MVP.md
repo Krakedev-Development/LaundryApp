@@ -1,12 +1,12 @@
 # Demostración de ingreso/retiro y transferencias QR
 
-Ambas aplicaciones mantienen datos locales independientes. Los escenarios equivalentes tienen los mismos pedidos, tipos de transferencia, identificadores y códigos iniciales; operar en Expo no cambia la Web. `npm run demo:prepare` regenera el catálogo y los metadatos de escenarios desde LaundryWeb.
+Ambas aplicaciones mantienen datos locales independientes. Los escenarios equivalentes tienen los mismos pedidos, tipos de transferencia, identificadores y códigos iniciales; operar en Expo no cambia la Web. `pnpm run demo:prepare` regenera el catálogo y los metadatos de escenarios desde LaundryWeb.
 
 ## Ejecutar
 
-- Expo: `npm install`, `npm run start:dev`; utilizar un development build Android/iOS con Mapbox y `expo-camera`. Hay que reconstruir el development build después de instalar la cámara. Expo Go no incluye el módulo nativo de Mapbox usado por esta aplicación.
-- Vista web de Expo: `npm run web`. Mapbox continúa siendo nativo; se muestran direcciones y navegación externa en el navegador.
-- LaundryWeb: `npm install`, `npm run dev`; módulo **Recepción y retiros** en `/operations/handoffs`.
+- Expo: `pnpm install --frozen-lockfile`, `pnpm run start:dev`; utilizar un development build Android/iOS con Mapbox y `expo-camera`. Hay que reconstruir el development build después de instalar la cámara. Expo Go no incluye el módulo nativo de Mapbox usado por esta aplicación.
+- Vista web de Expo: `pnpm run web`. Mapbox continúa siendo nativo; se muestran direcciones y navegación externa en el navegador.
+- LaundryWeb: `pnpm install --frozen-lockfile`, `pnpm run dev`; módulo **Recepción y retiros** en `/operations/handoffs`.
 - Credenciales de cliente preparado: `maria.torres@gmail.com` / `Laundry2026!`. Para crear pedidos nuevos: `nuevo@laundryfresh.com` / `Laundry2026!`. El chofer asignado se indica en el pedido; los choferes sin contraseña temporal usan `Laundry2026!`.
 
 ## Recorridos
@@ -53,8 +53,8 @@ La cámara de Web requiere HTTPS o localhost, según [getUserMedia](https://deve
 
 ## Comprobar
 
-- Expo: `npm run typecheck`, `npm test`, `npx expo export --platform all --output-dir dist-geo`.
-- UI Expo: servir `dist-geo` con `node scripts/serve-ui.cjs dist-geo 8084`; establecer `EXPO_UI_STATIC=true`, `PLAYWRIGHT_CHANNEL=msedge` y ejecutar `npm run test:ui`.
-- Web: `npm run lint`, `npm test`, `npm run build`, `npm run test:ui` con el navegador Playwright disponible.
+- Expo: `pnpm run typecheck`, `pnpm test`, `pnpm exec expo export --platform all --output-dir dist-geo`.
+- UI Expo: servir `dist-geo` con `node scripts/serve-ui.cjs dist-geo 8084`; establecer `EXPO_UI_STATIC=true`, `PLAYWRIGHT_CHANNEL=msedge` y ejecutar `pnpm run test:ui`.
+- Web: `pnpm run lint`, `pnpm test`, `pnpm run build`, `pnpm run test:ui` con el navegador Playwright disponible.
 
 Las pruebas cubren ambos recorridos, roles/sedes, pago y etapas, bloqueo/regeneración, uso único e idempotencia, incidencias, override, migración, persistencia, recepción local sin conexión y regresiones geográficas. Login, pagos, KYC, chat y notificaciones siguen siendo demostraciones locales.
