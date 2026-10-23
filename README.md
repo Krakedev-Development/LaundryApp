@@ -4,6 +4,8 @@ Aplicación Expo SDK 57 con TypeScript y Expo Router para cliente y conductor. L
 
 Consulta la [guía del nuevo flujo y transferencias QR](FULFILLMENT-MVP.md) para ejecutar los recorridos a domicilio y en sede, los escenarios preparados y las operaciones de demostración.
 
+Consulta la [documentación funcional y técnica](docs/README.md) para ver los flujos, diagramas, revisión de reglas de negocio y propuesta de organización de módulos.
+
 ## Ejecutar
 
 Requiere Node.js 22.13 o superior y una compilación de desarrollo Expo SDK 57. Mapbox nativo requiere Android SDK/JDK para Android o macOS/Xcode para iOS. Consulta [configuración geoespacial](GEO-MVP.md).
