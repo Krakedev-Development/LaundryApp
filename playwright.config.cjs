@@ -1,31 +1,21 @@
 const { defineConfig } = require("@playwright/test");
-const staticUi = process.env.EXPO_UI_STATIC === "true";
-const baseURL = staticUi ? "http://localhost:8084" : "http://localhost:8083";
 module.exports = defineConfig({
   testDir: "./tests",
   testMatch: "**/*.spec.cjs",
-  timeout: 360000,
+  timeout: 120000,
   workers: 1,
-  reporter: "list",
-  expect: { timeout: 30000 },
-  outputDir: "./test-results",
   use: {
-    baseURL,
-    viewport: { width: 390, height: 844 },
-    channel: process.env.PLAYWRIGHT_CHANNEL || undefined,
-    permissions: ["geolocation"],
-    geolocation: { latitude: -2.124, longitude: -79.867 },
-    screenshot: "only-on-failure",
+    baseURL: "http://127.0.0.1:8097",
+    channel: process.env.PLAYWRIGHT_CHANNEL || "msedge",
+    viewport: { width: 412, height: 915 },
     headless: true,
-    actionTimeout: 20000,
+    screenshot: "only-on-failure",
     trace: "retain-on-failure",
   },
   webServer: {
-    command: staticUi
-      ? "node scripts/serve-ui.cjs dist-geo 8084"
-      : "pnpm run web -- --port 8083",
-    url: baseURL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 180000,
+    command: "node scripts/preview-export.cjs",
+    url: "http://127.0.0.1:8097",
+    reuseExistingServer: false,
+    timeout: 30000,
   },
 });

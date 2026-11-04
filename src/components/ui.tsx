@@ -1,615 +1,549 @@
-import React, { createContext, useContext, useRef, useState } from "react";
+﻿import React, { useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Animated,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  TextInputProps,
   View,
+  type TextInputProps,
+  type StyleProp,
+  type ViewStyle,
+  type TextStyle,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors as C } from "../theme/colors";
-import { Radius } from "../theme/radius";
-import { Typography as T } from "../theme/typography";
-import { Spacing as S } from "../theme/spacing";
-import { Shadows } from "../theme/shadows";
-import { useApp } from "../store/AppStore";
-
-export type IconName = React.ComponentProps<typeof Ionicons>["name"];
+import { theme as chromeTheme } from "../design-system/tokens";
+import { contentTheme as theme, contentColors } from "../design-system/classic";
+import { tactile, friendlyError } from "../design-system/interaction";
+import { useFeedback } from "./overlay/OverlayContext";
+export const colors = chromeTheme.colors;
+export { contentColors };
 export const ui = StyleSheet.create({
-  page: { flex: 1, backgroundColor: C.background },
-  content: {
-    padding: S.lg,
-    gap: S.lg,
-    width: "100%",
-    maxWidth: 720,
-    alignSelf: "center",
-    paddingBottom: 32,
-  },
-  row: { flexDirection: "row", alignItems: "center", gap: S.md },
-  between: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: S.sm,
-  },
-  title: { fontSize: T.title, fontWeight: "800", color: C.text },
-  hero: { fontSize: T.hero, fontWeight: "800", color: C.text },
-  section: { fontSize: T.section, fontWeight: "700", color: C.text },
-  body: { fontSize: T.body, lineHeight: 21, color: C.text },
-  muted: { fontSize: T.body, lineHeight: 21, color: C.textMuted },
-  meta: { fontSize: T.meta, color: C.textMuted },
   card: {
-    backgroundColor: C.surface,
-    borderRadius: Radius.card,
-    padding: S.lg,
-    gap: S.md,
-    borderWidth: 1,
-    borderColor: C.border,
-    ...Shadows.card,
+    backgroundColor: contentColors.surface,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.md,
+    ...theme.shadow.subtle,
+    gap: theme.spacing.sm,
+    borderColor: contentColors.border,
   },
-  divider: { height: 1, backgroundColor: C.border },
-  wrap: { flexDirection: "row", flexWrap: "wrap", gap: S.sm },
-  heroCard: {
-    backgroundColor: C.primary,
-    borderRadius: Radius.card,
-    padding: S.xxl,
-    gap: S.lg,
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.sm,
+    flexWrap: "wrap",
+  },
+  chromeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: chromeTheme.spacing.sm,
+    flexWrap: "wrap",
+  },
+  chromeSubtitle: { color: colors.dark, ...chromeTheme.typography.section },
+  title: { color: "#111827", ...theme.typography.title },
+  subtitle: { color: "#111827", ...theme.typography.section },
+  text: { color: contentColors.text, ...theme.typography.body },
+  muted: { color: contentColors.muted, ...theme.typography.secondary },
+  input: {
+    borderWidth: 1,
+    borderColor: contentColors.border,
+    backgroundColor: contentColors.surface,
+    borderRadius: theme.radius.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    color: contentColors.text,
+    minHeight: theme.layout.button,
+    fontSize: 16,
+  },
+  action: {
+    backgroundColor: contentColors.primary,
+    borderRadius: theme.radius.md,
+    minHeight: theme.layout.button,
+    padding: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  outline: {
+    backgroundColor: contentColors.surface,
+    borderWidth: 1,
+    borderColor: contentColors.border,
+  },
+  badge: {
+    alignSelf: "flex-start",
+    borderRadius: theme.radius.pill,
+    backgroundColor: contentColors.soft,
+    paddingVertical: 5,
+    paddingHorizontal: 9,
+    color: contentColors.primary,
+    ...theme.typography.caption,
+    fontWeight: "600",
+  },
+  error: {
+    color: contentColors.danger,
+    backgroundColor: contentColors.dangerSoft,
+    padding: 12,
+    borderRadius: theme.radius.md,
+    ...theme.typography.secondary,
   },
 });
-export function Page({
-  children,
-  footer,
-}: React.PropsWithChildren<{ footer?: React.ReactNode }>) {
-  return (
-    <KeyboardAvoidingView
-      style={ui.page}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={ui.content}
-      >
-        {children}
-      </ScrollView>
-      {!!footer && (
-        <View
-          style={{
-            padding: S.lg,
-            borderTopWidth: 1,
-            borderColor: C.border,
-            backgroundColor: C.surface,
-          }}
-        >
-          <View style={{ width: "100%", maxWidth: 720, alignSelf: "center" }}>
-            {footer}
-          </View>
-        </View>
-      )}
-    </KeyboardAvoidingView>
-  );
+export type IconName = React.ComponentProps<typeof Ionicons>["name"];
+export function Icon({
+  name,
+  size = 22,
+  color = colors.primary,
+}: {
+  name: IconName;
+  size?: number;
+  color?: string;
+}) {
+  return <Ionicons name={name} size={size} color={color} />;
 }
 export function Card({
   children,
   style,
-}: React.PropsWithChildren<{
-  style?: React.ComponentProps<typeof View>["style"];
-}>) {
+}: {
+  children: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
   return <View style={[ui.card, style]}>{children}</View>;
 }
-export function Button({
-  title,
-  onPress,
-  variant = "primary",
-  disabled,
-  busy,
-  icon,
+export function Title({
+  children,
+  style,
 }: {
-  title: string;
-  onPress: () => void;
-  variant?: "primary" | "secondary" | "danger" | "lime";
+  children: React.ReactNode;
+  style?: StyleProp<TextStyle>;
+}) {
+  return (
+    <Text accessibilityRole="header" style={[ui.subtitle, style]}>
+      {children}
+    </Text>
+  );
+}
+export function Body({
+  children,
+  muted = false,
+  style,
+}: {
+  children: React.ReactNode;
+  muted?: boolean;
+  style?: StyleProp<TextStyle>;
+}) {
+  return <Text style={[muted ? ui.muted : ui.text, style]}>{children}</Text>;
+}
+export function Badge({ children }: { children: React.ReactNode }) {
+  return <Text style={ui.badge}>{children}</Text>;
+}
+export function Button({
+  label,
+  onPress,
+  icon,
+  secondary = false,
+  disabled = false,
+  busy = false,
+  testID,
+  variant,
+  style,
+  textStyle,
+}: {
+  label: string;
+  onPress(): void;
+  icon?: IconName;
+  secondary?: boolean;
   disabled?: boolean;
   busy?: boolean;
-  icon?: IconName;
+  testID?: string;
+  variant?: "primary" | "secondary" | "ghost" | "danger";
+  style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
 }) {
-  const bg =
-    variant === "secondary"
-      ? C.surface
-      : variant === "danger"
-        ? C.danger
-        : variant === "lime"
-          ? C.lime
-          : C.primary;
-  const color =
-    variant === "secondary" || variant === "lime" ? C.primary : C.surface;
+  const kind = variant ?? (secondary ? "secondary" : "primary");
+  const soft = kind === "secondary" || kind === "ghost";
+  const ink = soft ? contentColors.primary : contentColors.onPrimary;
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={title}
-      accessibilityState={{ disabled: !!(disabled || busy), busy }}
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: disabled || busy, busy }}
+      testID={testID}
+      onPress={() => {
+        tactile("selection");
+        onPress();
+      }}
       disabled={disabled || busy}
-      onPress={onPress}
-      style={({ pressed }) => ({
-        minHeight: 48,
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderRadius: Radius.button,
-        backgroundColor: bg,
-        borderWidth: 1,
-        borderColor: variant === "secondary" ? C.border : bg,
-        opacity: disabled || busy ? 0.45 : pressed ? 0.8 : 1,
-        flexDirection: "row",
-        gap: 8,
-        alignItems: "center",
-        justifyContent: "center",
-      })}
+      style={({ pressed }) => [
+        ui.action,
+        soft && {
+          backgroundColor:
+            kind === "ghost"
+              ? contentColors.transparent
+              : contentColors.surface,
+        },
+        kind === "secondary" && ui.outline,
+        kind === "danger" && { backgroundColor: contentColors.danger },
+        {
+          opacity:
+            disabled || busy
+              ? theme.opacity.disabled
+              : pressed
+                ? theme.opacity.pressed
+                : 1,
+        },
+        style,
+      ]}
     >
       {busy ? (
-        <ActivityIndicator color={color} />
-      ) : icon ? (
-        <Ionicons name={icon} color={color} size={20} />
-      ) : null}
+        <ActivityIndicator color={ink} />
+      ) : (
+        icon && <Icon name={icon} color={ink} size={19} />
+      )}
       <Text
-        style={{
-          color,
-          fontSize: T.body,
-          fontWeight: "700",
-          textAlign: "center",
-        }}
+        style={[
+          {
+            color: ink,
+            ...theme.typography.button,
+            textAlign: "center",
+            flexShrink: 1,
+          },
+          textStyle,
+        ]}
       >
-        {title}
+        {label}
       </Text>
     </Pressable>
   );
 }
 export function IconButton({
-  name,
   label,
+  icon,
   onPress,
+  disabled = false,
 }: {
-  name: IconName;
   label: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      style={{
-        minWidth: 44,
-        minHeight: 44,
-        alignItems: "center",
-        justifyContent: "center",
-        borderRadius: 12,
-        backgroundColor: C.primarySoft,
-      }}
-    >
-      <Ionicons name={name} color={C.primary} size={22} />
-    </Pressable>
-  );
-}
-export function Field({ label, ...props }: TextInputProps & { label: string }) {
-  return (
-    <View style={{ gap: 6 }}>
-      <Text style={{ color: C.text, fontSize: T.label, fontWeight: "600" }}>
-        {label}
-      </Text>
-      <TextInput
-        {...props}
-        accessibilityLabel={label}
-        placeholderTextColor={C.textMuted}
-        style={[
-          {
-            backgroundColor: C.surface,
-            borderWidth: 1,
-            borderColor: C.border,
-            borderRadius: Radius.input,
-            minHeight: 48,
-            padding: 12,
-            color: C.text,
-            fontSize: T.body,
-          },
-          props.multiline && { minHeight: 80, textAlignVertical: "top" },
-          props.style,
-        ]}
-      />
-    </View>
-  );
-}
-export function PasswordField(props: TextInputProps & { label: string }) {
-  const [visible, setVisible] = useState(false);
-  return (
-    <View>
-      <Field
-        {...props}
-        autoCapitalize="none"
-        secureTextEntry={!visible}
-        style={{ paddingRight: 50 }}
-      />
-      <View style={{ position: "absolute", bottom: 2, right: 4 }}>
-        <IconButton
-          name={visible ? "eye-off-outline" : "eye-outline"}
-          label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
-          onPress={() => setVisible(!visible)}
-        />
-      </View>
-    </View>
-  );
-}
-export function Chip({
-  title,
-  selected,
-  onPress,
-  disabled,
-}: {
-  title: string;
-  selected?: boolean;
-  onPress: () => void;
+  icon: IconName;
+  onPress(): void;
   disabled?: boolean;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityState={{ selected, disabled }}
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
       disabled={disabled}
-      onPress={onPress}
-      style={{
-        minHeight: 44,
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderRadius: Radius.chip,
-        borderWidth: 1,
-        borderColor: selected ? C.primary : C.border,
-        backgroundColor: selected ? C.primary : C.surface,
-        opacity: disabled ? 0.5 : 1,
+      onPress={() => {
+        tactile("selection");
+        onPress();
       }}
+      style={({ pressed }) => ({
+        minWidth: theme.layout.touch,
+        minHeight: theme.layout.touch,
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: theme.radius.md,
+        opacity: disabled
+          ? theme.opacity.disabled
+          : pressed
+            ? theme.opacity.pressed
+            : 1,
+        backgroundColor: pressed ? colors.soft : colors.transparent,
+      })}
     >
-      <Text
-        style={{
-          fontSize: T.label,
-          fontWeight: "600",
-          color: selected ? C.surface : C.text,
-        }}
+      <Icon name={icon} />
+    </Pressable>
+  );
+}
+export function Field({
+  label,
+  labelStyle,
+  leadingIcon,
+  labelAccessory,
+  help,
+  error,
+  validate,
+  onBlur,
+  onFocus,
+  onChangeText,
+  ...props
+}: TextInputProps & {
+  label: string;
+  labelStyle?: StyleProp<TextStyle>;
+  leadingIcon?: IconName;
+  labelAccessory?: React.ReactNode;
+  help?: string;
+  error?: string;
+  validate?: (value: string) => string | undefined;
+}) {
+  const [focused, setFocused] = useState(false),
+    [touched, setTouched] = useState(false),
+    [reveal, setReveal] = useState(false);
+  const automatic = (value: string): string | undefined => {
+    if (
+      /correo/i.test(label) &&
+      value &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+    )
+      return "Revisa el formato del correo.";
+    if (
+      /contraseña nueva|nueva contraseña/i.test(label) &&
+      !/^(?=.*[A-Z])(?=.*\d).{8,}$/.test(value)
+    )
+      return "Usa 8 caracteres, una mayúscula y un número.";
+    return undefined;
+  };
+  const problem =
+    error ||
+    (touched ? (validate ?? automatic)(String(props.value ?? "")) : undefined);
+  return (
+    <View style={{ gap: 6 }}>
+      <View
+        style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}
       >
-        {title}
-      </Text>
+        <Text
+          style={[
+            ui.muted,
+            {
+              fontWeight: "600",
+              color: contentColors.text,
+            },
+            labelStyle,
+            problem && { color: contentColors.danger },
+          ]}
+        >
+          {label}
+        </Text>
+        {labelAccessory}
+      </View>
+      <View style={{ position: "relative" }}>
+        <TextInput
+          accessibilityLabel={label}
+          accessibilityHint={problem || help}
+          placeholderTextColor={contentColors.muted}
+          {...props}
+          secureTextEntry={props.secureTextEntry && !reveal}
+          onFocus={(e) => {
+            setFocused(true);
+            onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setFocused(false);
+            setTouched(true);
+            onBlur?.(e);
+          }}
+          onChangeText={onChangeText}
+          style={[
+            ui.input,
+            leadingIcon && { paddingLeft: 40 },
+            props.secureTextEntry && { paddingRight: 58 },
+            focused && { borderColor: contentColors.focus, borderWidth: 2 },
+            problem && { borderColor: contentColors.danger },
+            props.editable === false && { backgroundColor: contentColors.soft },
+            props.style,
+          ]}
+        />
+        {leadingIcon && (
+          <View pointerEvents="none" style={{ position: "absolute", left: 12, top: 17 }}>
+            <Icon name={leadingIcon} size={18} color={contentColors.muted} />
+          </View>
+        )}
+        {props.secureTextEntry && (
+          <View style={{ position: "absolute", right: 2, top: 2 }}>
+            <IconButton
+              label={
+                (reveal ? "Ocultar " : "Mostrar ") + label.toLocaleLowerCase()
+              }
+              icon={reveal ? "eye-off-outline" : "eye-outline"}
+              onPress={() => setReveal(!reveal)}
+            />
+          </View>
+        )}
+      </View>
+      {(problem || help) && (
+        <Text
+          accessibilityRole={problem ? "alert" : undefined}
+          style={[ui.muted, problem && { color: contentColors.danger }]}
+        >
+          {problem || help}
+        </Text>
+      )}
+    </View>
+  );
+}
+export function Choice({
+  label,
+  selected,
+  onPress,
+  disabled = false,
+  style,
+  textStyle,
+}: {
+  label: string;
+  selected: boolean;
+  onPress(): void;
+  disabled?: boolean;
+  style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="radio"
+      accessibilityLabel={label}
+      accessibilityState={{ checked: selected, disabled }}
+      aria-checked={selected}
+      disabled={disabled}
+      onPress={() => {
+        tactile("selection");
+        onPress();
+      }}
+      style={({ pressed }) => [
+        ui.action,
+        ui.outline,
+        { justifyContent: "flex-start" },
+        selected && {
+          backgroundColor: contentColors.soft,
+          borderColor: contentColors.primary,
+        },
+        {
+          opacity: disabled
+            ? theme.opacity.disabled
+            : pressed
+              ? theme.opacity.pressed
+              : 1,
+        },
+        style,
+      ]}
+    >
+      <Icon
+        name={selected ? "radio-button-on" : "radio-button-off"}
+        size={20}
+      />
+      <Text style={[ui.text, { flexShrink: 1 }, textStyle]}>{label}</Text>
     </Pressable>
   );
 }
 export function Check({
-  title,
+  label,
   checked,
-  onPress,
+  onChange,
+  children,
+  style,
 }: {
-  title: string;
+  label: string;
   checked: boolean;
-  onPress: () => void;
+  onChange(value: boolean): void;
+  children?: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
 }) {
   return (
     <Pressable
       accessibilityRole="checkbox"
-      accessibilityLabel={title}
+      accessibilityLabel={label}
       accessibilityState={{ checked }}
       aria-checked={checked}
-      onPress={onPress}
-      style={[ui.row, { minHeight: 48 }]}
+      onPress={() => {
+        tactile("selection");
+        onChange(!checked);
+      }}
+      style={[ui.row, { minHeight: theme.layout.touch }, style]}
     >
-      <Ionicons
-        name={checked ? "checkbox" : "square-outline"}
-        color={C.primary}
-        size={24}
-      />
-      <Text style={[ui.body, { flex: 1 }]}>{title}</Text>
+      {children ?? (
+        <>
+          <Icon name={checked ? "checkbox" : "square-outline"} />
+          <Text style={[ui.text, { flex: 1 }]}>{label}</Text>
+        </>
+      )}
     </Pressable>
   );
 }
-export function Badge({
-  title,
-  tone = "primary",
-}: {
-  title: string;
-  tone?: "primary" | "success" | "warning" | "purple" | "danger";
-}) {
-  const colors = {
-    primary: [C.primarySoft, C.primary],
-    success: [C.successSoft, C.primaryDark],
-    warning: [C.warningSoft, C.primaryDark],
-    purple: [C.purpleSoft, C.purple],
-    danger: [C.dangerSoft, C.danger],
-  };
-  return (
-    <View
-      style={{
-        alignSelf: "flex-start",
-        borderRadius: Radius.chip,
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        backgroundColor: colors[tone][0],
-      }}
-    >
-      <Text
-        style={{ color: colors[tone][1], fontWeight: "700", fontSize: T.meta }}
-      >
-        {title}
-      </Text>
-    </View>
-  );
-}
-export function EmptyState({
-  title,
+export function Empty({
   text,
-  icon = "shirt-outline",
+  title = "Todavía no hay resultados",
   action,
 }: {
-  title: string;
   text: string;
-  icon?: IconName;
+  title?: string;
   action?: React.ReactNode;
 }) {
   return (
     <Card style={{ alignItems: "center", paddingVertical: 32 }}>
-      <View
-        style={{ backgroundColor: C.aquaSoft, padding: 20, borderRadius: 50 }}
-      >
-        <Ionicons name={icon} size={40} color={C.primary} />
-      </View>
-      <Text style={[ui.section, { textAlign: "center" }]}>{title}</Text>
-      <Text style={[ui.muted, { textAlign: "center" }]}>{text}</Text>
+      <Icon name="file-tray-outline" size={32} />
+      <Title>{title}</Title>
+      <Body muted>{text}</Body>
       {action}
     </Card>
   );
 }
-export function ErrorState({
-  text,
-  retry,
-}: {
-  text: string;
-  retry?: () => void;
-}) {
-  return (
-    <Card>
-      <Badge title="Necesitamos tu atención" tone="danger" />
-      <Text accessibilityRole="alert" style={ui.body}>
-        {text}
-      </Text>
-      {!!retry && <Button title="Reintentar" onPress={retry} />}
-    </Card>
-  );
-}
-export function LoadingSkeleton() {
-  return (
-    <View
-      style={{ padding: 24, gap: 16, backgroundColor: C.background, flex: 1 }}
-    >
-      {[160, 100, 200].map((h, i) => (
-        <View
-          key={i}
-          accessibilityLabel="Cargando contenido"
-          style={{
-            height: h,
-            backgroundColor: C.primarySoft,
-            borderRadius: 14,
-          }}
-        />
-      ))}
-    </View>
-  );
-}
-export function AppHeader({
-  title,
-  subtitle,
-  icon = "shirt-outline",
-  right,
-}: {
-  title: string;
-  subtitle?: string;
-  icon?: IconName;
-  right?: React.ReactNode;
-}) {
-  return (
-    <View style={ui.between}>
-      <View style={[ui.row, { flex: 1 }]}>
-        <View
-          style={{
-            width: 44,
-            height: 44,
-            backgroundColor: C.limeSoft,
-            borderRadius: 14,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Ionicons name={icon} size={25} color={C.primary} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={ui.title}>{title}</Text>
-          {!!subtitle && <Text style={ui.meta}>{subtitle}</Text>}
-        </View>
-      </View>
-      {right}
-    </View>
-  );
-}
-export function BottomSheet({
-  visible,
-  title,
-  children,
-  onClose,
-}: React.PropsWithChildren<{
-  visible: boolean;
-  title: string;
-  onClose: () => void;
-}>) {
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: "rgba(15,49,90,0.4)",
-          justifyContent: "flex-end",
-        }}
-      >
-        <Pressable
-          accessibilityLabel="Cerrar panel"
-          onPress={onClose}
-          style={{ flex: 1 }}
-        />
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          style={{
-            maxHeight: "90%",
-            backgroundColor: C.surface,
-            borderTopLeftRadius: Radius.sheet,
-            borderTopRightRadius: Radius.sheet,
-            width: "100%",
-            maxWidth: 720,
-            alignSelf: "center",
-            padding: 20,
-            paddingBottom: 32,
-          }}
-        >
-          <View style={ui.between}>
-            <Text style={ui.section}>{title}</Text>
-            <IconButton name="close" label="Cerrar panel" onPress={onClose} />
-          </View>
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ gap: 16, paddingTop: 16 }}
-          >
-            {children}
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </View>
-    </Modal>
-  );
-}
-export function ConfirmationSheet({
-  visible,
-  title,
-  text,
-  confirm,
-  onClose,
-  danger,
-}: {
-  visible: boolean;
-  title: string;
-  text: string;
-  confirm: () => void;
-  onClose: () => void;
-  danger?: boolean;
-}) {
-  return (
-    <BottomSheet visible={visible} title={title} onClose={onClose}>
-      <Text style={ui.body}>{text}</Text>
-      <Button
-        title={title}
-        onPress={confirm}
-        variant={danger ? "danger" : "primary"}
-      />
-      <Button title="Cancelar" onPress={onClose} variant="secondary" />
-    </BottomSheet>
-  );
-}
-const ToastContext = createContext<(message: string) => void>(() => {});
-export function ToastProvider({ children }: React.PropsWithChildren) {
-  const [message, setMessage] = useState("");
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  function show(text: string) {
-    if (timer.current) clearTimeout(timer.current);
-    setMessage(text);
-    timer.current = setTimeout(() => setMessage(""), 4000);
-  }
-  return (
-    <ToastContext.Provider value={show}>
-      {children}
-      {message ? (
-        <Pressable
-          accessibilityRole="alert"
-          onPress={() => setMessage("")}
-          style={{
-            position: "absolute",
-            bottom: 90,
-            left: 20,
-            right: 20,
-            maxWidth: 640,
-            alignSelf: "center",
-            backgroundColor: C.primaryDark,
-            padding: 16,
-            borderRadius: 14,
-          }}
-        >
-          <Text
-            style={{ color: C.surface, textAlign: "center", fontWeight: "600" }}
-          >
-            {message}
-          </Text>
-        </Pressable>
-      ) : null}
-    </ToastContext.Provider>
-  );
-}
-export const useToast = () => useContext(ToastContext);
-export function OfflineBanner() {
-  const { online, data, storageError, store } = useApp();
-  return (
-    <View>
-      {!online && (
-        <View style={{ padding: 10, backgroundColor: C.warningSoft }}>
-          <Text style={{ color: C.primaryDark, fontWeight: "700" }}>
-            Sin conexión · Puedes consultar tu ruta cargada.
-          </Text>
-          <Text style={ui.meta}>
-            {data.pendingOperations.length} cambios pendientes de
-            sincronización.
-          </Text>
-        </View>
+export function useAction() {
+  const notify = useFeedback();
+  const [message, setMessage] = useState<string | null>(null),
+    [error, setError] = useState<string | null>(null),
+    [busy, setBusy] = useState(false);
+  const locked = useRef(false);
+  const succeeded = (success?: string) => {
+    if (success) {
+      tactile("success");
+      if (notify) notify(success, "success");
+      else setMessage(success);
+    }
+  };
+  const failed = (e: unknown) => {
+    setError(friendlyError(e));
+    tactile("error");
+  };
+  const run = (action: () => unknown, success?: string): boolean => {
+    if (locked.current) return false;
+    locked.current = true;
+    setError(null);
+    setMessage(null);
+    try {
+      action();
+      succeeded(success);
+      return true;
+    } catch (e) {
+      failed(e);
+      return false;
+    } finally {
+      locked.current = false;
+    }
+  };
+  const asyncRun = async (
+    action: () => Promise<unknown>,
+    success?: string,
+  ): Promise<boolean> => {
+    if (locked.current) return false;
+    locked.current = true;
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await action();
+      succeeded(success);
+      return true;
+    } catch (e) {
+      failed(e);
+      return false;
+    } finally {
+      locked.current = false;
+      setBusy(false);
+    }
+  };
+  const feedback = (
+    <>
+      {error && (
+        <Text accessibilityRole="alert" style={ui.error}>
+          {error}
+        </Text>
       )}
-      {!!storageError && (
-        <Pressable
-          onPress={() => store.retrySave()}
-          style={{ padding: 10, backgroundColor: C.dangerSoft }}
+      {message && (
+        <Text
+          accessibilityLiveRegion="polite"
+          style={[ui.badge, { color: contentColors.success }]}
         >
-          <Text style={ui.body}>{storageError} Toca para reintentar.</Text>
-        </Pressable>
+          {message}
+        </Text>
       )}
-    </View>
+    </>
   );
-}
-export function MenuRow({
-  title,
-  subtitle,
-  icon,
-  onPress,
-}: {
-  title: string;
-  subtitle?: string;
-  icon: IconName;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={[ui.row, { minHeight: 56, paddingVertical: 8 }]}
-    >
-      <Ionicons name={icon} color={C.primary} size={22} />
-      <View style={{ flex: 1 }}>
-        <Text style={[ui.body, { fontWeight: "600" }]}>{title}</Text>
-        {!!subtitle && <Text style={ui.meta}>{subtitle}</Text>}
-      </View>
-      <Ionicons name="chevron-forward" color={C.textMuted} size={18} />
-    </Pressable>
-  );
+  return { run, asyncRun, feedback, busy };
 }
