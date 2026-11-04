@@ -4,15 +4,15 @@ App exclusiva para clientes, con React Native 0.86.3, TypeScript y Expo SDK 57. 
 
 ## Ejecutar
 
-Requiere Node.js 22.13 o superior y npm. En PowerShell usa los ejecutables `.cmd` si la política del equipo bloquea scripts `.ps1`.
+Requiere Node.js 22.13 o superior y pnpm. En PowerShell usa `pnpm.cmd` si la política del equipo bloquea scripts `.ps1`.
 
 ```powershell
 cd C:\LaundryCleanFresh\LaundryApp
-npm.cmd ci
-npx.cmd expo start
+pnpm install --frozen-lockfile
+pnpm start
 ```
 
-`npm.cmd start` ejecuta Expo en su puerto habitual, 8081. `npm.cmd run android`, `npm.cmd run ios` y `npm.cmd run web` abren la plataforma correspondiente.
+`pnpm start` ejecuta Expo en su puerto habitual, 8081. `pnpm run android`, `pnpm run ios` y `pnpm run web` abren la plataforma correspondiente.
 
 La compatibilidad con Expo Go depende del SDK instalado. El proyecto mantiene su identidad nativa `com.aistudio.applet.mpsvkf`, sus plugins y el flujo administrado de Expo. `.env.example` documenta la clave opcional de Google Maps para una compilación Android propia. Los proyectos nativos generados y las credenciales quedan en `.gitignore`.
 
@@ -22,7 +22,7 @@ La instalación nueva abre el cliente demo, como antes. Desde Perfil puedes cerr
 
 El registro conserva documento, selfie, revisión pendiente, rechazo y reenvío.
 
-El contrato local `@laundry/mobile-auth` y los componentes del login son compartidos y genéricos. La sesión y las cuentas de LaundryApp admiten exclusivamente `CLIENT`. El acceso demo del cliente no recibe roles y el registro mantiene su verificación. `npm.cmd run check:shared-login` comprueba el contrato y los componentes compartidos cuando están presentes ambos repositorios.
+El contrato local `@laundry/mobile-auth` y los componentes del login son compartidos y genéricos. La sesión y las cuentas de LaundryApp admiten exclusivamente `CLIENT`. El acceso demo del cliente no recibe roles y el registro mantiene su verificación. `pnpm run check:shared-login` comprueba el contrato y los componentes compartidos cuando están presentes ambos repositorios.
 
 ## Flujo conservado
 
@@ -41,14 +41,14 @@ El [alcance de la aplicación cliente](docs/ROLE_SPLIT.md) describe sus responsa
 ## Verificar
 
 ```powershell
-npm.cmd run typecheck
-npm.cmd test
-npm.cmd run check:shared-login
-npm.cmd run export:android
-npm.cmd run export:web
-npm.cmd run test:ui
+pnpm run typecheck
+pnpm test
+pnpm run check:shared-login
+pnpm run export:android
+pnpm run export:web
+pnpm run test:ui
 ```
 
-Las pruebas de interfaz usan el export web y Microsoft Edge. `npm.cmd run preview:mvp` sirve el export en `http://127.0.0.1:8097`. Los builds, dependencias, archivos privados, capturas y cachés quedan excluidos por `.gitignore`.
+Las pruebas de interfaz usan el export web y Microsoft Edge. `pnpm run preview:mvp` sirve el export en `http://127.0.0.1:8097`. Los builds, dependencias, archivos privados, capturas y cachés quedan excluidos por `.gitignore`.
 
 `eas.json` conserva los perfiles existentes para compilaciones de prueba y producción.

@@ -42,4 +42,4 @@ No existe backend ni sincronización entre aplicaciones. Los pagos y la revisió
 
 ## Validación
 
-`npm run typecheck`, `npm test`, `npm run export:web`, `npm run export:android` y `npm run test:ui` comprueban tipos, reglas, persistencia, interfaces y empaquetado. Las comprobaciones de cámara, GPS y permisos físicos requieren dispositivo.
+`pnpm run typecheck`, `pnpm test`, `pnpm run export:web`, `pnpm run export:android` y `pnpm run test:ui` comprueban tipos, reglas, persistencia, interfaces y empaquetado. Las comprobaciones de cámara, GPS y permisos físicos requieren dispositivo.

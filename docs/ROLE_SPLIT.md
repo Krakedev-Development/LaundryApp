@@ -20,4 +20,4 @@ El MVP utiliza datos de seguimiento preconfigurados para representar una respues
 
 La clave `laundry.native-migration.v1` y el identificador de la app se conservan. Al cargar datos anteriores se filtran cuentas CLIENT, se cierra una sesión de otro rol y se descarta el antiguo objeto operativo global después de preservar las coordenadas de seguimiento. Los saldos, puntos, pagos, solicitudes y documentos del cliente permanecen.
 
-El proyecto mantiene npm, Expo y almacenamiento local. No incorpora backend ni sincronización entre aplicaciones.
+El proyecto usa pnpm, Expo y almacenamiento local. No incorpora backend ni sincronización entre aplicaciones.
