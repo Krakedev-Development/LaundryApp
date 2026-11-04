@@ -2,6 +2,8 @@
 
 App exclusiva para clientes, con React Native 0.86.3, TypeScript y Expo SDK 57. Se conservan el diseño, el header con logo, la navegación inferior y las reglas vigentes del cliente.
 
+Consulta la [documentación funcional y técnica](docs/README.md) para ver los flujos, diagramas, revisión de reglas de negocio y propuesta de organización de módulos.
+
 ## Ejecutar
 
 Requiere Node.js 22.13 o superior y pnpm. En PowerShell usa `pnpm.cmd` si la política del equipo bloquea scripts `.ps1`.
