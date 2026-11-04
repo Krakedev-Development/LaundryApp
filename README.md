@@ -1,91 +1,56 @@
-# Laundry Clean & Fresh · Prototipo móvil
+﻿# LaundryApp
 
-Aplicación Expo SDK 57 con TypeScript y Expo Router para cliente y conductor. Los dos roles trabajan sobre los mismos pedidos en una demo persistente. El rol se obtiene de la cuenta, sin selector de rol ni cambios de identidad durante la sesión.
-
-Consulta la [guía del nuevo flujo y transferencias QR](FULFILLMENT-MVP.md) para ejecutar los recorridos a domicilio y en sede, los escenarios preparados y las operaciones de demostración.
+App exclusiva para clientes, con React Native 0.86.3, TypeScript y Expo SDK 57. Se conservan el diseño, el header con logo, la navegación inferior y las reglas vigentes del cliente.
 
 Consulta la [documentación funcional y técnica](docs/README.md) para ver los flujos, diagramas, revisión de reglas de negocio y propuesta de organización de módulos.
 
 ## Ejecutar
 
-Requiere Node.js 22.13 o superior y una compilación de desarrollo Expo SDK 57. Mapbox nativo requiere Android SDK/JDK para Android o macOS/Xcode para iOS. Consulta [configuración geoespacial](GEO-MVP.md).
-
-```bash
-cd LaundryApp
-pnpm install --frozen-lockfile
-pnpm run android
-# En macOS: pnpm run ios
-# Después de instalar la compilación: pnpm run start:lan -- --clear
-```
-
-Abre la compilación de desarrollo instalada. Expo Go muestra un aviso cuando se intenta abrir el mapa; no incluye las dependencias nativas de Mapbox. El teléfono y el equipo deben estar en la misma red. Para navegador: `pnpm run web`. El servidor debe anunciar la IP Wi-Fi, no localhost. Si Expo elige una interfaz virtual, configura `REACT_NATIVE_PACKAGER_HOSTNAME` con la IP Wi-Fi actual. Para túnel: `pnpm run start:tunnel -- --clear`.
-
-## Cuentas de demostración
-
-La contraseña inicial es **Laundry2026!**, salvo la cuenta con contraseña temporal. El botón «Cuentas de demostración» del login permite rellenar credenciales.
-
-- **nuevo@laundryfresh.com**: Sofía Fresh, cliente verificado sin pedidos, billetera de $30.
-- **maria.torres@gmail.com**: María Torres, cliente con pedidos, plan Premium, billetera, promociones y puntos.
-- **diego.valdivia@laundryweb.com**: Diego Valdivia, conductor disponible de FAC-02. El despacho simulado elige un conductor elegible de la sede.
-- **mateo.quispe@laundryweb.com**: Mateo Quispe, conductor con servicio de recogida activo.
-- **javier.arriola@laundryweb.com**: Javier Arriola, conductor con entrega activa.
-- **carlos.ruiz@laundryweb.com**: Carlos Ruiz, contraseña **Temporal2026!**. Debe cambiarla antes de operar.
-
-También hay cuentas pendientes y rechazadas en el panel de demostración. Los datos de catálogo, clientes, plantas, conductores, promociones y pedidos iniciales provienen de `LaundryWeb/src/services/mockData.ts`, conservando sus IDs y precios en `src/services/laundryWebSeed.json`.
-
-## Recorrer el prototipo
-
-1. Registra una cuenta, adjunta documento y selfie, envía KYC y consulta «Ver estado» para simular la revisión. Una cuenta pendiente o rechazada no puede crear pedidos ni acceder a las rutas operativas del cliente.
-2. Para un pedido inmediato de prueba, entra como Sofía. Agrega tres camisas, un extra y programa recogida/entrega con dirección, pin y franjas disponibles. El asistente tiene cinco pasos. Confirma el pago con billetera o tarjeta de prueba.
-3. Abre el pedido creado: mantiene ID, prendas, importes, direcciones, pago y timeline. Cerrar y abrir la app conserva los cambios. Consulta el conductor asignado en el seguimiento, cierra sesión y entra con su cuenta de demo para operar ese mismo pedido.
-4. El despacho simulado se ejecuta cada 12 segundos y asigna tareas a conductores disponibles de la planta. Habilita ubicación al iniciar navegación, marca llegada, verifica cantidad y confirma recogida. «Ir a planta» avanza el estado; confirma la llegada a planta.
-5. La simulación de LaundryWeb avanza procesamiento, calidad, preparación y programación de entrega en cuatro ciclos de 12 segundos. El conductor recibe una nueva asignación de entrega sobre el mismo pedido. Registra llegada, destinatario, relación y confirmación para entregarlo.
-6. Regresa como cliente para ver entrega, destinatario, timeline y puntos. El conductor puede consultar su etapa completada en Historial.
-
-Si otro conductor disponible recibe la entrega, consulta su cuenta de demo: las asignaciones pertenecen a su conductor y no se exponen a los demás.
-
-## Funciones incluidas
-
-- Registro, login, recuperación simulada, KYC y cambio obligatorio de contraseña temporal.
-- Inicio, pedidos activos/históricos, detalle y asistente de solicitud con edición, catálogo, extras, horarios y validaciones.
-- Pago atómico e idempotente, billetera con movimientos, recargas y tarjetas de prueba. 4242 aprueba; 0002 simula rechazo. No se almacena PAN ni CVV.
-- Promociones con vigencia, compra mínima, alcance por servicio y límites; membresías con descuentos y recogidas semanales.
-- Ledger de puntos, reserva de puntos para canjes pendientes y aplicación única de beneficios aprobados.
-- Direcciones guardadas con selección de pin, datos personales/fiscales, seguridad, preferencias, notificaciones y soporte simulado.
-- Ruta y servicios del conductor, acciones según estado, recogida con discrepancias/incidencias y foto opcional, entrega con destinatario obligatorio e historial.
-- Seguimiento y chat contextual entre cliente y conductor de la etapa actual; ETA y ruta simuladas.
-- Estado sin conexión, operaciones logísticas/mensajes pendientes y sincronización idempotente. Desde Soporte se puede simular desconexión. Crear pedidos, recargar y canjear requieren conexión.
-
-## Datos y arquitectura
-
-- `src/app`: rutas y layouts de Expo Router con barreras por rol, KYC y contraseña.
-- `src/features`: pantallas agrupadas por función.
-- `src/domain`: modelos comunes, precios/validaciones y motor transaccional de pedidos, logística, pagos y puntos.
-- `src/services`: datos compartidos de demo, fachadas de repositorios y almacenamiento seguro.
-- `src/store/AppStore.tsx`: hidratación, estado reactivo, persistencia y simulaciones de red/despacho/planta.
-- `src/components` y `src/theme`: componentes accesibles y sistema visual centralizado.
-
-AsyncStorage conserva datos y eventos de la demo. En iOS/Android, SecureStore conserva sesión, hashes de credenciales y referencias locales de evidencia KYC. En web, la sesión/referencias duran la pestaña y los hashes de credenciales se guardan localmente. La autenticación local es exclusiva del prototipo; una implementación real debe usar el backend y tokens.
-
-Los mapas nativos utilizan @rnmapbox/maps, con pines, cobertura y rutas de Directions. Copia .env.example y configura un token público Mapbox para habilitar mapas y consultas reales. Sin credenciales se conservan direcciones y pines preparados, y un recorrido local identificado como simulación. La búsqueda usa Geocoding v6, con persistencia permanente habilitada por la cuenta para guardar resultados. La ubicación y cámara se solicitan cuando la función las necesita.
-
-Esta demo no sincroniza instalaciones diferentes ni escribe en LaundryWeb. Comparte su dominio y una instantánea inicial; backend, pasarela bancaria, notificaciones push, revisión administrativa remota y tracking remoto en vivo quedan para una siguiente fase. La geocodificación, Directions y Matrix ya están integradas detrás de GeoProvider. El chat y soporte son locales, la navegación externa abre Google Maps, Apple Maps o Waze.
-
-## Verificación
-
-```bash
-pnpm run typecheck
-pnpm test
-pnpm exec expo install --check
-pnpm exec expo-doctor
-pnpm exec expo export --platform all
-```
-
-Las pruebas de dominio cubren precios, KYC, pagos sin duplicados, permisos, privacidad de asignaciones, recogida/planta/entrega, puntos y sincronización. Las pruebas de interfaz usan Playwright; en Windows con Chrome instalado:
+Requiere Node.js 22.13 o superior y pnpm. En PowerShell usa `pnpm.cmd` si la política del equipo bloquea scripts `.ps1`.
 
 ```powershell
-$env:PLAYWRIGHT_CHANNEL = 'chrome'
+cd C:\LaundryCleanFresh\LaundryApp
+pnpm install --frozen-lockfile
+pnpm start
+```
+
+`pnpm start` ejecuta Expo en su puerto habitual, 8081. `pnpm run android`, `pnpm run ios` y `pnpm run web` abren la plataforma correspondiente.
+
+La compatibilidad con Expo Go depende del SDK instalado. El proyecto mantiene su identidad nativa `com.aistudio.applet.mpsvkf`, sus plugins y el flujo administrado de Expo. `.env.example` documenta la clave opcional de Google Maps para una compilación Android propia. Los proyectos nativos generados y las credenciales quedan en `.gitignore`.
+
+## Acceso y registro
+
+La instalación nueva abre el cliente demo, como antes. Desde Perfil puedes cerrar sesión. El login mantiene el acceso rápido «Cliente demo» y el registro de clientes. La cuenta demo es `maria.torres@gmail.com`, contraseña `123456`.
+
+El registro conserva documento, selfie, revisión pendiente, rechazo y reenvío.
+
+El contrato local `@laundry/mobile-auth` y los componentes del login son compartidos y genéricos. La sesión y las cuentas de LaundryApp admiten exclusivamente `CLIENT`. El acceso demo del cliente no recibe roles y el registro mantiene su verificación. `pnpm run check:shared-login` comprueba el contrato y los componentes compartidos cuando están presentes ambos repositorios.
+
+## Flujo conservado
+
+Se mantienen inicio, solicitudes activas/historial, nueva solicitud, agenda, prendas/extras, confirmación, detalle, seguimiento y chat. Perfil conserva direcciones, facturación, seguridad, ayuda, notificaciones, métodos de pago, billetera, promociones, recompensas y membresía.
+
+Las dos modalidades son domicilio completo (`HOME_HOME`: recogida y entrega en domicilio) y pick up (`HOME_STORE`: recogida en domicilio y retiro en sede). Se conservan los cupos, el cobro por prendas o peso, los ajustes, el corte de 60 minutos para cambios/cancelaciones y el cargo de cancelación tardía de $5.
+
+Los datos se guardan en AsyncStorage en este dispositivo: sesión, cuentas de cliente, identidad, solicitudes, agenda, transferencias, cargos, direcciones, facturación, saldo, puntos, canjes, membresía, notificaciones y chat. La clave `laundry.native-migration.v1` permanece igual. Las fotos seleccionadas o capturadas conservan su almacenamiento en documentos de la app.
+
+Al cargar una instalación anterior, se retiran las cuentas ajenas al cliente y el antiguo estado operativo global y se cierra cualquier sesión ajena al cliente. Se conservan los datos, saldos, mensajes y constancias del cliente, además del contacto del chofer que necesita el seguimiento.
+
+El MVP sigue siendo local. Los pagos y la revisión KYC son simulaciones. Los escenarios locales contienen estados operativos recibidos para consultar el seguimiento y las decisiones pendientes del cliente. No existe sincronización entre LaundryApp, LaundryDriver y LaundryWeb ni se agregó backend en esta separación.
+
+El [alcance de la aplicación cliente](docs/ROLE_SPLIT.md) describe sus responsabilidades y compatibilidad de datos. La [matriz funcional](docs/MVP_NUEVO_FLUJO.md), la [verificación UX](docs/UX_AUDIT.md) y el [Design System](docs/DESIGN_SYSTEM.md) documentan el flujo y el diseño actuales.
+
+## Verificar
+
+```powershell
+pnpm run typecheck
+pnpm test
+pnpm run check:shared-login
+pnpm run export:android
+pnpm run export:web
 pnpm run test:ui
 ```
 
-En CI, instala el navegador con `pnpm exec playwright install chromium`. Capturas, trazas, reportes, exportaciones, dependencias, cachés, archivos nativos generados y variables locales están en `.gitignore`. Solo se incluyen código, lockfile, configuración pública, datos ficticios y logos pequeños necesarios para la app.
+Las pruebas de interfaz usan el export web y Microsoft Edge. `pnpm run preview:mvp` sirve el export en `http://127.0.0.1:8097`. Los builds, dependencias, archivos privados, capturas y cachés quedan excluidos por `.gitignore`.
+
+`eas.json` conserva los perfiles existentes para compilaciones de prueba y producción.

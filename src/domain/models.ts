@@ -1,92 +1,80 @@
-import {
-  Fulfillment,
-  FulfillmentMode,
-  Handoff,
-  HandoffAudit,
-  IntakeHold,
-} from "./fulfillment";
-export const ORDER_STATES = [
-  "DRAFT",
-  "PAYMENT_PENDING",
-  "CONFIRMED",
-  "AWAITING_INTAKE",
-  "READY",
-  "COMPLETED",
-  "ARRIVED_AT_FACILITY",
-  "CREATED",
-  "PICKUP_PENDING",
-  "PICKUP_ASSIGNED",
-  "HEADING_TO_PICKUP",
-  "ARRIVED_FOR_PICKUP",
-  "PICKED_UP",
-  "HEADING_TO_FACILITY",
-  "AT_FACILITY",
-  "IN_PROCESS",
-  "QUALITY_CONTROL",
-  "READY_FOR_DELIVERY",
-  "DELIVERY_SCHEDULED",
-  "DELIVERY_ASSIGNED",
-  "OUT_FOR_DELIVERY",
-  "ARRIVED_FOR_DELIVERY",
-  "DELIVERED",
-  "CLOSED",
-  "INCIDENT",
-  "QUARANTINE",
-  "CANCELLED",
-] as const;
-export type OrderStatus = (typeof ORDER_STATES)[number];
-export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
+export type Role = "CLIENT";
+export type KycStatus = "NOT_SUBMITTED" | "PENDING" | "APPROVED" | "REJECTED";
+export type Method = "DRIVER" | "CUSTOMER";
+export type Mode = "HOME_HOME" | "HOME_STORE";
+export type PricingModel = "FIXED" | "PER_WEIGHT";
+export type PricingStatus =
+  | "ESTIMATED"
+  | "PENDING_WEIGHT"
+  | "CALCULATED"
+  | "ADJUSTMENT_PENDING"
+  | "FINAL";
+export type OrderStatus = keyof typeof statusLabels;
+export const statusLabels = {
+  CREATED: "Solicitud creada",
   DRAFT: "Borrador",
   PAYMENT_PENDING: "Pago pendiente",
-  CONFIRMED: "Confirmado",
-  AWAITING_INTAKE: "Esperando ingreso",
-  READY: "Listo para retiro",
-  COMPLETED: "Pedido finalizado",
-  ARRIVED_AT_FACILITY: "Esperando recepción en planta",
-  CREATED: "Solicitud confirmada",
-  PICKUP_PENDING: "Esperando chofer",
+  CONFIRMED: "Solicitud confirmada",
+  AWAITING_INTAKE: "Recogida pendiente",
+  PICKUP_PENDING: "Recogida pendiente",
   PICKUP_ASSIGNED: "Chofer asignado",
-  HEADING_TO_PICKUP: "Tu chofer está en camino",
-  ARRIVED_FOR_PICKUP: "Tu chofer ha llegado",
-  PICKED_UP: "Tu ropa fue recogida",
-  HEADING_TO_FACILITY: "Camino a nuestra planta",
-  AT_FACILITY: "Tu ropa llegó a nuestra planta",
-  IN_PROCESS: "Estamos preparando tu ropa",
-  QUALITY_CONTROL: "Revisando cada detalle",
-  READY_FOR_DELIVERY: "Lista para volver a casa",
+  HEADING_TO_PICKUP: "Chofer en camino",
+  ARRIVED_FOR_PICKUP: "Chofer en tu dirección",
+  PICKED_UP: "Ropa recogida",
+  HEADING_TO_FACILITY: "En camino a planta",
+  AT_FACILITY: "En planta",
+  WEIGHING: "Pesaje en curso",
+  INSPECTION: "Inspección de prendas",
+  PRICING_PENDING: "Cálculo de valor final",
+  CUSTOMER_APPROVAL_PENDING: "Requiere tu aprobación",
+  IN_PROCESS: "En lavado y cuidado",
+  QUALITY_CONTROL: "Control de calidad",
+  READY_FOR_DELIVERY: "Lista para entrega",
+  READY_FOR_PICKUP: "Lista para retirar en sede",
   DELIVERY_SCHEDULED: "Entrega programada",
-  DELIVERY_ASSIGNED: "Ya preparamos tu entrega",
-  OUT_FOR_DELIVERY: "Tu entrega está en camino",
-  ARRIVED_FOR_DELIVERY: "Tu entrega ha llegado",
-  DELIVERED: "Pedido entregado",
-  CLOSED: "Pedido finalizado",
-  INCIDENT: "Estamos atendiendo una incidencia",
-  QUARANTINE: "Tu pedido necesita una revisión",
-  CANCELLED: "Pedido cancelado",
+  DELIVERY_ASSIGNED: "Chofer de entrega asignado",
+  OUT_FOR_DELIVERY: "En camino a entrega",
+  ARRIVED_FOR_DELIVERY: "Chofer en tu puerta",
+  DELIVERED: "Entregado",
+  COMPLETED: "Completado",
+  CLOSED: "Finalizado",
+  INCIDENT: "Incidencia en revisión",
+  CANCELLED: "Cancelado",
+} as const;
+export const modeLabels: Record<Mode, string> = {
+  HOME_HOME: "Domicilio completo · recogida y entrega",
+  HOME_STORE: "Pick up · recogida a domicilio y retiro en sede",
 };
-export type Role = "CLIENTE" | "CHOFER";
-export type KycStatus = "NOT_SUBMITTED" | "PENDING" | "APPROVED" | "REJECTED";
-export type OperationalStatus =
-  "AVAILABLE" | "ON_SERVICE" | "BREAK" | "OFFLINE";
-export interface Coordinates {
-  lat: number;
-  lng: number;
-}
+export const pricingLabels: Record<PricingStatus, string> = {
+  ESTIMATED: "Estimado",
+  PENDING_WEIGHT: "Pendiente de pesaje",
+  CALCULATED: "Calculado por planta",
+  ADJUSTMENT_PENDING: "Ajuste pendiente",
+  FINAL: "Precio final",
+};
+export type HandoffType =
+  | "CUSTOMER_TO_DRIVER"
+  | "CUSTOMER_TO_FACILITY"
+  | "DRIVER_TO_FACILITY"
+  | "FACILITY_TO_DRIVER"
+  | "DRIVER_TO_CUSTOMER"
+  | "FACILITY_TO_CUSTOMER";
+export const handoffLabels: Record<HandoffType, string> = {
+  CUSTOMER_TO_DRIVER: "Código de entrega al chofer",
+  CUSTOMER_TO_FACILITY: "QR de entrega en sede",
+  DRIVER_TO_FACILITY: "Ingreso a planta",
+  FACILITY_TO_DRIVER: "Despacho desde planta",
+  DRIVER_TO_CUSTOMER: "Código de entrega final",
+  FACILITY_TO_CUSTOMER: "QR de retiro en sede",
+};
 export interface Address {
   id: string;
   title: string;
   fullAddress: string;
   reference: string;
   isPrimary: boolean;
-  coordinates: Coordinates;
-  persistence?: "permanent" | "user" | "demo" | "temporary";
-}
-export interface BillingData {
-  name: string;
-  taxId: string;
-  email: string;
-  phone: string;
-  address: string;
+  latitude: number;
+  longitude: number;
 }
 export interface Customer {
   id: string;
@@ -95,305 +83,324 @@ export interface Customer {
   phone: string;
   kycStatus: KycStatus;
   kycRejectionReason?: string;
+  kycDocumentId?: string;
+  kycDocumentType: string;
+  documentUri?: string;
+  selfieUri?: string;
   addresses: Address[];
-  membershipId: string;
-  membershipRenewal: string;
-  walletId: string;
-  rewardAccountId: string;
-  billingData: BillingData;
-  notificationPreferences: boolean;
-  previousPurchases: number;
-  previousSpend: number;
-}
-export interface Driver {
-  id: string;
-  name: string;
-  email: string;
-  operationalStatus: OperationalStatus;
-  vehicle: string;
-  plate: string;
-  facilityId: string;
-  zoneName: string;
-  location: Coordinates;
-  locationUpdatedAt?: string;
-  trackingEtaSeconds?: number;
-  locationSimulated?: boolean;
-  zoneId?: string;
-  authorizedZoneIds?: string[];
-  maxOrders?: number;
-  accuracy?: number;
-  mustChangePassword: boolean;
-  locationAllowed: boolean;
+  walletBalance: number;
+  loyaltyPoints: number;
+  membershipTier: string;
+  billingName: string;
+  billingTaxId: string;
+  billingEmail: string;
+  billingPhone: string;
+  billingAddress: string;
 }
 export interface Facility {
-  active?: boolean;
-  acceptsCustomerDropoff?: boolean;
-  allowsCustomerPickup?: boolean;
-  serviceAreaIds?: string[];
-  openingHours?: string;
   id: string;
   name: string;
   address: string;
-  coordinates: Coordinates;
+  openingHours: string;
+  phone: string;
+  acceptsDropoff: boolean;
+  allowsPickup: boolean;
+  latitude: number;
+  longitude: number;
 }
-export interface CatalogItem {
+export interface TimeSlot {
+  id: string;
+  context:
+    | "DRIVER_PICKUP"
+    | "DRIVER_DELIVERY"
+    | "FACILITY_DROPOFF"
+    | "FACILITY_PICKUP";
+  date: string;
+  startTime: string;
+  endTime: string;
+  capacity: number;
+  reservedCount: number;
+  active: boolean;
+}
+export interface Leg {
+  method: Method;
+  facilityId?: string;
+  facilityName?: string;
+  addressId?: string;
+  addressFull: string;
+  scheduledDate: string;
+  timeSlotId?: string;
+  timeSlotText: string;
+  status: string;
+  completedAt?: string;
+  latitude: number;
+  longitude: number;
+}
+export interface FulfillmentPlan {
+  mode: Mode;
+  inbound: Leg;
+  outbound: Leg;
+}
+export interface OrderItem {
+  id: string;
+  garmentType: string;
+  quantity: number;
+  serviceType: string;
+  unitPrice: number;
+  notes: string;
+  iconName: string;
+}
+export interface OrderExtra {
   id: string;
   name: string;
   description: string;
   price: number;
-  estimatedHours: number;
-  category: "PRENDAS" | "SERVICIOS" | "EXTRAS";
-  active: boolean;
-  customerSelectable: boolean;
-}
-export interface Service {
-  id: string;
-  name: string;
-  price: number;
-  estimatedHours: number;
-  active: boolean;
-  customerSelectable: boolean;
-}
-export interface OrderItem {
-  id: string;
-  catalogId: string;
-  serviceId: string;
-  name: string;
-  serviceName: string;
-  quantity: number;
-  unitPrice: number;
-  notes: string;
+  selected?: boolean;
 }
 export interface OrderPricing {
   itemsSubtotal: number;
   extrasTotal: number;
   discount: number;
   membershipBenefitDiscount: number;
-  rewardDiscount?: number;
   deliveryFee: number;
   total: number;
 }
-export interface Schedule {
-  address: Address;
+export interface PickupInfo {
+  addressId: string;
+  addressTitle: string;
+  addressFull: string;
   date: string;
   timeSlot: string;
-  driverAssignmentId?: string;
-  completedAt?: string;
   notes: string;
+  pickedUpAt?: string;
+  garmentCountConfirmed?: number;
+  evidencePhotoUri?: string;
 }
-export interface Delivery extends Schedule {
-  recipient?: { name: string; relationship: string };
-  evidence?: string;
-  driverId?: string;
+export interface DeliveryInfo {
+  addressId: string;
+  addressTitle: string;
+  addressFull: string;
+  date: string;
+  timeSlot: string;
+  recipientName?: string;
+  recipientRelationship?: string;
+  deliveredAt?: string;
+  deliveryNotes?: string;
+  evidencePhotoUri?: string;
 }
 export interface TimelineEvent {
-  id: string;
   status: OrderStatus;
+  title: string;
+  description: string;
   timestamp: string;
-  actorId: string;
-  notes?: string;
-  syncStatus: "SYNCED" | "PENDING";
+  completed: boolean;
+}
+export interface Handoff {
+  id: string;
+  orderId: string;
+  type: HandoffType;
+  status: "PENDING" | "ACTIVE" | "USED" | "EXPIRED" | "REVOKED";
+  qrToken: string;
+  fallbackCode: string;
+  title: string;
+  description: string;
+  createdAt: string;
+  usedAt?: string;
+}
+export interface Adjustment {
+  id: string;
+  orderId: string;
+  type:
+    | "SERVICE_RECLASSIFICATION"
+    | "EXTRA_ITEM"
+    | "WEIGHT_ADJUSTMENT"
+    | "PRICE_ADJUSTMENT";
+  description: string;
+  amountDifference: number;
+  requiresCustomerApproval: boolean;
+  status: "PENDING_CUSTOMER" | "APPROVED" | "REJECTED";
+  createdAt: string;
+  resolvedAt?: string;
 }
 export interface Order {
-  fulfillment?: Fulfillment;
-  workflowVersion?: number;
-  intakeHold?: IntakeHold;
+  /** Previous intake retained only as history, never as an available method. */
+  legacyInbound?: Leg;
+  pickupNeedsScheduling?: boolean;
   id: string;
   customerId: string;
   customerName: string;
+  customerPhone: string;
   status: OrderStatus;
-  priority: "URGENT" | "NORMAL";
+  priority: boolean;
   items: OrderItem[];
-  extras: CatalogItem[];
+  extras: OrderExtra[];
   pricing: OrderPricing;
-  promotionId?: string;
   promotionCode?: string;
-  membershipBenefits: string[];
-  rewardRedemptionId?: string;
-  pickup: Schedule;
-  delivery: Delivery;
-  facilityId: string;
-  assignments: string[];
+  pickup: PickupInfo;
+  delivery: DeliveryInfo;
+  facilityName: string;
+  trackingPosition?: Readonly<{ latitude: number; longitude: number }>;
+  assignedDriverId?: string;
+  assignedDriverName?: string;
+  assignedDriverPhone?: string;
+  assignedDriverVehicle?: string;
+  assignedDriverPlate?: string;
+  paymentMethod: string;
+  paymentStatus: "PAGADO" | "PENDIENTE" | "PENDIENTE_PESO" | "REEMBOLSADO";
   timeline: TimelineEvent[];
-  incidents: { id: string; description: string; date: string }[];
-  payment: Payment;
   createdAt: string;
-  updatedAt: string;
+  fulfillmentPlan: FulfillmentPlan;
+  pricingModel: PricingModel;
+  pricingStatus: PricingStatus;
+  weightLb?: number;
+  weightKg?: number;
+  estimatedWeightLb?: number;
+  pricePerLb: number;
+  handoffs: Handoff[];
+  adjustments: Adjustment[];
+  canChangeOutboundMethod: boolean;
 }
-export interface DriverAssignment {
+export interface CustomerCharge {
   id: string;
-  orderId: string;
-  driverId: string;
-  type: "PICKUP" | "DELIVERY";
-  status: "ASSIGNED" | "ACTIVE" | "COMPLETED";
-  assignedAt: string;
-  startedAt?: string;
-  arrivedAt?: string;
-  completedAt?: string;
-  expectedCount?: number;
-  actualCount?: number;
-  evidence?: string;
-}
-export interface DriverRoute {
-  driverId: string;
-  date: string;
-  assignments: DriverAssignment[];
-  estimatedDistance: number;
-  estimatedDuration: number;
-  currentStopIndex: number;
-}
-export interface Payment {
-  id: string;
-  orderId: string;
+  customerId: string;
+  orderId?: string;
+  type: "LATE_CANCELLATION" | "NO_SHOW" | "FAILED_PICKUP" | "OTHER";
   amount: number;
-  status: "PAID" | "PENDING" | "REFUNDED";
-  method: string;
-  transactionReference: string;
+  status: "PENDING" | "PAID" | "WAIVED";
+  reason: string;
   createdAt: string;
-}
-export interface PaymentCard {
-  id: string;
-  customerId: string;
-  brand: string;
-  last4: string;
-  expiry: string;
-  primary: boolean;
-}
-export interface Wallet {
-  id: string;
-  customerId: string;
+  paidAt?: string;
 }
 export interface WalletTransaction {
   id: string;
-  walletId: string;
+  customerId: string;
   amount: number;
   type: "CREDIT" | "DEBIT" | "REFUND" | "ADJUSTMENT";
   reference: string;
   description: string;
   date: string;
 }
-export interface PointsEntry {
+export type PaymentMethod = {
   id: string;
   customerId: string;
-  points: number;
-  type: "EARN" | "REDEEM" | "ADJUSTMENT" | "EXPIRATION";
-  reference: string;
-  date: string;
-}
-export interface Promotion {
+  holder: string;
+  last4: string;
+  isDefault: boolean;
+} & (
+  | { kind: "CARD"; brand: "Visa" | "Mastercard" | "Amex"; expiry: string }
+  | {
+      kind: "TRANSFER";
+      bank: string;
+      accountNumber: string;
+      accountType: "Ahorros" | "Corriente";
+    }
+);
+export interface LoyaltyReward {
   id: string;
-  name: string;
-  code: string;
+  title: string;
+  pointsCost: number;
   description: string;
-  discountType: "PERCENTAGE" | "FIXED";
-  discountValue: number;
-  minOrderAmount: number;
-  usageLimit: number;
-  usageCount: number;
-  perCustomerLimit: number;
-  firstOrderOnly: boolean;
-  applicableServices: string[];
-  startDate: string;
-  endDate: string;
+  category: string;
+}
+export interface LoyaltyRedemption {
+  id: string;
+  customerId: string;
+  rewardTitle: string;
+  pointsCost: number;
+  date: string;
   status: string;
 }
-export interface Reward {
-  id: string;
-  name: string;
+export interface Promo {
+  code: string;
+  discountPercent: number;
+  fixedDiscount: number;
+  minOrderAmount: number;
   description: string;
-  pointsCost: number;
-  minPurchases: number;
-  minSpend: number;
-  validityDays: number;
-  active: boolean;
-  walletCredit?: number;
-}
-export interface RewardRedemption {
-  id: string;
-  customerId: string;
-  rewardId: string;
-  rewardName: string;
-  points: number;
-  status: "PENDING" | "APPROVED" | "REJECTED";
-  date: string;
-  benefitApplied: boolean;
-  approvedAt?: string;
-  reason?: string;
+  validUntil: string;
 }
 export interface MembershipPlan {
   id: string;
   name: string;
   priceMonthly: number;
   weeklyPickups: number;
-  garmentLimit?: number;
-  discountPercent: number;
+  garmentDiscountPercent: number;
   benefits: string[];
 }
 export interface ChatMessage {
   id: string;
   orderId: string;
-  customerId: string;
-  driverId: string;
   senderId: string;
-  senderRole: Role;
+  senderName: string;
+  senderRole: "CLIENT" | "DRIVER";
   text: string;
-  date: string;
-  syncStatus: "SYNCED" | "PENDING";
+  timestamp: string;
 }
-export interface AppNotification {
+export interface NotificationItem {
   id: string;
-  userId: string;
-  type: string;
+  customerId: string;
   title: string;
   body: string;
-  read: boolean;
-  entityId?: string;
-  createdAt: string;
+  category: string;
+  timeAgo: string;
+  isRead: boolean;
+  relatedOrderId?: string;
+}
+export interface Account {
+  id: string;
+  email: string;
+  role: Role;
+  passwordHash: string;
 }
 export interface Session {
-  userId: string;
-  role: Role;
-}
-export interface PendingOperation {
   id: string;
-  orderId: string;
-  eventId: string;
-  date: string;
+  role: "CLIENT";
 }
-export interface Draft {
-  customerDropoff?: { date: string; timeSlot: string; notes?: string };
-  fulfillmentMode?: FulfillmentMode;
-  facilityId?: string;
-  items: OrderItem[];
-  extraIds: string[];
-  pickup?: Schedule;
-  delivery?: Schedule;
-  promoCode: string;
-  rewardRedemptionId?: string;
-  paymentMethod: string;
-}
-export interface AppData {
-  handoffs: Handoff[];
-  handoffAudits: HandoffAudit[];
+export interface AppState {
   version: 1;
   customers: Customer[];
-  drivers: Driver[];
-  facilities: Facility[];
-  catalog: CatalogItem[];
-  services: Service[];
-  promotions: Promotion[];
-  rewards: Reward[];
-  plans: MembershipPlan[];
+  session: Session | null;
+  accounts: Account[];
   orders: Order[];
-  assignments: DriverAssignment[];
-  wallets: Wallet[];
+  customerCharges: CustomerCharge[];
   walletTransactions: WalletTransaction[];
-  pointsLedger: PointsEntry[];
-  redemptions: RewardRedemption[];
-  cards: PaymentCard[];
-  messages: ChatMessage[];
-  notifications: AppNotification[];
-  pendingOperations: PendingOperation[];
-  draft: Draft;
-  sequence: number;
+  paymentMethods: PaymentMethod[];
+  loyaltyRedemptions: LoyaltyRedemption[];
+  notifications: NotificationItem[];
+  chatMessages: Record<string, ChatMessage[]>;
+  timeSlots: TimeSlot[];
+  rescheduleRequests: {
+    id: string;
+    orderId: string;
+    leg: "INBOUND" | "OUTBOUND";
+    newDate: string;
+    newTimeSlot: string;
+    createdAt: string;
+  }[];
 }
+export const terminalStatuses: OrderStatus[] = [
+  "DELIVERED",
+  "COMPLETED",
+  "CLOSED",
+  "CANCELLED",
+];
+export const pickupStatuses: OrderStatus[] = [
+  "PICKUP_ASSIGNED",
+  "HEADING_TO_PICKUP",
+  "ARRIVED_FOR_PICKUP",
+  "PICKED_UP",
+  "HEADING_TO_FACILITY",
+];
+export function modeFor(inbound: Method, outbound: Method): Mode {
+  if (inbound !== "DRIVER" || !["DRIVER", "CUSTOMER"].includes(outbound))
+    throw Error(
+      "La recogida debe ser a domicilio. Solo se admite domicilio completo o pick up.",
+    );
+  return outbound === "DRIVER" ? "HOME_HOME" : "HOME_STORE";
+}
+export const money = (n: number) => `$${n.toFixed(2)}`;
+export const round = (n: number) =>
+  Math.round((n + Number.EPSILON) * 100) / 100;
+export const garmentCount = (o: Order) =>
+  o.items.reduce((sum, i) => sum + i.quantity, 0);
+export const canTrack = (o: Order) =>
+  ["HEADING_TO_PICKUP", "OUT_FOR_DELIVERY"].includes(o.status);
