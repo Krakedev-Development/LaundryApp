@@ -1,6 +1,7 @@
 import { Accordion, ListItem, Stepper } from "../components/presentation";
 import { BottomSheet } from "../components/overlay/OverlayPortal";
 import { MotionSection } from "../design-system/MotionProvider";
+import { tactile } from "../design-system/interaction";
 import { useRef, useState } from "react";
 import { Text, View } from "react-native";
 import { Page } from "../components/Page";
@@ -238,6 +239,7 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
           }),
         );
         submitted.current = true;
+        tactile("success");
         setConfirmedId(order.id);
       }
     });
@@ -496,6 +498,7 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
                               <IconButton
                                 label={"Quitar " + g.name}
                                 icon="remove"
+                                haptic="light"
                                 onPress={() => changeCount(g.id, -1)}
                                 disabled={!selected}
                               />
@@ -507,6 +510,7 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
                               <IconButton
                                 label={"Agregar " + g.name}
                                 icon="add"
+                                haptic="light"
                                 onPress={() => changeCount(g.id, 1)}
                               />
                             </View>

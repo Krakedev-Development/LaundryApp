@@ -40,7 +40,10 @@ export function NavigationBar({
             }}
             style={({ pressed }) => [
               styles.tab,
-              { opacity: pressed ? theme.opacity.pressed : 1 },
+              {
+                opacity: pressed ? theme.opacity.pressed : 1,
+                transform: [{ scale: pressed ? 0.96 : 1 }],
+              },
             ]}
           >
             {primaryAction ? (
