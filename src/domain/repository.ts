@@ -5,6 +5,11 @@ import {
 import { demoOrderTracking } from "./fixtures/orderTracking";
 import { authenticateSession } from "@laundry/mobile-auth";
 import {
+  authService,
+  CLIENT_ONLY_ERROR_MESSAGE,
+  type AuthUser,
+} from "../services/auth/authService";
+import {
   addCard,
   addBankAccount,
   setDefaultPaymentMethod,
@@ -293,10 +298,132 @@ export class LaundryRepository {
       "CLIENT",
     );
   }
+  authenticateFromApi(
+    user: AuthUser,
+    passwordHash = "",
+    kycStatusOverride?: Customer["kycStatus"],
+  ): void {
+    if (!user || user.role !== "CLIENT") {
+      throw Error(CLIENT_ONLY_ERROR_MESSAGE);
+    }
+    const normalizedEmail = user.email.trim().toLowerCase();
+    const cleanName = user.name.trim() || normalizedEmail;
+    const cleanPhone = (user.phone ?? "").trim();
+
+    let customer = this.state.customers.find(
+      (c) => c.id === user.id || c.email.toLowerCase() === normalizedEmail,
+    );
+    const previousId = customer?.id;
+
+    if (customer) {
+      customer.id = user.id;
+      customer.name = cleanName;
+      customer.email = normalizedEmail;
+      if (cleanPhone) {
+        customer.phone = cleanPhone;
+        if (!customer.billingPhone) customer.billingPhone = cleanPhone;
+      }
+      customer.billingName = cleanName;
+      customer.billingEmail = normalizedEmail;
+      if (kycStatusOverride) customer.kycStatus = kycStatusOverride;
+      if (previousId && previousId !== user.id) {
+        this.state.orders.forEach((o) => {
+          if (o.customerId === previousId) o.customerId = user.id;
+        });
+        this.state.customerCharges.forEach((ch) => {
+          if (ch.customerId === previousId) ch.customerId = user.id;
+        });
+        this.state.walletTransactions.forEach((tx) => {
+          if (tx.customerId === previousId) tx.customerId = user.id;
+        });
+        this.state.paymentMethods.forEach((pm) => {
+          if (pm.customerId === previousId) pm.customerId = user.id;
+        });
+        this.state.loyaltyRedemptions.forEach((lr) => {
+          if (lr.customerId === previousId) lr.customerId = user.id;
+        });
+        this.state.notifications.forEach((n) => {
+          if (n.customerId === previousId) n.customerId = user.id;
+        });
+      }
+    } else {
+      customer = {
+        id: user.id,
+        name: cleanName,
+        email: normalizedEmail,
+        phone: cleanPhone,
+        kycStatus: kycStatusOverride ?? "APPROVED",
+        kycDocumentType: "Cédula de Identidad",
+        addresses: [],
+        walletBalance: 0,
+        loyaltyPoints: 0,
+        membershipTier: "Básico",
+        billingName: cleanName,
+        billingTaxId: "",
+        billingEmail: normalizedEmail,
+        billingPhone: cleanPhone,
+        billingAddress: "",
+      };
+      this.state.customers.push(customer);
+    }
+
+    const existingAccount = this.state.accounts.find(
+      (a) => a.id === user.id || a.email.toLowerCase() === normalizedEmail,
+    );
+    if (existingAccount) {
+      existingAccount.id = user.id;
+      existingAccount.email = normalizedEmail;
+      existingAccount.role = "CLIENT";
+      if (passwordHash) existingAccount.passwordHash = passwordHash;
+    } else {
+      this.state.accounts.push({
+        id: user.id,
+        email: normalizedEmail,
+        role: "CLIENT",
+        passwordHash,
+      });
+    }
+
+    this.state.session = { id: user.id, role: "CLIENT" };
+  }
+  async loginWithApi(
+    email: string,
+    password: string,
+    passwordHash = "",
+  ): Promise<AuthUser> {
+    const response = await authService.login({ email, password });
+    this.authenticateFromApi(response.user, passwordHash, "APPROVED");
+    return response.user;
+  }
+  async registerWithApi(
+    name: string,
+    email: string,
+    phone: string,
+    password: string,
+    passwordHash = "",
+  ): Promise<AuthUser> {
+    const cleanEmail = email.trim().toLowerCase();
+    if (
+      !name.trim() ||
+      !/^\S+@\S+\.\S+$/.test(cleanEmail) ||
+      phone.replace(/\D/g, "").length < 8
+    ) {
+      throw Error("Revisa nombre, correo y teléfono.");
+    }
+    const response = await authService.register({
+      name: name.trim(),
+      email: cleanEmail,
+      phone: phone.trim(),
+      password,
+    });
+    this.authenticateFromApi(response.user, passwordHash, "APPROVED");
+    return response.user;
+  }
   demoLogin(): void {
     this.state.session = { id: "cust-1", role: "CLIENT" };
   }
   logout(): void {
+    void authService.logout();
     this.state.session = null;
   }
   addPaymentCard(input: CardInput): string {
