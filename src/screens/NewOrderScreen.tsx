@@ -91,13 +91,14 @@ export function PricingSummary({
             {label}
           </Body>
           <Body
-            style={
+            style={[
+              { fontVariant: ["tabular-nums"] },
               confirmation && [
                 confirmationStyles.priceValue,
                 (label === "Promoción" || label === "Beneficio de membresía") &&
                   confirmationStyles.discount,
-              ]
-            }
+              ],
+            ]}
           >
             {value}
           </Body>
@@ -113,7 +114,12 @@ export function PricingSummary({
         <Title style={confirmation && confirmationStyles.totalLabel}>
           {unknown ? "Valor final" : "Total"}
         </Title>
-        <Title style={confirmation && confirmationStyles.totalAmount}>
+        <Title
+          style={[
+            { fontVariant: ["tabular-nums"] },
+            confirmation && confirmationStyles.totalAmount,
+          ]}
+        >
           {unknown ? "Por determinar" : money(pricing.total)}
         </Title>
       </View>
