@@ -47,7 +47,7 @@ export function PaymentMethodCard({
               <Text style={paymentStyles.defaultBadge}>Principal</Text>
             )}
           </View>
-          <Body style={paymentStyles.number}>•••• {method.last4}</Body>
+          <Body style={paymentStyles.number}>**** {method.last4}</Body>
           <Body muted>{method.holder}</Body>
           <Body muted>
             {method.kind === "CARD"
@@ -89,7 +89,7 @@ export function PaymentCardPreview({
         <Icon name="card-outline" size={28} color="#FFFFFF" />
       </View>
       <Text style={paymentStyles.previewNumber}>
-        •••• •••• •••• {last4 || "••••"}
+        **** **** **** {last4 || "****"}
       </Text>
       <View style={paymentStyles.previewBottom}>
         <View style={paymentStyles.previewHolder}>
