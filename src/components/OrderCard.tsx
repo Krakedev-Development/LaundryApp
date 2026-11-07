@@ -1,4 +1,5 @@
 import { contentColors } from "../design-system/classic";
+import { tactile } from "../design-system/interaction";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Body, Button, Card, Icon, Title, ui } from "./ui";
 import { StatusChip } from "./presentation";
@@ -34,11 +35,15 @@ export function OrderCard({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={"Ver detalle de " + order.id}
-        onPress={onDetail}
+        onPress={() => {
+          tactile("selection");
+          onDetail();
+        }}
         style={({ pressed }) => ({
-          padding: home ? 14 : 16,
-          gap: 8,
-          opacity: pressed ? 0.8 : 1,
+          padding: home ? 16 : 16,
+          gap: 10,
+          opacity: pressed ? 0.88 : 1,
+          transform: [{ scale: pressed ? 0.985 : 1 }],
         })}
       >
         <View
@@ -168,14 +173,28 @@ function OrderMetadataContainer({
 
 const homeOrderStyles = StyleSheet.create({
   card: {
-    backgroundColor: "#EFF6FF",
-    borderWidth: 1,
-    borderColor: "#BFDBFE",
-    borderRadius: 12,
-    shadowOpacity: 0,
-    elevation: 0,
+    backgroundColor: "#F0F7FF",
+    borderWidth: 1.5,
+    borderColor: "#93C5FD",
+    borderRadius: 16,
+    shadowColor: "#143F73",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 2,
   },
-  title: { fontSize: 14, lineHeight: 20, fontWeight: "700", color: "#1D4ED8" },
-  caption: { color: contentColors.primary, fontSize: 12, lineHeight: 18 },
-  amount: { color: contentColors.primary, fontWeight: "700" },
+  title: {
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: "800",
+    color: "#143F73",
+    letterSpacing: 0.2,
+  },
+  caption: { color: "#1E3A8A", fontSize: 12.5, lineHeight: 18 },
+  amount: {
+    color: "#143F73",
+    fontWeight: "800",
+    fontSize: 15,
+    fontVariant: ["tabular-nums"],
+  },
 });
