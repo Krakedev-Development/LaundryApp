@@ -1,5 +1,5 @@
 import { SegmentedControl } from "../components/presentation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import { Page } from "../components/Page";
 import {
@@ -29,7 +29,17 @@ import {
 import { useApp } from "../store/AppProvider";
 import { currentCustomer } from "../domain/repository";
 import { plans, promos, rewards } from "../domain/catalog";
-import { money } from "../domain/models";
+import {
+  fetchMemberships,
+  fetchPromotions,
+  fetchRewards,
+} from "../services/catalog/catalogService";
+import {
+  money,
+  type LoyaltyReward,
+  type MembershipPlan,
+  type Promo,
+} from "../domain/models";
 import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
 export function ClientProfileScreen() {
   const navigation = useLaundryNavigation();
@@ -116,6 +126,33 @@ export function BenefitsScreen() {
   const c = currentCustomer(state);
   const a = useAction();
   const [tab, setTab] = useState("Promociones");
+  const [catalogPromos, setCatalogPromos] = useState<Promo[]>(() => [
+      ...promos,
+    ]),
+    [catalogRewards, setCatalogRewards] = useState<LoyaltyReward[]>(() => [
+      ...rewards,
+    ]),
+    [catalogPlans, setCatalogPlans] = useState<MembershipPlan[]>(() => [
+      ...plans,
+    ]);
+
+  useEffect(() => {
+    let active = true;
+    void Promise.all([
+      fetchPromotions(),
+      fetchRewards(),
+      fetchMemberships(),
+    ]).then(([loadedPromos, loadedRewards, loadedPlans]) => {
+      if (!active) return;
+      setCatalogPromos([...loadedPromos]);
+      setCatalogRewards([...loadedRewards]);
+      setCatalogPlans([...loadedPlans]);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <Page>
       <SegmentedControl
@@ -131,7 +168,7 @@ export function BenefitsScreen() {
         <>
           <Title style={benefitStyles.sectionTitle}>Promociones</Title>
           <View style={benefitStyles.promoGrid}>
-            {promos.map((p, index) => (
+            {catalogPromos.map((p, index) => (
               <PromoSurface key={p.code} index={index}>
                 <View
                   style={[
@@ -195,7 +232,7 @@ export function BenefitsScreen() {
               requieren aprobación.
             </Body>
           </PointsSummary>
-          {rewards.map((r) => (
+          {catalogRewards.map((r) => (
             <Card key={r.id} style={benefitStyles.rewardCard}>
               <View style={benefitStyles.rewardHeading}>
                 <BenefitIcon name="gift-outline" />
@@ -239,83 +276,86 @@ export function BenefitsScreen() {
       {tab === "Membresía" && (
         <>
           <Title style={benefitStyles.sectionTitle}>Membresía</Title>
-          {plans.map((plan) => (
-            <Card
-              key={plan.id}
-              style={[
-                benefitStyles.planCard,
-                { borderColor: membershipTone(plan.id).ink },
-                c.membershipTier === plan.name && benefitStyles.currentPlan,
-              ]}
-            >
-              {c.membershipTier === plan.name && (
-                <View
-                  style={[
-                    benefitStyles.planBadge,
-                    { backgroundColor: membershipTone(plan.id).soft },
-                  ]}
-                >
-                  <Icon
-                    name="checkmark-circle"
-                    size={14}
-                    color={membershipTone(plan.id).ink}
-                  />
-                  <Text
+          {catalogPlans.map((plan) => {
+            const tone = membershipTone(plan.id, plan.name);
+            return (
+              <Card
+                key={plan.id}
+                style={[
+                  benefitStyles.planCard,
+                  { borderColor: tone.ink },
+                  c.membershipTier === plan.name && benefitStyles.currentPlan,
+                ]}
+              >
+                {c.membershipTier === plan.name && (
+                  <View
                     style={[
-                      benefitStyles.planBadgeText,
-                      { color: membershipTone(plan.id).ink },
+                      benefitStyles.planBadge,
+                      { backgroundColor: tone.soft },
                     ]}
                   >
-                    Plan actual
-                  </Text>
-                </View>
-              )}
-              <View style={benefitStyles.planHeader}>
-                <Title
-                  style={[
-                    benefitStyles.planName,
-                    { color: membershipTone(plan.id).ink },
-                  ]}
-                >
-                  {plan.name}
-                </Title>
-                <View style={benefitStyles.planPriceRow}>
-                  <Text style={benefitStyles.planPrice}>
-                    {money(plan.priceMonthly)}
-                  </Text>
-                  <Body muted style={benefitStyles.planPeriod}>
-                    / mes
-                  </Body>
-                </View>
-              </View>
-              <View style={benefitStyles.features}>
-                {plan.benefits.map((b) => (
-                  <View key={b} style={benefitStyles.feature}>
                     <Icon
                       name="checkmark-circle"
-                      size={15}
-                      color={membershipTone(plan.id).ink}
+                      size={14}
+                      color={tone.ink}
                     />
-                    <Body style={benefitStyles.featureText}>{b}</Body>
+                    <Text
+                      style={[
+                        benefitStyles.planBadgeText,
+                        { color: tone.ink },
+                      ]}
+                    >
+                      Plan actual
+                    </Text>
                   </View>
-                ))}
-              </View>
-              <Button
-                label={`Elegir plan ${plan.name} · Demo`}
-                style={[
-                  benefitStyles.planButton,
-                  { backgroundColor: membershipTone(plan.id).ink },
-                ]}
-                disabled={c.membershipTier === plan.name}
-                onPress={() =>
-                  a.run(
-                    () => execute((r) => r.changeMembershipPlan(plan.name)),
-                    `Membresía ${plan.name} seleccionada.`,
-                  )
-                }
-              />
-            </Card>
-          ))}
+                )}
+                <View style={benefitStyles.planHeader}>
+                  <Title
+                    style={[
+                      benefitStyles.planName,
+                      { color: tone.ink },
+                    ]}
+                  >
+                    {plan.name}
+                  </Title>
+                  <View style={benefitStyles.planPriceRow}>
+                    <Text style={benefitStyles.planPrice}>
+                      {money(plan.priceMonthly)}
+                    </Text>
+                    <Body muted style={benefitStyles.planPeriod}>
+                      / mes
+                    </Body>
+                  </View>
+                </View>
+                <View style={benefitStyles.features}>
+                  {plan.benefits.map((b) => (
+                    <View key={b} style={benefitStyles.feature}>
+                      <Icon
+                        name="checkmark-circle"
+                        size={15}
+                        color={tone.ink}
+                      />
+                      <Body style={benefitStyles.featureText}>{b}</Body>
+                    </View>
+                  ))}
+                </View>
+                <Button
+                  label={`Elegir plan ${plan.name} · Demo`}
+                  style={[
+                    benefitStyles.planButton,
+                    { backgroundColor: tone.ink },
+                  ]}
+                  disabled={c.membershipTier === plan.name}
+                  onPress={() =>
+                    a.run(
+                      () => execute((r) => r.changeMembershipPlan(plan.name)),
+                      `Membresía ${plan.name} seleccionada.`,
+                    )
+                  }
+                />
+              </Card>
+            );
+          })}
         </>
       )}
     </Page>

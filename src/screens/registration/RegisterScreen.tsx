@@ -4,6 +4,7 @@ import { Body, Button, Card, Field, Title, useAction } from "../../components/ui
 import { useApp } from "../../store/AppProvider";
 import { passwordHash } from "../../services/passwordHash";
 import { authService } from "../../services/auth/authService";
+import { syncFullCatalog } from "../../services/catalog/catalogService";
 
 export function RegisterScreen() {
   const { execute } = useApp();
@@ -42,6 +43,7 @@ export function RegisterScreen() {
                   phone: phone.trim(),
                   password,
                 });
+                await syncFullCatalog(response.tokens.accessToken);
                 execute((r) =>
                   r.authenticateFromApi(response.user, hash, "APPROVED"),
                 );

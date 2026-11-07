@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppState as Lifecycle } from "react-native";
+import { resetCatalogToFallback } from "../domain/catalog";
 import type { AppState } from "../domain/models";
 import {
   clone,
@@ -19,6 +20,7 @@ import {
   clearAuthSession,
   getStoredAuthSession,
 } from "../services/auth/authService";
+import { syncFullCatalog } from "../services/catalog/catalogService";
 import { PersistenceQueue } from "./persistence";
 
 interface Context {
@@ -56,7 +58,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setReady(false);
     setError(null);
     void Promise.all([queue.load(), getStoredAuthSession()])
-      .then(([saved, authSession]) => {
+      .then(async ([saved, authSession]) => {
         if (!mounted.current) return;
         let loaded = saved ?? latest.current;
         if (authSession.user && authSession.accessToken) {
@@ -64,9 +66,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             loaded = transact(loaded, (repo) =>
               repo.authenticateFromApi(authSession.user!),
             ).state;
+            await syncFullCatalog(authSession.accessToken);
           } else {
             void clearAuthSession();
           }
+        } else {
+          void syncFullCatalog(null);
         }
         refreshSchedule(loaded);
         save(loaded);
@@ -110,6 +115,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         execute,
         reset: () => {
           void clearAuthSession();
+          resetCatalogToFallback();
           save(initializeState());
           setReady(true);
         },

@@ -18,7 +18,14 @@ const planTones: Record<string, { ink: string; soft: string }> = {
   "plan-standard": { ink: theme.colors.primary, soft: theme.colors.soft },
   "plan-premium": { ink: "#7C3AED", soft: "#EDE9FE" },
 };
-export const membershipTone = (id: string) => planTones[id] ?? planTones["plan-basic"];
+export const membershipTone = (idOrName: string, name = "") => {
+  if (planTones[idOrName]) return planTones[idOrName];
+  const label = `${idOrName} ${name}`.toLowerCase();
+  if (label.includes("premium")) return planTones["plan-premium"];
+  if (label.includes("estándar") || label.includes("estandar"))
+    return planTones["plan-standard"];
+  return planTones["plan-basic"];
+};
 
 export function PromoSurface({ index, children }: { index: number; children: ReactNode }) {
   return (
