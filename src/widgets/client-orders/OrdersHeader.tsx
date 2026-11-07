@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { Icon, Title, type IconName } from "../../components/ui";
 import { ordersStyles } from "../../components/OrdersPresentation";
 import { contentTheme as theme } from "../../design-system/classic";
+import { tactile } from "../../design-system/interaction";
 
 export function OrdersHeader({
   history,
@@ -41,11 +42,17 @@ export function OrdersHeader({
               accessibilityLabel={option.label}
               accessibilityState={{ checked: selected }}
               aria-checked={selected}
-              onPress={() => onHistoryChange(option.history)}
+              onPress={() => {
+                tactile("selection");
+                onHistoryChange(option.history);
+              }}
               style={({ pressed }) => [
                 styles.option,
                 selected && styles.selected,
-                pressed && { opacity: theme.opacity.pressed },
+                pressed && {
+                  opacity: theme.opacity.pressed,
+                  transform: [{ scale: 0.96 }],
+                },
               ]}
             >
               <Icon

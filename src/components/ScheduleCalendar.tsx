@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { tactile } from "../design-system/interaction";
 import { IconButton, Title } from "./ui";
 
 const months = [
@@ -86,12 +87,19 @@ export function ScheduleCalendar({
               accessibilityState={{ checked: selected, disabled: !enabled }}
               aria-checked={selected}
               disabled={!enabled}
-              onPress={() => onChange(date)}
-              style={calendarStyles.cell}
+              onPress={() => {
+                tactile("selection");
+                onChange(date);
+              }}
+              style={({ pressed }) => [
+                calendarStyles.cell,
+                pressed && enabled && { transform: [{ scale: 0.92 }] },
+              ]}
             >
               <View
                 style={[
                   calendarStyles.day,
+                  enabled && !selected && calendarStyles.available,
                   selected && calendarStyles.selected,
                   !enabled && calendarStyles.unavailable,
                 ]}
@@ -117,22 +125,23 @@ export function ScheduleCalendar({
 const calendarStyles = StyleSheet.create({
   card: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    paddingVertical: 8,
+    borderColor: "#E2E8F0",
+    paddingVertical: 10,
   },
   navigation: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 4,
+    paddingHorizontal: 6,
+    marginBottom: 4,
   },
   month: {
     fontSize: 16,
     lineHeight: 22,
     fontWeight: "700",
-    color: "#111827",
+    color: "#0F172A",
     flexShrink: 1,
     textAlign: "center",
   },
@@ -142,8 +151,8 @@ const calendarStyles = StyleSheet.create({
     textAlign: "center",
     fontSize: 12,
     lineHeight: 18,
-    fontWeight: "600",
-    color: "#9CA3AF",
+    fontWeight: "700",
+    color: "#64748B",
   },
   grid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 4 },
   cell: {
@@ -153,20 +162,31 @@ const calendarStyles = StyleSheet.create({
     justifyContent: "center",
   },
   day: {
-    width: 32,
+    width: 34,
     height: 36,
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
   },
-  selected: { backgroundColor: "#3B82F6" },
+  available: {
+    backgroundColor: "#F0F7FF",
+  },
+  selected: {
+    backgroundColor: "#2563EB",
+    shadowColor: "#2563EB",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 2,
+  },
   unavailable: { opacity: 0.3 },
   dayText: {
     fontSize: 15,
     lineHeight: 21,
-    color: "#111827",
-    fontWeight: "500",
+    color: "#0F172A",
+    fontWeight: "600",
+    fontVariant: ["tabular-nums"],
   },
   selectedText: { color: "#FFFFFF", fontWeight: "700" },
-  unavailableText: { color: "#9CA3AF" },
+  unavailableText: { color: "#94A3B8" },
 });

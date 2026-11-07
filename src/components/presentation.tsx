@@ -1,5 +1,14 @@
-﻿import React, { useEffect, useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  Animated,
+  LayoutAnimation,
+  Platform,
+  Pressable,
+  Text,
+  TextInput,
+  UIManager,
+  View,
+} from "react-native";
 import {
   Body,
   contentColors as colors,
@@ -9,9 +18,17 @@ import {
   ui,
   type IconName,
 } from "./ui";
-import { MotionSection } from "../design-system/MotionProvider";
+import { MotionSection, useReducedMotion } from "../design-system/MotionProvider";
 import { contentTheme as theme } from "../design-system/classic";
+import { tactile } from "../design-system/interaction";
 import { statusLabels, type OrderStatus, type Order } from "../domain/models";
+
+if (
+  Platform.OS === "android" &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 export function Accordion({
   title,
   children,
@@ -26,6 +43,14 @@ export function Accordion({
   appearance?: "card" | "list";
 }) {
   const [open, setOpen] = useState(initialOpen);
+  const reduced = useReducedMotion();
+  const toggle = () => {
+    tactile("selection");
+    if (!reduced && Platform.OS !== "web") {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    }
+    setOpen(!open);
+  };
   return (
     <View style={appearance === "list" ? { gap: 0 } : ui.card}>
       <Pressable
@@ -33,18 +58,26 @@ export function Accordion({
         accessibilityLabel={title}
         accessibilityState={{ expanded: open }}
         aria-expanded={open}
-        onPress={() => setOpen(!open)}
-        style={[
+        onPress={toggle}
+        style={({ pressed }) => [
           ui.row,
-          { minHeight: 48, flexWrap: "nowrap" },
-          appearance === "list" && { paddingVertical: 14, paddingHorizontal: 14 },
+          {
+            minHeight: 48,
+            flexWrap: "nowrap",
+            opacity: pressed ? 0.85 : 1,
+          },
+          appearance === "list" && {
+            paddingVertical: 14,
+            paddingHorizontal: 16,
+            backgroundColor: open ? "#F8FAFC" : "transparent",
+          },
         ]}
       >
         <View style={{ flex: 1, gap: 4 }}>
           <Title
             style={
               appearance === "list"
-                ? { fontSize: 15, lineHeight: 21, fontWeight: "600" }
+                ? { fontSize: 15, lineHeight: 21, fontWeight: "700", color: open ? colors.primary : "#111827" }
                 : undefined
             }
           >
@@ -52,11 +85,22 @@ export function Accordion({
           </Title>
           {subtitle && <Body muted>{subtitle}</Body>}
         </View>
-        <Icon
-          name={open ? "chevron-up" : "chevron-down"}
-          size={appearance === "list" ? 18 : 20}
-          color={appearance === "list" ? colors.muted : undefined}
-        />
+        <View
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 14,
+            backgroundColor: open ? colors.soft : "#F1F5F9",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Icon
+            name={open ? "chevron-up" : "chevron-down"}
+            size={appearance === "list" ? 16 : 18}
+            color={open ? colors.primary : colors.muted}
+          />
+        </View>
       </Pressable>
       {open && (
         <MotionSection>
@@ -64,8 +108,11 @@ export function Accordion({
             style={[
               { gap: 12 },
               appearance === "list" && {
-                paddingHorizontal: 14,
-                paddingBottom: 14,
+                paddingHorizontal: 16,
+                paddingTop: 6,
+                paddingBottom: 16,
+                borderTopWidth: 1,
+                borderTopColor: "#F1F5F9",
               },
             ]}
           >
@@ -141,14 +188,18 @@ export function ListItem({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={title}
-      onPress={onPress}
+      onPress={() => {
+        tactile("selection");
+        onPress();
+      }}
       style={({ pressed }) => [
         ui.row,
         {
           minHeight: 64,
           flexWrap: "nowrap",
           paddingVertical: 8,
-          opacity: pressed ? 0.8 : 1,
+          opacity: pressed ? 0.85 : 1,
+          transform: [{ scale: pressed ? 0.985 : 1 }],
         },
         appearance === "metric" && {
           flex: 1,
@@ -211,8 +262,11 @@ export function SegmentedControl<T extends string>({
           accessibilityLabel={o.label}
           accessibilityState={{ checked: value === o.value }}
           aria-checked={value === o.value}
-          onPress={() => onChange(o.value)}
-          style={[
+          onPress={() => {
+            tactile("selection");
+            onChange(o.value);
+          }}
+          style={({ pressed }) => [
             {
               flex: 1,
               minHeight: 48,
@@ -230,6 +284,7 @@ export function SegmentedControl<T extends string>({
                   : value === o.value
                     ? colors.surface
                     : colors.transparent,
+              transform: [{ scale: pressed ? 0.97 : 1 }],
             },
             appearance === "classic" && {
               borderRadius: 8,
@@ -488,6 +543,30 @@ export function Timeline({ events }: { events: Order["timeline"] }) {
   );
 }
 export function Skeleton({ lines = 3 }: { lines?: number }) {
+  const reduced = useReducedMotion();
+  const shimmer = useRef(new Animated.Value(0.45)).current;
+  useEffect(() => {
+    if (reduced) {
+      shimmer.setValue(0.75);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmer, {
+          toValue: 1,
+          duration: 750,
+          useNativeDriver: Platform.OS !== "web",
+        }),
+        Animated.timing(shimmer, {
+          toValue: 0.4,
+          duration: 750,
+          useNativeDriver: Platform.OS !== "web",
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [reduced, shimmer]);
   return (
     <View
       accessibilityLabel="Cargando contenido"
@@ -495,13 +574,14 @@ export function Skeleton({ lines = 3 }: { lines?: number }) {
       style={{ gap: 12, width: "100%" }}
     >
       {Array.from({ length: lines }, (_, i) => (
-        <View
+        <Animated.View
           key={i}
           style={{
             height: i === 0 ? 28 : 16,
             width: i === lines - 1 ? "65%" : "100%",
             borderRadius: 8,
             backgroundColor: colors.skeleton,
+            opacity: shimmer,
           }}
         />
       ))}

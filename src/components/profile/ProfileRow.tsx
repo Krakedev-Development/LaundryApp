@@ -1,9 +1,10 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { contentTheme as theme } from "../../design-system/classic";
+import { tactile } from "../../design-system/interaction";
 import { Icon, type IconName } from "../ui";
 
 const tones = {
-  blue: { ink: "#3B82F6", background: "#EFF6FF" },
+  blue: { ink: "#1D4ED8", background: "#EFF6FF" },
   green: { ink: "#15803D", background: "#F0FDF4" },
   purple: { ink: "#7C3AED", background: "#F5F3FF" },
   amber: { ink: "#B45309", background: "#FFFBEB" },
@@ -32,11 +33,14 @@ export function ProfileRow({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={title}
-      onPress={onPress}
+      onPress={() => {
+        tactile("selection");
+        onPress();
+      }}
       style={({ pressed }) => [
         styles.row,
         !last && styles.rowDivider,
-        { opacity: pressed ? 0.7 : 1 },
+        pressed && styles.rowPressed,
       ]}
     >
       <View style={[styles.iconBox, { backgroundColor: color.background }]}>
@@ -48,7 +52,9 @@ export function ProfileRow({
         </Text>
         {subtitle && <Text style={styles.balanceAmount}>{subtitle}</Text>}
       </View>
-      <Icon name="chevron-forward" size={16} color="#9CA3AF" />
+      <View style={styles.chevronBadge}>
+        <Icon name="chevron-forward" size={15} color="#64748B" />
+      </View>
     </Pressable>
   );
 }
@@ -60,11 +66,15 @@ const styles = StyleSheet.create({
     gap: 12,
     minHeight: 64,
   },
-  rowDivider: { borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },
+  rowPressed: {
+    backgroundColor: "#F8FAFC",
+    transform: [{ scale: 0.99 }],
+  },
+  rowDivider: { borderBottomWidth: 1, borderBottomColor: "#F1F5F9" },
   iconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 9,
+    width: 38,
+    height: 38,
+    borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -72,14 +82,23 @@ const styles = StyleSheet.create({
   rowLabel: {
     fontSize: 15,
     lineHeight: 21,
-    fontWeight: "500",
-    color: "#374151",
+    fontWeight: "600",
+    color: "#1E293B",
   },
   balanceLabel: { fontSize: 12, lineHeight: 18, color: theme.colors.muted },
   balanceAmount: {
     fontSize: 20,
     lineHeight: 27,
-    fontWeight: "700",
-    color: "#1D4ED8",
+    fontWeight: "800",
+    color: "#143F73",
+    fontVariant: ["tabular-nums"],
+  },
+  chevronBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "#F8FAFC",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
