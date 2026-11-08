@@ -3,9 +3,12 @@ import { test } from "node:test";
 import {
   extras,
   facilities,
+  fallbackFacilities,
   garments,
   plans,
+  promos,
   resetCatalogToFallback,
+  rewards,
   services,
 } from "../src/domain/catalog";
 import {
@@ -14,16 +17,62 @@ import {
   LaundryRepository,
   slotRange,
 } from "../src/domain/repository";
-import { authService } from "../src/services/auth/authService";
+import { authService, clearAuthSession } from "../src/services/auth/authService";
 import {
   fetchExtras,
   fetchFacilities,
   fetchGarments,
   fetchMemberships,
+  fetchPromotions,
+  fetchRewards,
   fetchServices,
+  syncFullCatalog,
 } from "../src/services/catalog/catalogService";
 
-test("catalogService fetches real garments, services, extras, memberships and Guayaquil facilities from backend API", async () => {
+test("catalogService fetches public catalog and Guayaquil facilities without requiring an active JWT session", async () => {
+  await clearAuthSession();
+  assert.ok(
+    fallbackFacilities.some((f) => /Guayaquil/i.test(f.name)),
+    "Fallback facilities should be in Guayaquil",
+  );
+  assert.ok(
+    fallbackFacilities.some((f) => /Samborondón/i.test(f.name)),
+    "Fallback facilities should include Sucursal Samborondón",
+  );
+
+  try {
+    const synced = await syncFullCatalog(null);
+
+    assert.ok(
+      synced.garments.some((g) => /Chaqueta de Cuero/i.test(g.name)),
+      "Public garments should include Chaqueta de Cuero from backend",
+    );
+    assert.ok(synced.services.length >= 3);
+    assert.ok(synced.extras.length >= 4);
+    assert.ok(synced.memberships.length >= 3);
+    assert.ok(
+      synced.facilities.some((f) => /Guayaquil/i.test(f.name) || /Guayaquil/i.test(f.address)),
+      "Public facilities should include Guayaquil branches from backend",
+    );
+    assert.ok(
+      synced.promos.some((p) => p.code === "BIENVENIDO"),
+      "Public promotions should include BIENVENIDO from backend",
+    );
+    assert.ok(
+      synced.rewards.some((r) => /Bolsa Ecológica/i.test(r.title)),
+      "Public rewards should include official rewards from backend",
+    );
+
+    assert.equal(garments[0].id, synced.garments[0].id);
+    assert.equal(facilities[0].id, synced.facilities[0].id);
+    assert.equal(promos[0].code, synced.promos[0].code);
+    assert.equal(rewards[0].id, synced.rewards[0].id);
+  } finally {
+    resetCatalogToFallback();
+  }
+});
+
+test("catalogService fetches real garments, services, extras, memberships and Guayaquil facilities with authenticated session and creates order", async () => {
   const now = new Date("2026-10-07T12:00:00Z");
   const uniqueEmail = `catalogo.api.${Date.now()}@laundryfresh.com`;
   const repo = new LaundryRepository(initializeState(now), now);
@@ -43,12 +92,16 @@ test("catalogService fetches real garments, services, extras, memberships and Gu
       loadedExtras,
       loadedPlans,
       loadedFacilities,
+      loadedPromos,
+      loadedRewards,
     ] = await Promise.all([
       fetchGarments(),
       fetchServices(),
       fetchExtras(),
       fetchMemberships(),
       fetchFacilities(),
+      fetchPromotions(),
+      fetchRewards(),
     ]);
 
     assert.ok(loadedGarments.length > 0, "Should return backend garments");
@@ -70,11 +123,15 @@ test("catalogService fetches real garments, services, extras, memberships and Gu
 
     assert.ok(loadedFacilities.length > 0, "Should return backend facilities");
     assert.ok(
-      loadedFacilities.some((f) => /Guayaquil/i.test(f.name) || /Guayaquil/i.test(f.address)),
+      loadedFacilities.some(
+        (f) => /Guayaquil/i.test(f.name) || /Guayaquil/i.test(f.address),
+      ),
     );
     assert.equal(facilities[0].id, loadedFacilities[0].id);
 
-    // Verify pricing and order creation with live backend catalog items
+    assert.ok(loadedPromos.length > 0, "Should return backend promotions");
+    assert.ok(loadedRewards.length > 0, "Should return backend rewards");
+
     const g = loadedGarments[0];
     const s = loadedServices[0];
     const ex = loadedExtras[0];

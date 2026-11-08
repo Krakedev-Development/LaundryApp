@@ -61,13 +61,21 @@ interface BackendMembership {
   active?: boolean;
 }
 
+interface BackendOpeningHoursObject {
+  code?: string;
+  days?: number[];
+  open?: string;
+  close?: string;
+  allowsCustomerPickup?: boolean;
+}
+
 interface BackendFacility {
   id: string;
   name: string;
   address: string;
   city?: string | null;
   phone?: string | null;
-  openingHours?: string | null;
+  openingHours?: string | BackendOpeningHoursObject | null;
   acceptsDropoff?: boolean;
   allowsPickup?: boolean;
   latitude: string | number;
@@ -76,12 +84,16 @@ interface BackendFacility {
 }
 
 interface BackendPromo {
+  id?: string;
   code: string;
+  discountType?: "PERCENTAGE" | "FIXED" | string;
+  discountValue?: string | number;
   discountPercent?: string | number;
   fixedDiscount?: string | number;
   minOrderAmount?: string | number;
   description?: string;
-  validUntil?: string;
+  validUntil?: string | null;
+  active?: boolean;
 }
 
 interface BackendReward {
@@ -91,6 +103,7 @@ interface BackendReward {
   pointsCost: string | number;
   description?: string;
   category?: string;
+  active?: boolean;
 }
 
 const memoryCache = new Map<string, string>();
@@ -128,7 +141,7 @@ async function writeCache(partial: CatalogSnapshot): Promise<void> {
 function resolveGarmentIcon(icon?: string, name = ""): string {
   const key = (icon ?? "").toLowerCase();
   const label = name.toLowerCase();
-  if (key.includes("outline")) return key;
+  if (key.includes("-outline")) return key;
   if (
     key === "bedding" ||
     label.includes("edredón") ||
@@ -149,13 +162,30 @@ function resolveGarmentIcon(icon?: string, name = ""): string {
   return "shirt-outline";
 }
 
-function resolveGarmentCategory(category: string | undefined, name: string): string {
+function resolveGarmentCategory(
+  category: string | undefined,
+  icon: string | undefined,
+  name: string,
+): string {
   if (category?.trim()) return category.trim();
+  if (
+    icon &&
+    !/^(shirt|pants|suit|dress|bedding|towel)$/i.test(icon.trim()) &&
+    !icon.includes("outline")
+  ) {
+    return icon.trim();
+  }
   const label = name.toLowerCase();
-  if (label.includes("edredón") || label.includes("sábana") || label.includes("plumón"))
+  if (
+    label.includes("edredón") ||
+    label.includes("sábana") ||
+    label.includes("plumón")
+  )
     return "Hogar";
   if (label.includes("terno") || label.includes("traje")) return "Formal";
   if (label.includes("vestido")) return "Prendas delicadas";
+  if (label.includes("chaqueta") || label.includes("abrigo") || label.includes("cuero"))
+    return "Prendas exteriores";
   if (label.includes("pantalón") || label.includes("jean"))
     return "Prendas inferiores";
   return "Prendas superiores";
@@ -176,11 +206,11 @@ function resolveServiceDescription(
 
 function mapGarment(raw: BackendGarment): CatalogGarment {
   const name = raw.name.trim();
-  const isHeavy = /edredón|plumón|traje|terno|vestido/i.test(name);
+  const isHeavy = /edredón|plumón|traje|terno|vestido|chaqueta|cuero/i.test(name);
   return {
     id: raw.id,
     name,
-    category: resolveGarmentCategory(raw.category, name),
+    category: resolveGarmentCategory(raw.category, raw.icon, name),
     basePrice: Number(raw.basePrice) || 0,
     estimatedHours: raw.estimatedHours ?? (isHeavy ? 48 : 24),
     iconKey: raw.iconKey ?? resolveGarmentIcon(raw.icon, name),
@@ -219,26 +249,76 @@ function mapMembership(raw: BackendMembership): MembershipPlan {
   };
 }
 
+function formatOpeningHours(
+  openingHours: BackendFacility["openingHours"],
+): { text: string; allowsCustomerPickup?: boolean } {
+  if (!openingHours) {
+    return { text: "Lun - Sáb: 08:00 - 20:00" };
+  }
+  if (typeof openingHours === "string") {
+    return {
+      text: openingHours.trim() || "Lun - Sáb: 08:00 - 20:00",
+    };
+  }
+  const open = openingHours.open ?? "08:00";
+  const close = openingHours.close ?? "20:00";
+  const days = Array.isArray(openingHours.days) ? openingHours.days : [];
+  const dayLabel =
+    days.length >= 6
+      ? "Lun - Sáb"
+      : days.length === 5
+        ? "Lun - Vie"
+        : "Lun - Sáb";
+  return {
+    text: `${dayLabel}: ${open} - ${close}`,
+    allowsCustomerPickup: openingHours.allowsCustomerPickup,
+  };
+}
+
 function mapFacility(raw: BackendFacility): Facility {
   const address =
     raw.city && !raw.address.toLowerCase().includes(raw.city.toLowerCase())
       ? `${raw.address.trim()}, ${raw.city.trim()}`
       : raw.address.trim();
+  const hoursInfo = formatOpeningHours(raw.openingHours);
   return {
     id: raw.id,
     name: raw.name.trim(),
     address,
-    openingHours: raw.openingHours?.trim() || "Lun - Sáb: 08:00 - 20:00",
+    openingHours: hoursInfo.text,
     phone: raw.phone?.trim() || "+593 4 250 0000",
     acceptsDropoff: raw.acceptsDropoff ?? false,
-    allowsPickup: raw.allowsPickup ?? true,
+    allowsPickup:
+      raw.allowsPickup ?? hoursInfo.allowsCustomerPickup ?? true,
     latitude: Number(raw.latitude) || -2.1894,
     longitude: Number(raw.longitude) || -79.8891,
   };
 }
 
-async function resolveAccessToken(explicitToken?: string | null): Promise<string | null> {
-  if (explicitToken) return explicitToken;
+function mapPromo(raw: BackendPromo): Promo {
+  const discountValue = Number(raw.discountValue) || 0;
+  const isPercentage =
+    raw.discountType === "PERCENTAGE" || Number(raw.discountPercent) > 0;
+  const discountPercent = isPercentage
+    ? Number(raw.discountPercent ?? discountValue) || 0
+    : 0;
+  const fixedDiscount = !isPercentage
+    ? Number(raw.fixedDiscount ?? discountValue) || 0
+    : 0;
+  return {
+    code: raw.code.trim().toUpperCase(),
+    discountPercent,
+    fixedDiscount,
+    minOrderAmount: Number(raw.minOrderAmount) || 0,
+    description: raw.description?.trim() || "Promoción especial Laundry",
+    validUntil: raw.validUntil ? raw.validUntil.slice(0, 10) : "2026-12-31",
+  };
+}
+
+async function resolveAccessToken(
+  explicitToken?: string | null,
+): Promise<string | null> {
+  if (explicitToken !== undefined) return explicitToken;
   const session = await getStoredAuthSession();
   return session.accessToken;
 }
@@ -248,13 +328,12 @@ export async function fetchGarments(
 ): Promise<CatalogGarment[]> {
   try {
     const token = await resolveAccessToken(accessToken);
-    if (!token) throw new Error("Unauthenticated");
-    const data = await apiClient.get<BackendGarment[]>("/catalog/garments", {
-      accessToken: token,
-    });
-    const active = (Array.isArray(data) ? data : [data]).filter(
-      (item) => item && item.active !== false,
+    const data = await apiClient.get<BackendGarment[] | BackendGarment>(
+      "/catalog/garments",
+      token ? { accessToken: token } : undefined,
     );
+    const list = Array.isArray(data) ? data : data ? [data] : [];
+    const active = list.filter((item) => item && item.active !== false);
     const mapped = active.map(mapGarment);
     if (mapped.length) {
       syncCatalogState({ garments: mapped });
@@ -276,13 +355,12 @@ export async function fetchServices(
 ): Promise<CatalogService[]> {
   try {
     const token = await resolveAccessToken(accessToken);
-    if (!token) throw new Error("Unauthenticated");
-    const data = await apiClient.get<BackendService[]>("/catalog/services", {
-      accessToken: token,
-    });
-    const active = (Array.isArray(data) ? data : [data]).filter(
-      (item) => item && item.active !== false,
+    const data = await apiClient.get<BackendService[] | BackendService>(
+      "/catalog/services",
+      token ? { accessToken: token } : undefined,
     );
+    const list = Array.isArray(data) ? data : data ? [data] : [];
+    const active = list.filter((item) => item && item.active !== false);
     const mapped = active.map(mapService);
     if (mapped.length) {
       syncCatalogState({ services: mapped });
@@ -304,13 +382,12 @@ export async function fetchExtras(
 ): Promise<OrderExtra[]> {
   try {
     const token = await resolveAccessToken(accessToken);
-    if (!token) throw new Error("Unauthenticated");
-    const data = await apiClient.get<BackendExtra[]>("/catalog/extras", {
-      accessToken: token,
-    });
-    const active = (Array.isArray(data) ? data : [data]).filter(
-      (item) => item && item.active !== false,
+    const data = await apiClient.get<BackendExtra[] | BackendExtra>(
+      "/catalog/extras",
+      token ? { accessToken: token } : undefined,
     );
+    const list = Array.isArray(data) ? data : data ? [data] : [];
+    const active = list.filter((item) => item && item.active !== false);
     const mapped = active.map(mapExtra);
     if (mapped.length) {
       syncCatalogState({ extras: mapped });
@@ -332,16 +409,12 @@ export async function fetchMemberships(
 ): Promise<MembershipPlan[]> {
   try {
     const token = await resolveAccessToken(accessToken);
-    if (!token) throw new Error("Unauthenticated");
-    const data = await apiClient.get<BackendMembership[]>(
+    const data = await apiClient.get<BackendMembership[] | BackendMembership>(
       "/catalog/memberships",
-      {
-        accessToken: token,
-      },
+      token ? { accessToken: token } : undefined,
     );
-    const active = (Array.isArray(data) ? data : [data]).filter(
-      (item) => item && item.active !== false,
-    );
+    const list = Array.isArray(data) ? data : data ? [data] : [];
+    const active = list.filter((item) => item && item.active !== false);
     const mapped = active.map(mapMembership);
     if (mapped.length) {
       syncCatalogState({ plans: mapped });
@@ -363,12 +436,9 @@ export async function fetchFacilities(
 ): Promise<Facility[]> {
   try {
     const token = await resolveAccessToken(accessToken);
-    if (!token) throw new Error("Unauthenticated");
     const data = await apiClient.get<BackendFacility[] | BackendFacility>(
       "/facilities",
-      {
-        accessToken: token,
-      },
+      token ? { accessToken: token } : undefined,
     );
     const list = Array.isArray(data) ? data : data ? [data] : [];
     const active = list.filter((item) => item && item.active !== false);
@@ -393,21 +463,14 @@ export async function fetchPromotions(
 ): Promise<Promo[]> {
   try {
     const token = await resolveAccessToken(accessToken);
-    if (!token) throw new Error("Unauthenticated");
-    const data = await apiClient.get<BackendPromo[]>("/catalog/promotions", {
-      accessToken: token,
-    });
-    const list = Array.isArray(data) ? data : [];
+    const data = await apiClient.get<BackendPromo[] | BackendPromo>(
+      "/catalog/promotions",
+      token ? { accessToken: token } : undefined,
+    );
+    const list = Array.isArray(data) ? data : data ? [data] : [];
     const mapped: Promo[] = list
-      .filter((item) => item && item.code)
-      .map((item) => ({
-        code: item.code.trim().toUpperCase(),
-        discountPercent: Number(item.discountPercent) || 0,
-        fixedDiscount: Number(item.fixedDiscount) || 0,
-        minOrderAmount: Number(item.minOrderAmount) || 0,
-        description: item.description?.trim() || "Promoción especial Laundry",
-        validUntil: item.validUntil?.slice(0, 10) || "2026-12-31",
-      }));
+      .filter((item) => item && item.code && item.active !== false)
+      .map(mapPromo);
     if (mapped.length) {
       syncCatalogState({ promos: mapped });
       await writeCache({ promos: mapped });
@@ -428,13 +491,15 @@ export async function fetchRewards(
 ): Promise<LoyaltyReward[]> {
   try {
     const token = await resolveAccessToken(accessToken);
-    if (!token) throw new Error("Unauthenticated");
-    const data = await apiClient.get<BackendReward[]>("/catalog/rewards", {
-      accessToken: token,
-    });
-    const list = Array.isArray(data) ? data : [];
+    const data = await apiClient.get<BackendReward[] | BackendReward>(
+      "/catalog/rewards",
+      token ? { accessToken: token } : undefined,
+    );
+    const list = Array.isArray(data) ? data : data ? [data] : [];
     const mapped: LoyaltyReward[] = list
-      .filter((item) => item && (item.title || item.name))
+      .filter(
+        (item) => item && (item.title || item.name) && item.active !== false,
+      )
       .map((item) => ({
         id: item.id,
         title: (item.title ?? item.name ?? "Recompensa").trim(),
