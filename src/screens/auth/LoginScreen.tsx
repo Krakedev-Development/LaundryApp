@@ -9,7 +9,7 @@ export function LoginScreen() {
   const navigation = useLaundryNavigation();
   return (
     <LoginForm
-      initialEmail="maria.torres@gmail.com"
+      initialEmail="cliente@laundry.com"
       demoLabel="Cliente demo"
       onLogin={async (email, hash, password) => {
         const response = await authService.login({ email, password });
@@ -18,7 +18,10 @@ export function LoginScreen() {
           repo.authenticateFromApi(response.user, hash, "APPROVED"),
         );
       }}
-      onDemo={() => execute((repo) => repo.demoLogin())}
+      onDemo={() => {
+        execute((repo) => repo.demoLogin());
+        void syncFullCatalog(null);
+      }}
       onRegister={() => navigation.navigate("RegisterStep1")}
     />
   );

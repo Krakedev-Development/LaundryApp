@@ -29,6 +29,7 @@ import {
 import { useApp } from "../store/AppProvider";
 import { currentCustomer } from "../domain/repository";
 import { plans, promos, rewards } from "../domain/catalog";
+import { clearAuthSession } from "../services/auth/authService";
 import {
   fetchMemberships,
   fetchPromotions,
@@ -116,7 +117,12 @@ export function ClientProfileScreen() {
           onPress={() => navigation.navigate("ClientSupport")}
         />
       </ProfileSection>
-      <ProfileLogout onPress={() => execute((r) => r.logout())} />
+      <ProfileLogout
+        onPress={() => {
+          void clearAuthSession();
+          execute((r) => r.logout());
+        }}
+      />
     </Page>
   );
 }
