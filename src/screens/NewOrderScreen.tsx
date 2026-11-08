@@ -2,7 +2,7 @@ import { Accordion, ListItem, Stepper } from "../components/presentation";
 import { BottomSheet } from "../components/overlay/OverlayPortal";
 import { MotionSection } from "../design-system/MotionProvider";
 import { tactile } from "../design-system/interaction";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Text, View } from "react-native";
 import { Page } from "../components/Page";
 import {
@@ -27,13 +27,25 @@ import { ConfirmationGroup, confirmationStyles } from "../components/Confirmatio
 import { ExtraContent, GarmentSurface, extraTone, garmentStyles } from "../components/GarmentsExtrasPresentation";
 import { useApp } from "../store/AppProvider";
 import { calculatePricing, currentCustomer } from "../domain/repository";
-import { extras, garments, services } from "../domain/catalog";
+import {
+  extras,
+  garments,
+  services,
+  type CatalogGarment,
+  type CatalogService,
+} from "../domain/catalog";
+import {
+  fetchExtras,
+  fetchGarments,
+  fetchServices,
+} from "../services/catalog/catalogService";
 import {
   modeFor,
   modeLabels,
   money,
   round,
   type Leg,
+  type OrderExtra,
   type OrderItem,
   type PricingModel,
 } from "../domain/models";
@@ -132,6 +144,43 @@ export function PricingSummary({
     </Card>
   );
 }
+
+function buildDefaultSelection(
+  catalogGarments: CatalogGarment[],
+  catalogServices: CatalogService[],
+): { defaultService: string; defaultItems: OrderItem[] } {
+  const preferredSvc =
+    catalogServices.find((s) => /planchado/i.test(s.name)) ??
+    catalogServices[0];
+  const secondarySvc =
+    catalogServices.find((s) => s.id !== preferredSvc?.id) ?? preferredSvc;
+  const serviceName = preferredSvc?.name ?? "Lavado + Planchado";
+  const defaultItems: OrderItem[] = [];
+  if (catalogGarments[0] && preferredSvc) {
+    defaultItems.push({
+      id: catalogGarments[0].id,
+      garmentType: catalogGarments[0].name,
+      quantity: 3,
+      serviceType: preferredSvc.name,
+      unitPrice: round(catalogGarments[0].basePrice + preferredSvc.extraPrice),
+      notes: "",
+      iconName: catalogGarments[0].iconKey,
+    });
+  }
+  if (catalogGarments[1] && secondarySvc) {
+    defaultItems.push({
+      id: catalogGarments[1].id,
+      garmentType: catalogGarments[1].name,
+      quantity: 2,
+      serviceType: secondarySvc.name,
+      unitPrice: round(catalogGarments[1].basePrice + secondarySvc.extraPrice),
+      notes: "",
+      iconName: catalogGarments[1].iconKey,
+    });
+  }
+  return { defaultService: serviceName, defaultItems };
+}
+
 export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
   const navigation = useLaundryNavigation();
   const { state, execute } = useApp();
@@ -142,30 +191,32 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
   const [step, setStep] = useState(1),
     [inbound, setInbound] = useState<Leg>(blankLeg),
     [outbound, setOutbound] = useState<Leg>(blankLeg);
+  const [catalogGarments, setCatalogGarments] = useState<CatalogGarment[]>(() => [
+      ...garments,
+    ]),
+    [catalogServices, setCatalogServices] = useState<CatalogService[]>(() => [
+      ...services,
+    ]),
+    [catalogExtras, setCatalogExtras] = useState<OrderExtra[]>(() => [
+      ...extras,
+    ]);
+  const initialSelection = buildDefaultSelection(
+    catalogGarments,
+    catalogServices,
+  );
   const [model, setModel] = useState<PricingModel>("FIXED"),
     [weight, setWeight] = useState("15"),
-    [service, setService] = useState("Lavado + Planchado");
-  const [items, setItems] = useState<OrderItem[]>([
-    {
-      id: "g-1",
-      garmentType: "Camisas / Blusas",
-      quantity: 3,
-      serviceType: "Lavado + Planchado",
-      unitPrice: 4,
-      notes: "",
-      iconName: "shirt-outline",
-    },
-    {
-      id: "g-2",
-      garmentType: "Pantalones / Jeans",
-      quantity: 2,
-      serviceType: "Lavado ecológico",
-      unitPrice: 3,
-      notes: "",
-      iconName: "shirt-outline",
-    },
-  ]);
-  const [extraIds, setExtraIds] = useState(["ext-2"]),
+    [service, setService] = useState(initialSelection.defaultService);
+  const [items, setItems] = useState<OrderItem[]>(
+    initialSelection.defaultItems,
+  );
+  const [extraIds, setExtraIds] = useState<string[]>(() => {
+      const preferred =
+        catalogExtras.find((e) => e.id === "ext-2") ??
+        catalogExtras.find((e) => /perfum/i.test(e.name)) ??
+        catalogExtras[0];
+      return preferred ? [preferred.id] : [];
+    }),
     [notes, setNotes] = useState(""),
     [promoInput, setPromoInput] = useState(
       route.params?.promoCode ?? "FRESH10",
@@ -173,6 +224,55 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
     [appliedPromo, setAppliedPromo] = useState<string>(),
     [payment, setPayment] = useState("Billetera"),
     [confirmedId, setConfirmedId] = useState<string>();
+
+  useEffect(() => {
+    let active = true;
+    void Promise.all([fetchGarments(), fetchServices(), fetchExtras()]).then(
+      ([loadedGarments, loadedServices, loadedExtras]) => {
+        if (!active) return;
+        setCatalogGarments([...loadedGarments]);
+        setCatalogServices([...loadedServices]);
+        setCatalogExtras([...loadedExtras]);
+
+        setService((prevService) => {
+          if (loadedServices.some((s) => s.name === prevService))
+            return prevService;
+          return (
+            loadedServices.find((s) => /planchado/i.test(s.name))?.name ??
+            loadedServices[0]?.name ??
+            prevService
+          );
+        });
+
+        setItems((prevItems) => {
+          const allExist =
+            prevItems.length > 0 &&
+            prevItems.every(
+              (item) =>
+                loadedGarments.some((g) => g.id === item.id) &&
+                loadedServices.some((s) => s.name === item.serviceType),
+            );
+          if (allExist) return prevItems;
+          return buildDefaultSelection(loadedGarments, loadedServices)
+            .defaultItems;
+        });
+
+        setExtraIds((prevExtraIds) => {
+          const validIds = prevExtraIds.filter((id) =>
+            loadedExtras.some((e) => e.id === id),
+          );
+          if (validIds.length > 0 || prevExtraIds.length === 0) return validIds;
+          const fallbackExtra =
+            loadedExtras.find((e) => /perfum/i.test(e.name)) ?? loadedExtras[0];
+          return fallbackExtra ? [fallbackExtra.id] : [];
+        });
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const blocked = state.customerCharges.some(
     (ch) => ch.customerId === c.id && ch.status === "PENDING",
   );
@@ -188,8 +288,12 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
   } catch {
     /* Submission shows the promotion validation error. */
   }
+  const activeServiceObj =
+    catalogServices.find((s) => s.name === service) ?? catalogServices[0];
+
   const changeCount = (id: string, delta: number) => {
-    const garment = garments.find((g) => g.id === id)!;
+    const garment = catalogGarments.find((g) => g.id === id);
+    if (!garment) return;
     const existing = items.find((i) => i.id === id);
     const quantity = (existing?.quantity ?? 0) + delta;
     if (quantity < 0) return;
@@ -203,10 +307,9 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
           id,
           garmentType: garment.name,
           quantity,
-          serviceType: service,
+          serviceType: activeServiceObj?.name ?? service,
           unitPrice: round(
-            garment.basePrice +
-              services.find((s) => s.name === service)!.extraPrice,
+            garment.basePrice + (activeServiceObj?.extraPrice ?? 0),
           ),
           notes: "",
           iconName: garment.iconKey,
@@ -459,7 +562,7 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
                     visible={panel === "service"}
                     onClose={() => setPanel(undefined)}
                   >
-                    {services.map((s) => (
+                    {catalogServices.map((s) => (
                       <Choice
                         key={s.id}
                         label={`${s.name} · adicional ${money(s.extraPrice)}`}
@@ -473,14 +576,19 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
                           setService(s.name);
                           setPanel(undefined);
                           setItems(
-                            items.map((i) => ({
-                              ...i,
-                              serviceType: s.name,
-                              unitPrice: round(
-                                garments.find((g) => g.id === i.id)!.basePrice +
-                                  s.extraPrice,
-                              ),
-                            })),
+                            items.map((i) => {
+                              const garment = catalogGarments.find(
+                                (g) => g.id === i.id,
+                              );
+                              return {
+                                ...i,
+                                serviceType: s.name,
+                                unitPrice: round(
+                                  (garment?.basePrice ?? i.unitPrice) +
+                                    s.extraPrice,
+                                ),
+                              };
+                            }),
                           );
                           setAppliedPromo(undefined);
                         }}
@@ -492,8 +600,11 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
                   <Title style={garmentStyles.sectionTitle}>
                     Catálogo completo
                   </Title>
-                  {garments.map((g) => {
+                  {catalogGarments.map((g) => {
                     const selected = items.find((i) => i.id === g.id);
+                    const unitPrice =
+                      selected?.unitPrice ??
+                      round(g.basePrice + (activeServiceObj?.extraPrice ?? 0));
                     return (
                       <GarmentSurface
                         key={g.id}
@@ -527,15 +638,7 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
                           <Body style={garmentStyles.name}>{g.name}</Body>
                           <Body muted style={garmentStyles.description}>
                             {g.category} · {g.estimatedHours} h ·{" "}
-                            {money(
-                              selected?.unitPrice ??
-                                round(
-                                  g.basePrice +
-                                    services.find((s) => s.name === service)!
-                                      .extraPrice,
-                                ),
-                            )}{" "}
-                            por unidad
+                            {money(unitPrice)} por unidad
                           </Body>
                           {selected && (
                             <Body muted style={garmentStyles.service}>
@@ -556,7 +659,7 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
             <Title style={garmentStyles.sectionTitle}>
               Personaliza tu cuidado
             </Title>
-            {extras.map((e) => (
+            {catalogExtras.map((e) => (
               <View key={e.id} style={{ gap: 4 }}>
                 <Check
                   label={`${e.name} · ${money(e.price)}`}
@@ -564,7 +667,7 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
                     garmentStyles.extra,
                     extraIds.includes(e.id) && garmentStyles.selectedExtra,
                     extraIds.includes(e.id) && {
-                      borderColor: extraTone(e.id).color,
+                      borderColor: extraTone(e.id, e.name).color,
                     },
                   ]}
                   checked={extraIds.includes(e.id)}

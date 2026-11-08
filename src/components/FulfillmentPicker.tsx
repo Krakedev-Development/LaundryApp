@@ -1,14 +1,15 @@
-﻿import { View } from "react-native";
-import { useState } from "react";
+import { View } from "react-native";
+import { useEffect, useState } from "react";
 import { useApp } from "../store/AppProvider";
 import { facilities } from "../domain/catalog";
+import { fetchFacilities } from "../services/catalog/catalogService";
 import {
   currentCustomer,
   slotContext,
   slotRange,
   today,
 } from "../domain/repository";
-import type { Leg } from "../domain/models";
+import type { Facility, Leg } from "../domain/models";
 import { Badge, Body, Button, Card, Choice, Title } from "./ui";
 import { SegmentedControl } from "./presentation";
 import { ScheduleCalendar } from "./ScheduleCalendar";
@@ -34,6 +35,16 @@ export function FulfillmentPicker({
     c = currentCustomer(state),
     nav = useLaundryNavigation();
   const [panel, setPanel] = useState<"place" | "time">();
+  const [branches, setBranches] = useState<Facility[]>(() => [...facilities]);
+  useEffect(() => {
+    let active = true;
+    void fetchFacilities().then((loaded) => {
+      if (active) setBranches([...loaded]);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
   const slots = state.timeSlots.filter(
     (s) => s.context === slotContext(leg, value.method) && s.date >= today(),
   );
@@ -148,7 +159,7 @@ export function FulfillmentPicker({
             />
           </>
         ) : (
-          facilities
+          branches
             .filter((f) => leg === "OUTBOUND" && f.allowsPickup)
             .map((f) => (
               <View key={f.id} style={{ gap: 4 }}>

@@ -30,8 +30,19 @@ const tones: Record<string, { color: string; icon: IconName }> = {
   "ext-3": { color: "#7C3AED", icon: "bag-outline" },
   "ext-4": { color: "#059669", icon: "shield-checkmark-outline" },
 };
-export const extraTone = (id: string) =>
-  tones[id] ?? { color: "#2563EB", icon: "sparkles-outline" as IconName };
+export const extraTone = (id: string, name = "") => {
+  if (tones[id]) return tones[id];
+  const label = `${id} ${name}`.toLowerCase();
+  if (label.includes("perfum") || label.includes("fragancia"))
+    return tones["ext-2"];
+  if (label.includes("empaque") || label.includes("protector"))
+    return tones["ext-3"];
+  if (label.includes("hipoalerg") || label.includes("suavizante"))
+    return tones["ext-4"];
+  if (label.includes("desmanch"))
+    return { color: "#2563EB", icon: "sparkles-outline" as IconName };
+  return tones["ext-1"];
+};
 
 /** Visual content for the existing Check control; selection stays in NewOrderScreen. */
 export function ExtraContent({
@@ -47,7 +58,7 @@ export function ExtraContent({
   price: string;
   checked: boolean;
 }) {
-  const tone = extraTone(id);
+  const tone = extraTone(id, name);
   return (
     <>
       <View

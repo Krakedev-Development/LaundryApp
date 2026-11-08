@@ -3,6 +3,8 @@ import { Page } from "../../components/Page";
 import { Body, Button, Card, Field, Title, useAction } from "../../components/ui";
 import { useApp } from "../../store/AppProvider";
 import { passwordHash } from "../../services/passwordHash";
+import { authService } from "../../services/auth/authService";
+import { syncFullCatalog } from "../../services/catalog/catalogService";
 
 export function RegisterScreen() {
   const { execute } = useApp();
@@ -27,8 +29,24 @@ export function RegisterScreen() {
                   throw Error(
                     "La contraseña debe tener 8 caracteres, una mayúscula y un número.",
                   );
+                const cleanEmail = email.trim().toLowerCase();
+                if (
+                  !name.trim() ||
+                  !/^\S+@\S+\.\S+$/.test(cleanEmail) ||
+                  phone.replace(/\D/g, "").length < 8
+                )
+                  throw Error("Revisa nombre, correo y teléfono.");
                 const hash = await passwordHash(password);
-                execute((r) => r.register(name, email, phone, hash));
+                const response = await authService.register({
+                  name: name.trim(),
+                  email: cleanEmail,
+                  phone: phone.trim(),
+                  password,
+                });
+                await syncFullCatalog(response.tokens.accessToken);
+                execute((r) =>
+                  r.authenticateFromApi(response.user, hash, "APPROVED"),
+                );
               });
             }}
           />

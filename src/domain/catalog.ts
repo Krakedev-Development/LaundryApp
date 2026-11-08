@@ -7,42 +7,59 @@ import type {
   TimeSlot,
 } from "./models";
 
-export const facilities: Facility[] = [
+export interface CatalogGarment {
+  id: string;
+  name: string;
+  category: string;
+  basePrice: number;
+  estimatedHours: number;
+  iconKey: string;
+}
+
+export interface CatalogService {
+  id: string;
+  name: string;
+  description: string;
+  extraPrice: number;
+}
+
+export const fallbackFacilities: Facility[] = [
   {
     id: "fac-1",
-    name: "Sede Central Norte - Planta 1",
-    address: "Av. Las Palmeras 104, Miraflores",
+    name: "Sede Central Guayaquil - Av. 9 de Octubre",
+    address: "Av. 9 de Octubre y Malecón Simón Bolívar, Guayaquil",
     openingHours: "Lun - Sáb: 08:00 - 20:00",
-    phone: "+51 987 654 000",
+    phone: "+593 4 250 0000",
     acceptsDropoff: false,
     allowsPickup: true,
-    latitude: -12.084,
-    longitude: -77.03,
+    latitude: -2.1894,
+    longitude: -79.8891,
   },
   {
     id: "fac-2",
-    name: "Sede Sur - Chacarilla",
-    address: "Av. Primavera 650, Santiago de Surco",
+    name: "Sucursal Samborondón",
+    address: "Av. Samborondón Km 2.5, La Puntilla, Guayaquil",
     openingHours: "Lun - Sáb: 08:30 - 19:30",
-    phone: "+51 987 654 002",
+    phone: "+593 4 283 0002",
     acceptsDropoff: false,
     allowsPickup: true,
-    latitude: -12.109,
-    longitude: -76.992,
+    latitude: -2.1445,
+    longitude: -79.8652,
   },
   {
     id: "fac-3",
-    name: "Sede San Isidro - Centro Financiero",
-    address: "Calle Begonias 412, San Isidro",
+    name: "Sucursal Kennedy Norte - Centro Comercial",
+    address: "Av. Francisco de Orellana y Miguel H. Alcívar, Guayaquil",
     openingHours: "Lun - Vie: 08:00 - 19:00",
-    phone: "+51 987 654 003",
+    phone: "+593 4 268 0003",
     acceptsDropoff: false,
     allowsPickup: true,
-    latitude: -12.094,
-    longitude: -77.026,
+    latitude: -2.1642,
+    longitude: -79.8981,
   },
 ];
-export const garments = [
+
+export const fallbackGarments: CatalogGarment[] = [
   {
     id: "g-1",
     name: "Camisas / Blusas",
@@ -124,7 +141,8 @@ export const garments = [
     iconKey: "shirt-outline",
   },
 ];
-export const services = [
+
+export const fallbackServices: CatalogService[] = [
   {
     id: "s-1",
     name: "Lavado ecológico",
@@ -156,7 +174,8 @@ export const services = [
     extraPrice: 2.5,
   },
 ];
-export const extras: OrderExtra[] = [
+
+export const fallbackExtras: OrderExtra[] = [
   {
     id: "ext-1",
     name: "Doblado especial tipo hotel",
@@ -182,7 +201,8 @@ export const extras: OrderExtra[] = [
     price: 1.5,
   },
 ];
-export const promos: Promo[] = [
+
+export const fallbackPromos: Promo[] = [
   {
     code: "FRESH10",
     discountPercent: 10,
@@ -208,7 +228,8 @@ export const promos: Promo[] = [
     validUntil: "2026-11-30",
   },
 ];
-export const rewards: LoyaltyReward[] = [
+
+export const fallbackRewards: LoyaltyReward[] = [
   {
     id: "rew-1",
     title: "Lavado gratis de edredón",
@@ -238,7 +259,8 @@ export const rewards: LoyaltyReward[] = [
     category: "Extras",
   },
 ];
-export const plans: MembershipPlan[] = [
+
+export const fallbackPlans: MembershipPlan[] = [
   {
     id: "plan-basic",
     name: "Básico",
@@ -279,6 +301,61 @@ export const plans: MembershipPlan[] = [
     ],
   },
 ];
+
+export const facilities: Facility[] = [...fallbackFacilities];
+export const garments: CatalogGarment[] = [...fallbackGarments];
+export const services: CatalogService[] = [...fallbackServices];
+export const extras: OrderExtra[] = [...fallbackExtras];
+export const promos: Promo[] = [...fallbackPromos];
+export const rewards: LoyaltyReward[] = [...fallbackRewards];
+export const plans: MembershipPlan[] = [...fallbackPlans];
+
+export interface CatalogSnapshot {
+  facilities?: Facility[];
+  garments?: CatalogGarment[];
+  services?: CatalogService[];
+  extras?: OrderExtra[];
+  promos?: Promo[];
+  rewards?: LoyaltyReward[];
+  plans?: MembershipPlan[];
+}
+
+export function syncCatalogState(snapshot: CatalogSnapshot): void {
+  if (snapshot.facilities?.length) {
+    facilities.splice(0, facilities.length, ...snapshot.facilities);
+  }
+  if (snapshot.garments?.length) {
+    garments.splice(0, garments.length, ...snapshot.garments);
+  }
+  if (snapshot.services?.length) {
+    services.splice(0, services.length, ...snapshot.services);
+  }
+  if (snapshot.extras?.length) {
+    extras.splice(0, extras.length, ...snapshot.extras);
+  }
+  if (snapshot.promos?.length) {
+    promos.splice(0, promos.length, ...snapshot.promos);
+  }
+  if (snapshot.rewards?.length) {
+    rewards.splice(0, rewards.length, ...snapshot.rewards);
+  }
+  if (snapshot.plans?.length) {
+    plans.splice(0, plans.length, ...snapshot.plans);
+  }
+}
+
+export function resetCatalogToFallback(): void {
+  syncCatalogState({
+    facilities: fallbackFacilities,
+    garments: fallbackGarments,
+    services: fallbackServices,
+    extras: fallbackExtras,
+    promos: fallbackPromos,
+    rewards: fallbackRewards,
+    plans: fallbackPlans,
+  });
+}
+
 export const initialSlots: TimeSlot[] = [
   {
     id: "slot-1",
