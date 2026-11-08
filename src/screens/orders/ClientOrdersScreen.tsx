@@ -1,6 +1,7 @@
 import { SearchField, useSearch } from "../../components/presentation";
 import { OrderList } from "../../components/OrderList";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { orderService } from "../../services/orders/orderService";
 import { Page } from "../../components/Page";
 import { Button } from "../../components/ui";
 import { useApp } from "../../store/AppProvider";
@@ -18,7 +19,22 @@ import { OrderModeFilter } from "../../features/orders/ui/OrderModeFilter";
 
 export function ClientOrdersScreen() {
   const navigation = useLaundryNavigation(),
-    { state } = useApp();
+    { state, execute } = useApp();
+  useEffect(() => {
+    let active = true;
+    void orderService
+      .listOrders()
+      .then((backendOrders) => {
+        if (!active || !backendOrders?.length) return;
+        execute((repo) => repo.syncOrdersFromApi(backendOrders));
+      })
+      .catch(() => {
+        // Fallback to local state orders
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
   const [history, setHistory] = useState(false),
     [mode, setMode] = useState<Mode | "ALL">("ALL"),
     [search, setSearch] = useState(""),
