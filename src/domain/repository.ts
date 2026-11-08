@@ -5,6 +5,13 @@ import {
 import { demoOrderTracking } from "./fixtures/orderTracking";
 import { authenticateSession } from "@laundry/mobile-auth";
 import {
+  formatOrderCode,
+  mapBackendOrderToDomain,
+  type BackendOrderDetails,
+  type BackendOrderSummary,
+  type CustomerAddress,
+} from "../services/orders/orderService";
+import {
   authService,
   CLIENT_ONLY_ERROR_MESSAGE,
   type AuthUser,
@@ -421,6 +428,95 @@ export class LaundryRepository {
   }
   demoLogin(): void {
     this.state.session = { id: "cust-1", role: "CLIENT" };
+  }
+  syncAddressesFromApi(addresses: (CustomerAddress | Address)[]): void {
+    const c = this.client();
+    if (!addresses?.length) return;
+    c.addresses = addresses.map((a) => ({
+      id: a.id,
+      title: a.title,
+      fullAddress: a.fullAddress,
+      reference: a.reference ?? "",
+      isPrimary: !!a.isPrimary,
+      latitude: Number(a.latitude),
+      longitude: Number(a.longitude),
+    }));
+  }
+  syncOrdersFromApi(
+    backendOrders: (BackendOrderSummary | BackendOrderDetails)[],
+  ): void {
+    const c = this.client();
+    if (!backendOrders) return;
+    backendOrders.forEach((raw) => {
+      const code = formatOrderCode(raw);
+      const existingIndex = this.state.orders.findIndex(
+        (o) =>
+          o.id === code ||
+          o.id === raw.id ||
+          (o as unknown as { backendId?: string }).backendId === raw.id,
+      );
+      const domainOrder = mapBackendOrderToDomain(raw, {
+        id: c.id,
+        name: c.name,
+        phone: c.phone,
+      });
+      (domainOrder as unknown as { backendId?: string }).backendId = raw.id;
+
+      if (existingIndex >= 0) {
+        const prev = this.state.orders[existingIndex];
+        this.state.orders[existingIndex] = {
+          ...prev,
+          ...domainOrder,
+          items:
+            domainOrder.items && domainOrder.items.length > 0
+              ? domainOrder.items
+              : prev.items,
+          fulfillmentPlan: domainOrder.fulfillmentPlan ?? prev.fulfillmentPlan,
+        };
+      } else {
+        this.state.orders.unshift(domainOrder);
+      }
+    });
+  }
+  registerApiOrder(
+    apiOrder: BackendOrderDetails | BackendOrderSummary,
+    input?: Partial<CreateOrderInput>,
+  ): Order {
+    const c = this.client();
+    const code = formatOrderCode(apiOrder);
+    const mapped = mapBackendOrderToDomain(apiOrder, {
+      id: c.id,
+      name: c.name,
+      phone: c.phone,
+    });
+    (mapped as unknown as { backendId?: string }).backendId = apiOrder.id;
+
+    if (input?.items?.length) {
+      mapped.items = clone(input.items);
+    }
+    if (input?.inbound) {
+      mapped.fulfillmentPlan.inbound = clone(input.inbound);
+      mapped.pickup.addressFull = input.inbound.addressFull;
+      mapped.pickup.date = input.inbound.scheduledDate;
+      mapped.pickup.timeSlot = input.inbound.timeSlotText;
+      if (input.inbound.addressId) mapped.pickup.addressId = input.inbound.addressId;
+    }
+    if (input?.outbound) {
+      mapped.fulfillmentPlan.outbound = clone(input.outbound);
+      mapped.delivery.addressFull = input.outbound.addressFull;
+      mapped.delivery.date = input.outbound.scheduledDate;
+      mapped.delivery.timeSlot = input.outbound.timeSlotText;
+      if (input.outbound.addressId) mapped.delivery.addressId = input.outbound.addressId;
+    }
+
+    this.state.orders = this.state.orders.filter(
+      (o) =>
+        o.id !== code &&
+        o.id !== apiOrder.id &&
+        (o as unknown as { backendId?: string }).backendId !== apiOrder.id,
+    );
+    this.state.orders.unshift(mapped);
+    return mapped;
   }
   logout(): void {
     void authService.logout();
