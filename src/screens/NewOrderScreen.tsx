@@ -361,120 +361,89 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
       ]);
     setAppliedPromo(undefined);
   };
-  const next = () =>
-    a.run(() => {
-      if (step === 1 && (!inbound.addressFull || !inbound.timeSlotId))
+  const next = () => {
+    if (step === 1 && (!inbound.addressFull || !inbound.timeSlotId)) {
+      a.run(() => {
         throw Error("Selecciona dirección o sede y una franja de entrada.");
-      if (step === 2 && (!outbound.addressFull || !outbound.timeSlotId))
+      });
+      return;
+    }
+    if (step === 2 && (!outbound.addressFull || !outbound.timeSlotId)) {
+      a.run(() => {
         throw Error("Selecciona dirección o sede y una franja de salida.");
-      if (
-        step === 3 &&
-        (model === "FIXED"
-          ? !items.length
-          : !Number.isFinite(Number(weight)) || Number(weight) <= 0)
-      )
+      });
+      return;
+    }
+    if (
+      step === 3 &&
+      (model === "FIXED"
+        ? !items.length
+        : !Number.isFinite(Number(weight)) || Number(weight) <= 0)
+    ) {
+      a.run(() => {
         throw Error("Agrega prendas o un peso orientativo válido.");
-      if (step < 5) setStep(step + 1);
-      else {
-        void a.asyncRun(async () => {
-          if (submitted.current) return;
-          let createdCode: string | undefined;
+      });
+      return;
+    }
+    if (step < 5) {
+      setStep(step + 1);
+      return;
+    }
 
-          const facilityId =
-            inbound.facilityId ||
-            outbound.facilityId ||
-            (await fetchFacilities())[0]?.id ||
-            "3ab2f9fd-2f25-4c12-9f50-03c5d25417d5";
+    // Paso 5: Confirmar orden asíncronamente con el backend
+    void a.asyncRun(async () => {
+      if (submitted.current) return;
+      let createdCode: string | undefined;
 
-          let pickupAddressId = inbound.addressId;
-          if (!pickupAddressId) {
-            const ensured = await orderService.ensureGuayaquilAddress();
-            pickupAddressId = ensured.id;
-            execute((r) => r.syncAddressesFromApi([ensured]));
-          }
+      const facilityId =
+        inbound.facilityId ||
+        outbound.facilityId ||
+        (await fetchFacilities())[0]?.id ||
+        "3ab2f9fd-2f25-4c12-9f50-03c5d25417d5";
 
-          let pickupSlotId = inbound.timeSlotId;
-          if (!pickupSlotId) {
-            const slots = await slotService.fetchPickupSlots(facilityId);
-            const future =
-              slots.find((s) => s.date >= today() && s.available > 0) ??
-              slots[0];
-            if (future) pickupSlotId = future.id;
-          }
+      let pickupAddressId = inbound.addressId;
+      if (!pickupAddressId) {
+        const ensured = await orderService.ensureGuayaquilAddress();
+        pickupAddressId = ensured.id;
+        execute((r) => r.syncAddressesFromApi([ensured]));
+      }
 
-          const orderItemsPayload = items.map((it) => {
-            const serviceObj =
-              catalogServices.find((s) => s.name === it.serviceType) ??
-              catalogServices[0];
-            return {
-              garmentId: it.id,
-              serviceId: serviceObj?.id ?? "4db170b3-944b-442b-8542-bf771476b4a6",
-              quantity: it.quantity,
-              notes: it.notes?.trim() || undefined,
-            };
-          });
+      let pickupSlotId = inbound.timeSlotId;
+      if (!pickupSlotId) {
+        const slots = await slotService.fetchPickupSlots(facilityId);
+        const future =
+          slots.find((s) => s.date >= today() && s.available > 0) ??
+          slots[0];
+        if (future) pickupSlotId = future.id;
+      }
 
-          try {
-            const apiOrder = await orderService.createOrder({
-              facilityId,
-              mode: "HOME_HOME",
-              pickupAddressId: pickupAddressId!,
-              pickupSlotId: pickupSlotId!,
-              items: orderItemsPayload,
-              extraIds: extraIds.length > 0 ? extraIds : undefined,
-              promotionCode: appliedPromo || undefined,
-              notes: notes.trim() || undefined,
-              paymentMethodKind: "WALLET",
-            });
+      const orderItemsPayload = items.map((it) => {
+        const serviceObj =
+          catalogServices.find((s) => s.name === it.serviceType) ??
+          catalogServices[0];
+        return {
+          garmentId: it.id,
+          serviceId: serviceObj?.id ?? "4db170b3-944b-442b-8542-bf771476b4a6",
+          quantity: it.quantity,
+          notes: it.notes?.trim() || undefined,
+        };
+      });
 
-            const registered = execute((r) =>
-              r.registerApiOrder(apiOrder, {
-                items,
-                extraIds,
-                inbound,
-                outbound,
-                pricingModel: model,
-                estimatedWeightLb:
-                  model === "PER_WEIGHT" ? Number(weight) : undefined,
-                promoCode: appliedPromo,
-                paymentMethod: payment,
-                notes,
-              }),
-            );
-
-            createdCode = registered.id;
-          } catch (apiError) {
-            const session = await getStoredAuthSession();
-            if (!session.accessToken) {
-              const localOrder = execute((r) =>
-                r.createOrder({
-                  items,
-                  extraIds,
-                  inbound,
-                  outbound,
-                  pricingModel: model,
-                  estimatedWeightLb:
-                    model === "PER_WEIGHT" ? Number(weight) : undefined,
-                  promoCode: appliedPromo,
-                  paymentMethod: payment,
-                  notes,
-                }),
-              );
-              createdCode = localOrder.id;
-            } else {
-              throw apiError;
-            }
-          }
-
-          if (createdCode) {
-            submitted.current = true;
-            tactile("success");
-            setConfirmedId(createdCode);
-          }
+      try {
+        const apiOrder = await orderService.createOrder({
+          facilityId,
+          mode: "HOME_HOME",
+          pickupAddressId: pickupAddressId!,
+          pickupSlotId: pickupSlotId!,
+          items: orderItemsPayload,
+          extraIds: extraIds.length > 0 ? extraIds : undefined,
+          promotionCode: appliedPromo || undefined,
+          notes: notes.trim() || undefined,
+          paymentMethodKind: "WALLET",
         });
-        /* order submitted via asyncRun */
-        if (false) execute((r) =>
-          r.createOrder({
+
+        const registered = execute((r) =>
+          r.registerApiOrder(apiOrder, {
             items,
             extraIds,
             inbound,
@@ -487,11 +456,39 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
             notes,
           }),
         );
-        submitted.current = true;
-        // legacy
 
+        createdCode = registered.id;
+      } catch (apiError) {
+        const session = await getStoredAuthSession();
+        if (!session.accessToken) {
+          const localOrder = execute((r) =>
+            r.createOrder({
+              items,
+              extraIds,
+              inbound,
+              outbound,
+              pricingModel: model,
+              estimatedWeightLb:
+                model === "PER_WEIGHT" ? Number(weight) : undefined,
+              promoCode: appliedPromo,
+              paymentMethod: payment,
+              notes,
+            }),
+          );
+          createdCode = localOrder.id;
+        } else {
+          throw apiError;
+        }
+      }
+
+      if (createdCode) {
+        submitted.current = true;
+        tactile("success");
+        setConfirmedId(createdCode);
       }
     });
+  };
+
   const canContinue =
     step === 1
       ? !!inbound.addressFull && !!inbound.timeSlotId
@@ -578,7 +575,8 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
         <>
           <Button
             label={step === 5 ? "Confirmar solicitud" : "Continuar"}
-            disabled={!canContinue}
+            disabled={!canContinue || a.busy}
+            busy={a.busy}
             style={
               step < 3
                 ? requestStyles.next
