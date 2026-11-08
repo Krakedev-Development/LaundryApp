@@ -4,12 +4,17 @@ import { useApp } from "../store/AppProvider";
 import { facilities } from "../domain/catalog";
 import { fetchFacilities } from "../services/catalog/catalogService";
 import {
+  mapBackendSlotToTimeSlot,
+  slotService,
+  type BackendSlot,
+} from "../services/slots/slotService";
+import {
   currentCustomer,
   slotContext,
   slotRange,
   today,
 } from "../domain/repository";
-import type { Facility, Leg } from "../domain/models";
+import type { Facility, Leg, TimeSlot } from "../domain/models";
 import { Badge, Body, Button, Card, Choice, Title } from "./ui";
 import { SegmentedControl } from "./presentation";
 import { ScheduleCalendar } from "./ScheduleCalendar";
@@ -36,6 +41,7 @@ export function FulfillmentPicker({
     nav = useLaundryNavigation();
   const [panel, setPanel] = useState<"place" | "time">();
   const [branches, setBranches] = useState<Facility[]>(() => [...facilities]);
+  const [backendSlots, setBackendSlots] = useState<BackendSlot[]>([]);
   useEffect(() => {
     let active = true;
     void fetchFacilities().then((loaded) => {
@@ -45,10 +51,52 @@ export function FulfillmentPicker({
       active = false;
     };
   }, []);
-  const slots = state.timeSlots.filter(
+  useEffect(() => {
+    let active = true;
+    const reqContext =
+      leg === "INBOUND"
+        ? "DRIVER_PICKUP"
+        : value.method === "DRIVER"
+          ? "DRIVER_DELIVERY"
+          : "FACILITY_PICKUP";
+    void slotService
+      .fetchSlots({
+        context: reqContext,
+        facilityId: value.facilityId,
+        onlyAvailable: true,
+      })
+      .then((loaded) => {
+        if (active && loaded && loaded.length > 0) {
+          setBackendSlots(loaded);
+        }
+      })
+      .catch(() => {
+        // Fallback to local state slots
+      });
+    return () => {
+      active = false;
+    };
+  }, [leg, value.method, value.facilityId]);
+
+  type PickerSlot = TimeSlot & { backendFacilityId?: string };
+  const slots: PickerSlot[] =
+    backendSlots.length > 0
+      ? backendSlots.map((bs) => ({
+          ...mapBackendSlotToTimeSlot(bs),
+          backendFacilityId: bs.facilityId,
+        }))
+      : state.timeSlots.filter(
     (s) => s.context === slotContext(leg, value.method) && s.date >= today(),
   );
-  const dates = [...new Set(slots.map((s) => s.date))].sort();
+  const availableSlots = slots.filter((slot) => {
+    const isAvailable =
+      slot.active &&
+      slot.reservedCount < slot.capacity &&
+      new Date(`${slot.date}T${slot.endTime}:00-05:00`).getTime() > Date.now();
+    return isAvailable;
+  });
+  const activeSlotPool = availableSlots.length > 0 ? availableSlots : slots;
+  const dates = [...new Set(activeSlotPool.map((s) => s.date))].sort();
   const [date, setDate] = useState(value.scheduledDate || dates[0]);
   const selectedDate = dates.includes(date) ? date : dates[0];
   const changeMethod = (method: Leg["method"]) =>
@@ -260,6 +308,7 @@ export function FulfillmentPicker({
                       timeSlotId: slot.id,
                       scheduledDate: slot.date,
                       timeSlotText: slotRange(slot),
+                      facilityId: slot.backendFacilityId || value.facilityId,
                     });
                     setPanel(undefined);
                   }}
