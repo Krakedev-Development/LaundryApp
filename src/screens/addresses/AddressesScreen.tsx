@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { orderService } from "../../services/orders/orderService";
 import { Text, View } from "react-native";
 import { Page } from "../../components/Page";
 import { Accordion, ListItem } from "../../components/presentation";
@@ -32,12 +33,25 @@ const newAddress = (): Address => ({
   fullAddress: "",
   reference: "",
   isPrimary: false,
-  latitude: -12.0965,
-  longitude: -77.0354,
+  latitude: -2.1894,
+  longitude: -79.8891,
 });
 export function AddressesScreen() {
   const { state, execute } = useApp();
   const c = currentCustomer(state);
+  useEffect(() => {
+    let active = true;
+    void orderService
+      .getAddresses()
+      .then((addresses) => {
+        if (!active || !addresses?.length) return;
+        execute((repo) => repo.syncAddressesFromApi(addresses));
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
   const a = useAction();
   const [draft, setDraft] = useState<Address | null>(null),
     [lat, setLat] = useState(""),

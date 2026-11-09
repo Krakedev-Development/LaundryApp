@@ -10,7 +10,8 @@ import {
   BottomSheet,
   ConfirmDialog,
 } from "../components/overlay/OverlayPortal";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { orderService } from "../services/orders/orderService";
 import { Text, View } from "react-native";
 import { Page } from "../components/Page";
 import {
@@ -55,7 +56,22 @@ import {
 } from "../components/OrderDetailPresentation";
 export function ClientHomeScreen() {
   const navigation = useLaundryNavigation();
-  const { state } = useApp();
+  const { state, execute } = useApp();
+  useEffect(() => {
+    let active = true;
+    void orderService
+      .listOrders()
+      .then((backendOrders) => {
+        if (!active || !backendOrders?.length) return;
+        execute((repo) => repo.syncOrdersFromApi(backendOrders));
+      })
+      .catch(() => {
+        // Fallback to local state orders
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
   const c = currentCustomer(state);
   const orders = visibleOrders(state);
   const active = orders.find((o) => !terminalStatuses.includes(o.status));
@@ -138,9 +154,29 @@ export function ClientHomeScreen() {
 }
 export { ClientOrdersScreen } from "./orders/ClientOrdersScreen";
 export function ClientScheduleScreen({ route }: ScreenProps<"ClientSchedule">) {
-  const { state } = useApp();
+  const { state, execute } = useApp();
+  useEffect(() => {
+    let active = true;
+    void orderService
+      .listOrders()
+      .then((backendOrders) => {
+        if (!active || !backendOrders?.length) return;
+        execute((repo) => repo.syncOrdersFromApi(backendOrders));
+      })
+      .catch(() => {
+        // Fallback to local state orders
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
   const navigation = useLaundryNavigation();
-  const order = visibleOrders(state).find((o) => o.id === route.params.orderId);
+  const order = visibleOrders(state).find(
+    (o) =>
+      o.id === route.params.orderId ||
+      (o as unknown as { backendId?: string }).backendId ===
+        route.params.orderId,
+  );
   return order ? (
     <ScheduleEditor
       order={order}
@@ -225,7 +261,12 @@ export function ClientOrderDetailScreen({
 }: ScreenProps<"ClientOrderDetail">) {
   const navigation = useLaundryNavigation();
   const { state, execute } = useApp();
-  const order = visibleOrders(state).find((o) => o.id === route.params.orderId);
+  const order = visibleOrders(state).find(
+    (o) =>
+      o.id === route.params.orderId ||
+      (o as unknown as { backendId?: string }).backendId ===
+        route.params.orderId,
+  );
   const a = useAction();
   const [cancel, setCancel] = useState(false),
     [options, setOptions] = useState(false);
