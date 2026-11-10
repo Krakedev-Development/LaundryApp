@@ -35,14 +35,7 @@ import {
 
 test("catalogService fetches public catalog and Guayaquil facilities without requiring an active JWT session", async () => {
   await clearAuthSession();
-  assert.ok(
-    fallbackFacilities.some((f) => /Guayaquil/i.test(f.name)),
-    "Fallback facilities should be in Guayaquil",
-  );
-  assert.ok(
-    fallbackFacilities.some((f) => /Samborondón/i.test(f.name)),
-    "Fallback facilities should include Sucursal Samborondón",
-  );
+  assert.equal(fallbackFacilities.length, 0, "El producto no trae sedes de ejemplo");
 
   try {
     const synced = await syncFullCatalog(null);

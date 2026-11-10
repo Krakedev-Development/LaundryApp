@@ -1,5 +1,7 @@
 import { demoOrderTracking } from "./orderTracking";
-import { facilities, initialSlots } from "../../src/domain/catalog";
+import { loadTestCatalog, testFacilities as facilities, testSlots as initialSlots } from "./testCatalog";
+
+loadTestCatalog();
 import {
   refreshSchedule,
   scheduleDate,

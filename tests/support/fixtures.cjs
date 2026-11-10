@@ -6,6 +6,7 @@ const base = require("@playwright/test");
 
 const STATE_KEY = "laundry.native-migration.v2";
 const SEED = path.join(__dirname, "../fixtures/generated/seed-state.json");
+const CATALOG = path.join(__dirname, "../fixtures/generated/catalog.json");
 const cors = { "access-control-allow-origin": "*" };
 
 exports.expect = base.expect;
@@ -29,6 +30,21 @@ exports.test = base.test.extend({
         body: "[]",
       });
     });
+    // Catálogo de prueba: el producto no trae prendas, servicios ni planes propios.
+    const catalog = fs.existsSync(CATALOG)
+      ? JSON.parse(fs.readFileSync(CATALOG, "utf8"))
+      : {};
+    for (const name of ["garments", "services", "extras", "memberships", "promotions", "rewards"])
+      await context.route(`**/api/v1/catalog/${name}`, (route) =>
+        route.request().method() === "OPTIONS"
+          ? route.fallback()
+          : route.fulfill({
+              status: 200,
+              headers: cors,
+              contentType: "application/json",
+              body: JSON.stringify(catalog[name] ?? []),
+            }),
+      );
     // Sede de prueba: las pruebas de interfaz eligen sede, y el producto no trae ninguna.
     await context.route('**/api/v1/facilities', (route) =>
       route.request().method() === 'OPTIONS'
