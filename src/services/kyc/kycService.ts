@@ -50,15 +50,17 @@ export const kycService = {
     return withSession(async (token) => {
       const form = new FormData();
       // En web el archivo se envía como Blob; en nativo, como referencia al archivo.
-      if (typeof document !== "undefined") {
+      // `document` puede existir en nativo, por eso se descarta React Native primero.
+      const isNative =
+        typeof navigator !== "undefined" && navigator.product === "ReactNative";
+      if (!isNative && typeof document !== "undefined") {
         const blob = await (await fetch(uri)).blob();
         form.append("file", blob, `${type}.jpg`);
       } else {
-        form.append("file", {
-          uri,
-          name: `${type}.jpg`,
-          type: "image/jpeg",
-        } as unknown as Blob);
+        // El fetch de Expo no acepta { uri, name, type }: se envía el archivo de
+        // expo-file-system, que implementa Blob. Se importa aquí para no cargarlo en web.
+        const { File } = await import("expo-file-system");
+        form.append("file", new File(uri) as unknown as Blob, `${type}.jpg`);
       }
       const response = await fetch(
         `${API_BASE_URL.replace(/\/+$/, "")}/kyc/me/documents/${type}`,
