@@ -1,4 +1,4 @@
-const { test, expect } = require("@playwright/test");
+const { test, expect } = require("./support/fixtures.cjs");
 
 test("customer detail exposes only customer codes and no plant controls", async ({ page }) => {
   await page.goto("/");
@@ -6,7 +6,7 @@ test("customer detail exposes only customer codes and no plant controls", async 
   await page.reload();
   await expect(page.getByRole("tab", { name: "Inicio", exact: true })).toBeVisible();
   await page.evaluate(() => {
-    const key = "laundry.native-migration.v1";
+    const key = "laundry.native-migration.v2";
     const state = JSON.parse(localStorage.getItem(key));
     const order = state.orders.find(order => order.id === "SOL-HS-001");
     order.handoffs.push({

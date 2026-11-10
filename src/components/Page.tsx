@@ -6,6 +6,7 @@ import {
   Platform,
   ScrollView,
   Text,
+  type ScrollViewInstance,
   View,
   type StyleProp,
   type ViewStyle,
@@ -17,7 +18,7 @@ import {
   useRoute,
 } from "@react-navigation/native";
 import { useApp } from "../store/AppProvider";
-import { currentCustomer } from "../domain/repository";
+import { currentCustomer, findCustomer } from "../domain/repository";
 import { titles, type Routes } from "../navigation/routes";
 import { Button, colors, IconButton, ui } from "./ui";
 import { NavigationBar } from "./NavigationBar";
@@ -67,7 +68,7 @@ export function Page({
   const navigation = useLaundryNavigation(),
     route = useRoute();
   const name = route.name as keyof Routes;
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
 
   const tabs = clientTabs,
     primary = primaryTabTarget(name);
@@ -101,7 +102,7 @@ export function Page({
         : navigate("ClientHome");
   const showTabs = authenticated && !primary && !fullScreen.includes(name);
   const notification = state.notifications.some(
-    (n) => n.customerId === currentCustomer(state).id && !n.isRead,
+    (n) => n.customerId === findCustomer(state)?.id && !n.isRead,
   );
   return (
     <SafeAreaView

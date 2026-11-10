@@ -3,10 +3,13 @@ import { migrateFulfillmentPolicy } from "../domain/fulfillmentPolicy";
 import { migratePaymentMethods } from "../domain/paymentMethods";
 import type { AppState } from "../domain/models";
 
-export const STORAGE_KEY = "laundry.native-migration.v1";
+// v2: descarta el estado local anterior, que traía un cliente y pedidos de demostración.
+export const STORAGE_KEY = "laundry.native-migration.v2";
+const LEGACY_STORAGE_KEYS = ["laundry.native-migration.v1"];
 export interface StorageAdapter {
   getItem(key: string): Promise<string | null>;
   setItem(key: string, value: string): Promise<void>;
+  removeItem?(key: string): Promise<void>;
 }
 export function decodeState(raw: string): AppState {
   const s = JSON.parse(raw) as AppState;
@@ -14,7 +17,6 @@ export function decodeState(raw: string): AppState {
     !s ||
     s.version !== 1 ||
     !Array.isArray(s.customers) ||
-    !s.customers.length ||
     !Array.isArray(s.accounts) ||
     !Array.isArray(s.orders) ||
     !Array.isArray(s.timeSlots) ||
@@ -48,6 +50,9 @@ export class PersistenceQueue {
   private pending: Promise<void> = Promise.resolve();
   constructor(private storage: StorageAdapter) {}
   load(): Promise<AppState | null> {
+    // Los datos de versiones anteriores se eliminan: no se migran.
+    for (const key of LEGACY_STORAGE_KEYS)
+      void this.storage.removeItem?.(key)?.catch(() => undefined);
     return this.storage
       .getItem(STORAGE_KEY)
       .then((raw) => (raw ? decodeState(raw) : null));

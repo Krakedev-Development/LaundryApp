@@ -1,4 +1,4 @@
-import type { Order } from "../models";
+import type { Order } from "../../src/domain/models";
 
 export const demoOrderTracking: Readonly<
   Pick<

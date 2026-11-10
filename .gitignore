@@ -71,3 +71,6 @@ test-results/
 .cache/
 .eas/
 tmp/
+
+# Estado de prueba generado para las pruebas de interfaz
+tests/fixtures/generated/

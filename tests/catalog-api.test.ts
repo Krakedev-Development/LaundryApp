@@ -13,10 +13,14 @@ import {
 } from "../src/domain/catalog";
 import {
   calculatePricing,
-  initializeState,
   LaundryRepository,
-  slotRange,
-} from "../src/domain/repository";
+  slotRange} from "../src/domain/repository";
+import { initializeSeededState as initializeState } from "./fixtures/seedState";
+import {
+  ADMIN_REQUIRED,
+  adminConfigured,
+  approveClientKyc,
+} from "./support/backendKyc";
 import { authService, clearAuthSession } from "../src/services/auth/authService";
 import {
   fetchExtras,
@@ -72,19 +76,22 @@ test("catalogService fetches public catalog and Guayaquil facilities without req
   }
 });
 
-test("catalogService fetches real garments, services, extras, memberships and Guayaquil facilities with authenticated session and creates order", async () => {
+test("catalogService fetches real garments, services, extras, memberships and Guayaquil facilities with authenticated session and creates order", { skip: !adminConfigured && ADMIN_REQUIRED }, async () => {
   const now = new Date("2026-10-07T12:00:00Z");
   const uniqueEmail = `catalogo.api.${Date.now()}@laundryfresh.com`;
   const repo = new LaundryRepository(initializeState(now), now);
 
   try {
     await repo.registerWithApi(
-      "Camila Catálogo",
+      "Camila",
+      "Catálogo",
       uniqueEmail,
       "0991122334",
       "ClaveSegura123",
       "hash-cat-1",
     );
+    await approveClientKyc(uniqueEmail);
+    repo.setKycStatus("APPROVED");
 
     const [
       loadedGarments,

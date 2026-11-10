@@ -1,6 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { currentCustomer, initializeState, LaundryRepository } from "../src/domain/repository";
+import { currentCustomer, LaundryRepository } from "../src/domain/repository";
+import { initializeSeededState as initializeState } from "./fixtures/seedState";
 import {
   authService,
   CLIENT_ONLY_ERROR_MESSAGE,
@@ -13,7 +14,8 @@ test("authService and repository integrate with backend register, login, refresh
 
   // 1. Register a real CLIENT in PostgreSQL and update state
   const registeredUser = await repo.registerWithApi(
-    "Valeria Gómez",
+    "Valeria",
+    "Gómez",
     uniqueEmail,
     "0998765432",
     "ClaveSegura123",
@@ -67,10 +69,11 @@ test("authService and repository integrate with backend register, login, refresh
     new RegExp(CLIENT_ONLY_ERROR_MESSAGE),
   );
 
-  // 6. Demo login fallback remains functional
-  repo.demoLogin();
-  assert.equal(repo.state.session?.id, "cust-1");
-  assert.equal(repo.state.session?.role, "CLIENT");
+  // 6. A new account starts unverified until the administrator approves it
+  assert.equal(
+    repo.state.customers.find((c) => c.id === registeredUser.id)?.kycStatus,
+    "NOT_SUBMITTED",
+  );
 
   await authService.logout();
 });

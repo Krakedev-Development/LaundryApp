@@ -17,6 +17,7 @@ import {
   transact,
 } from "../domain/repository";
 import {
+  authService,
   clearAuthSession,
   getStoredAuthSession,
 } from "../services/auth/authService";
@@ -63,8 +64,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         let loaded = saved ?? latest.current;
         if (authSession.user && authSession.accessToken) {
           if (authSession.user.role === "CLIENT") {
+            // El estado de verificación puede haber cambiado desde la última sesión.
+            const user =
+              (await authService.syncProfile()) ?? authSession.user;
             loaded = transact(loaded, (repo) =>
-              repo.authenticateFromApi(authSession.user!),
+              repo.authenticateFromApi(user),
             ).state;
             await syncFullCatalog(authSession.accessToken);
           } else {
@@ -80,7 +84,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .catch(() => {
         if (mounted.current)
           setError(
-            "No se pudieron cargar los datos locales. Puedes reintentar o restablecer la demo.",
+            "No se pudieron cargar los datos locales. Puedes reintentar o restablecerlos.",
           );
       });
   };

@@ -1,4 +1,4 @@
-const { test, expect } = require("@playwright/test");
+const { test, expect } = require("./support/fixtures.cjs");
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
@@ -60,7 +60,7 @@ test("payment methods is separate from wallet and card registration persists mas
   ).toBeVisible();
   const saved = await page.evaluate(() =>
     JSON.parse(
-      localStorage.getItem("laundry.native-migration.v1"),
+      localStorage.getItem("laundry.native-migration.v2"),
     ).paymentMethods.find((method) => method.last4 === "1111"),
   );
   expect(saved.number).toBeUndefined();

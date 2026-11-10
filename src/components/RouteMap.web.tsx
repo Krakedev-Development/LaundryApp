@@ -20,8 +20,8 @@ import {
   OSM_TILE_URLS,
   normalizeGuayaquilCoords,
   type MapThemeMode,
-  type RouteMapProps,
-} from "./RouteMap";
+} from "./routeMapShared";
+import type { RouteMapProps } from "./RouteMap";
 
 const ZOOM = 14;
 const TILE_SIZE = 256;
