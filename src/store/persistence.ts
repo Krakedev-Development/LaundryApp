@@ -3,7 +3,7 @@ import { migrateFulfillmentPolicy } from "../domain/fulfillmentPolicy";
 import { migratePaymentMethods } from "../domain/paymentMethods";
 import type { AppState } from "../domain/models";
 
-// v2: descarta el estado local anterior, que traía un cliente y pedidos de demostración.
+// v2: descarta el estado local anterior, que traía un cliente y pedidos de ejemplo.
 export const STORAGE_KEY = "laundry.native-migration.v2";
 const LEGACY_STORAGE_KEYS = ["laundry.native-migration.v1"];
 export interface StorageAdapter {

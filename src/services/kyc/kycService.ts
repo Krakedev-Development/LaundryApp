@@ -1,10 +1,9 @@
 import {
   API_BASE_URL,
-  ApiError,
   apiClient,
   parseResponse,
 } from "../api/apiClient";
-import { authService, getStoredAuthSession } from "../auth/authService";
+import { withSession } from "../auth/withSession";
 
 export type KycDocumentType = "SELFIE" | "ID_FRONT" | "ID_BACK";
 export type KycStatus = "NOT_SUBMITTED" | "PENDING" | "APPROVED" | "REJECTED";
@@ -25,18 +24,6 @@ export const KYC_DOCUMENT_TYPES: readonly KycDocumentType[] = [
   "ID_FRONT",
   "ID_BACK",
 ];
-
-// Si el token de acceso venció a mitad del registro, se renueva una vez y se reintenta.
-async function withSession<T>(call: (token: string | null) => Promise<T>): Promise<T> {
-  const { accessToken } = await getStoredAuthSession();
-  try {
-    return await call(accessToken);
-  } catch (error) {
-    if (!(error instanceof ApiError) || error.statusCode !== 401) throw error;
-    const tokens = await authService.refresh();
-    return call(tokens.accessToken);
-  }
-}
 
 export const kycService = {
   status(): Promise<KycState> {

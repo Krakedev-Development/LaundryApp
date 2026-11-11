@@ -20,6 +20,8 @@ export interface AuthUser {
   facilityId?: string | null;
   // Estado de la verificación de identidad que informa el servidor.
   kycStatus?: "NOT_SUBMITTED" | "PENDING" | "APPROVED" | "REJECTED" | null;
+  // Plan elegido por el cliente; null mientras no haya elegido ninguno.
+  membershipPlan?: { id: string; name: string } | null;
 }
 
 export interface AuthTokens {

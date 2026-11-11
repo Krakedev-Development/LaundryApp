@@ -119,11 +119,11 @@ test("recharge is contextual, applies once on double tap and persists", async ({
   });
   await amount.fill("-1");
   await expect(
-    page.getByRole("button", { name: "Confirmar recarga · Demo", exact: true }),
+    page.getByRole("button", { name: "Confirmar recarga", exact: true }),
   ).toBeDisabled();
   await amount.fill("20");
   await page
-    .getByRole("button", { name: "Confirmar recarga · Demo", exact: true })
+    .getByRole("button", { name: "Confirmar recarga", exact: true })
     .dblclick();
   await expect(
     page.getByRole("heading", { name: "$48.50", exact: true }),

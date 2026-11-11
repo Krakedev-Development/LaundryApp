@@ -4,7 +4,7 @@ LaundryApp es un prototipo móvil Expo para clientes y choferes. Esta documentac
 
 ## Guías
 
-- [Flujos funcionales y límites de la demo](FLUJOS-APP-DEMO.md): instalación, acceso, pedidos, operaciones de chofer y qué partes son simuladas.
+- [Flujos funcionales y límites de la demo](FLUJOS-APP.md): instalación, acceso, pedidos, operaciones de chofer y qué partes son simuladas.
 - [Diagramas de flujos](DIAGRAMAS-FLUJOS-APP.md): navegación, checkout, custodia, logística, pagos y datos.
 - [Revisión de lógica de negocio](REVISION-LOGICA-NEGOCIO.md): reglas implementadas, decisiones por cerrar y riesgos operativos.
 - [Propuesta de organización de módulos](PROPUESTA-ORGANIZACION-MODULOS.md): límites actuales y evolución incremental sin cambiar comportamiento.

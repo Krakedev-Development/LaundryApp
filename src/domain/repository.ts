@@ -294,7 +294,7 @@ export class LaundryRepository {
     if (/billetera/i.test(method)) {
       if (customer.walletBalance < amount)
         throw Error(
-          "Saldo insuficiente. Recarga tu billetera o elige tarjeta demo.",
+          "Saldo insuficiente. Recarga tu billetera o elige una tarjeta.",
         );
       customer.walletBalance = round(customer.walletBalance - amount);
       this.state.walletTransactions.unshift({
@@ -345,6 +345,8 @@ export class LaundryRepository {
       customer.billingEmail = normalizedEmail;
       const serverKyc = kycStatusOverride ?? user.kycStatus;
       if (serverKyc) customer.kycStatus = serverKyc;
+      if (user.membershipPlan !== undefined)
+        customer.membershipTier = user.membershipPlan?.name ?? "";
       if (previousId && previousId !== user.id) {
         this.state.orders.forEach((o) => {
           if (o.customerId === previousId) o.customerId = user.id;
@@ -376,7 +378,8 @@ export class LaundryRepository {
         addresses: [],
         walletBalance: 0,
         loyaltyPoints: 0,
-        membershipTier: "Básico",
+        // Sin plan elegido no hay membresía (cadena vacía); el servidor lo informa.
+        membershipTier: user.membershipPlan?.name ?? "",
         billingName: cleanName,
         billingTaxId: "",
         billingEmail: normalizedEmail,
@@ -830,7 +833,7 @@ export class LaundryRepository {
     this.event(
       o,
       "IN_PROCESS",
-      "Peso y valor final confirmados. Pago demo registrado.",
+      "Peso y valor final confirmados. Pago registrado.",
     );
   }
   private editable(o: Order, legName: "INBOUND" | "OUTBOUND"): void {
@@ -1051,7 +1054,7 @@ export class LaundryRepository {
       amount: round(amount),
       type: "CREDIT",
       reference: "Recarga Online",
-      description: "Recarga demo a tu Billetera Laundry",
+      description: "Recarga a tu Billetera Laundry",
       date: this.stamp(),
     });
   }

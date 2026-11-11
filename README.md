@@ -20,11 +20,9 @@ La compatibilidad con Expo Go depende del SDK instalado. El proyecto mantiene su
 
 ## Acceso y registro
 
-La instalación nueva abre el cliente demo, como antes. Desde Perfil puedes cerrar sesión. El login mantiene el acceso rápido «Cliente demo» y el registro de clientes. La cuenta demo es `maria.torres@gmail.com`, contraseña `123456`.
+La app arranca sin sesión ni datos. El cliente se registra por pasos (nombre y apellido, teléfono, correo y contraseña), sube su selfie y su cédula por ambos lados y queda pendiente hasta que un administrador lo apruebe. Desde Perfil puede cerrar sesión.
 
-El registro conserva documento, selfie, revisión pendiente, rechazo y reenvío.
-
-El contrato local `@laundry/mobile-auth` y los componentes del login son compartidos y genéricos. La sesión y las cuentas de LaundryApp admiten exclusivamente `CLIENT`. El acceso demo del cliente no recibe roles y el registro mantiene su verificación. `pnpm run check:shared-login` comprueba el contrato y los componentes compartidos cuando están presentes ambos repositorios.
+El contrato local `@laundry/mobile-auth` y los componentes del login son compartidos y genéricos. La sesión y las cuentas de LaundryApp admiten exclusivamente `CLIENT`. El registro mantiene su verificación. `pnpm run check:shared-login` comprueba el contrato y los componentes compartidos cuando están presentes ambos repositorios.
 
 ## Flujo conservado
 

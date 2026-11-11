@@ -19,7 +19,7 @@ test("authService and repository integrate with backend register, login, refresh
     uniqueEmail,
     "0998765432",
     "ClaveSegura123",
-    "hash-demo-1",
+    "hash-test-1",
   );
   assert.equal(registeredUser.role, "CLIENT");
   assert.equal(registeredUser.email, uniqueEmail);
@@ -52,7 +52,7 @@ test("authService and repository integrate with backend register, login, refresh
   const loggedInUser = await repo.loginWithApi(
     uniqueEmail,
     "ClaveSegura123",
-    "hash-demo-1",
+    "hash-test-1",
   );
   assert.equal(loggedInUser.id, registeredUser.id);
   assert.equal(repo.state.session?.id, registeredUser.id);

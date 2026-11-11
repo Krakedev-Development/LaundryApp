@@ -42,6 +42,7 @@ import {
   type Promo,
 } from "../domain/models";
 import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
+import { membershipService } from "../services/customer/membershipService";
 export function ClientProfileScreen() {
   const navigation = useLaundryNavigation();
   const { state, execute } = useApp();
@@ -56,7 +57,7 @@ export function ClientProfileScreen() {
       </ProfileHero>
       <ProfileStats
         items={[
-          { label: "Membresía", text: c.membershipTier },
+          { label: "Membresía", text: c.membershipTier || "Sin membresía" },
           { label: "Puntos", text: c.loyaltyPoints },
         ]}
       />
@@ -346,17 +347,18 @@ export function BenefitsScreen() {
                   ))}
                 </View>
                 <Button
-                  label={`Elegir plan ${plan.name} · Demo`}
+                  label={`Elegir plan ${plan.name}`}
                   style={[
                     benefitStyles.planButton,
                     { backgroundColor: tone.ink },
                   ]}
                   disabled={c.membershipTier === plan.name}
+                  busy={a.busy}
                   onPress={() =>
-                    a.run(
-                      () => execute((r) => r.changeMembershipPlan(plan.name)),
-                      `Membresía ${plan.name} seleccionada.`,
-                    )
+                    void a.asyncRun(async () => {
+                      await membershipService.choose(plan.id);
+                      execute((r) => r.changeMembershipPlan(plan.name));
+                    }, `Membresía ${plan.name} seleccionada.`)
                   }
                 />
               </Card>

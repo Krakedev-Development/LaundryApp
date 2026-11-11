@@ -270,7 +270,7 @@ for (const inbound of ["domicilio"])
         .getByRole("button", { name: "Elegir método de pago", exact: true })
         .click();
       await page
-        .getByRole("radio", { name: "Tarjeta · Demo", exact: true })
+        .getByRole("radio", { name: "Tarjeta", exact: true })
         .click();
       await page
         .getByRole("button", { name: "Confirmar solicitud", exact: true })

@@ -122,7 +122,9 @@ export function ClientHomeScreen() {
         <HomeMetric
           title="Ver beneficios"
           amount={String(c.loyaltyPoints)}
-          caption={"Puntos · " + c.membershipTier}
+          caption={
+            c.membershipTier ? "Puntos · " + c.membershipTier : "Puntos"
+          }
           icon="star-outline"
           color="#B45309"
           onPress={() => navigation.navigate("ClientBenefits")}
@@ -373,7 +375,7 @@ export function ClientOrderDetailScreen({
                 }
               />
               <Button
-                label="Confirmar peso y pagar con tarjeta · Demo"
+                label="Confirmar peso y pagar con tarjeta"
                 secondary
                 onPress={() =>
                   a.run(

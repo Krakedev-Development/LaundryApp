@@ -57,7 +57,7 @@ export function WalletScreen() {
                 {money(c.walletBalance)}
               </Title>
               <Body>Saldo disponible en Billetera Laundry</Body>
-              <Badge>Pagos y recargas demo</Badge>
+              <Badge>Pagos y recargas locales</Badge>
             </Card>
             {!recharge && a.feedback}
             <Button
@@ -96,7 +96,7 @@ export function WalletScreen() {
                           }
                         />
                         <Button
-                          label="Pagar cargo con tarjeta · Demo"
+                          label="Pagar cargo con tarjeta"
                           secondary
                           onPress={() =>
                             a.run(
@@ -143,7 +143,7 @@ export function WalletScreen() {
           <>
             {a.feedback}
             <Button
-              label="Confirmar recarga · Demo"
+              label="Confirmar recarga"
               icon="wallet-outline"
               style={rechargeStyles.confirm}
               disabled={!Number.isFinite(Number(amount)) || Number(amount) <= 0}
