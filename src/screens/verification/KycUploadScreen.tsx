@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Image, View } from "react-native";
 import { Stepper } from "../../components/presentation";
 import { Page } from "../../components/Page";
 import {
@@ -8,7 +7,7 @@ import {
   Card,
   Field,
   Icon,
-  ui,
+  Title,
   useAction,
 } from "../../components/ui";
 import { PhotoAttachment } from "../../components/PhotoAttachment";
@@ -19,49 +18,21 @@ import {
   type KycState,
 } from "../../services/kyc/kycService";
 
-// Verificación de identidad: selfie, cédula por ambos lados y número de cédula.
-const STEPS = [
-  "Selfie",
-  "Cédula, frente",
-  "Cédula, reverso",
-  "Confirmar número",
-] as const;
-const PHOTO_STEPS: {
-  type: KycDocumentType;
-  label: string;
-  help: string;
-  selfie: boolean;
-}[] = [
-  {
-    type: "SELFIE",
-    label: "Selfie de verificación",
-    help: "Tómate una selfie con el rostro descubierto, de frente y con buena luz.",
-    selfie: true,
-  },
-  {
-    type: "ID_FRONT",
-    label: "Cédula, lado frontal",
-    help: "Fotografía el frente de tu cédula completa, sin reflejos ni recortes.",
-    selfie: false,
-  },
-  {
-    type: "ID_BACK",
-    label: "Cédula, lado posterior",
-    help: "Fotografía el reverso de tu cédula completa, sin reflejos ni recortes.",
-    selfie: false,
-  },
-];
+// Las 2 etapas de verificación tras el registro del formulario:
+// Etapa 2 de 3: Cédula (frontal y reverso) + Confirmar número de cédula
+// Etapa 3 de 3: Selfie / Reconocimiento facial
+const KYC_STEPS = ["Cédula de identidad", "Foto del rostro"] as const;
 
 export function KycUploadScreen() {
   const { execute } = useApp();
   const a = useAction();
   const [kyc, setKyc] = useState<KycState | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [step, setStep] = useState(1);
-  const [local, setLocal] = useState<Partial<Record<KycDocumentType, string>>>(
-    {},
-  );
-  // Imágenes ya enviadas al servidor desde este dispositivo, para no repetirlas.
+
+  // currentStep: 1 = Cédula (Frente + Reverso + Número), 2 = Selfie
+  const [currentStep, setCurrentStep] = useState(1);
+
+  const [local, setLocal] = useState<Partial<Record<KycDocumentType, string>>>({});
   const [sent, setSent] = useState<Partial<Record<KycDocumentType, string>>>({});
   const [number, setNumber] = useState("");
 
@@ -78,11 +49,13 @@ export function KycUploadScreen() {
       .then((state) => {
         if (!alive) return;
         apply(state);
-        // Retoma donde quedó: primera imagen que el servidor aún no tiene.
-        const pending = PHOTO_STEPS.findIndex(
-          (p) => !state.uploaded.includes(p.type),
-        );
-        setStep(pending === -1 ? STEPS.length : pending + 1);
+        // Si ya subió ambas caras de la cédula, pasa directo al selfie (Etapa 2)
+        const hasId =
+          state.uploaded.includes("ID_FRONT") &&
+          state.uploaded.includes("ID_BACK");
+        if (hasId && !state.uploaded.includes("SELFIE")) {
+          setCurrentStep(2);
+        }
       })
       .catch((e: unknown) => {
         if (alive)
@@ -93,33 +66,58 @@ export function KycUploadScreen() {
     return () => {
       alive = false;
     };
-    // Solo al abrir la pantalla.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const photo = step <= PHOTO_STEPS.length ? PHOTO_STEPS[step - 1] : null;
   const onServer = (type: KycDocumentType) => !!kyc?.uploaded.includes(type);
-  const ready = photo ? !!local[photo.type] || onServer(photo.type) : false;
+  const hasFront = !!local["ID_FRONT"] || onServer("ID_FRONT");
+  const hasBack = !!local["ID_BACK"] || onServer("ID_BACK");
+  const hasSelfie = !!local["SELFIE"] || onServer("SELFIE");
   const numberOk = /^\d{10}$/.test(number.trim());
 
-  const goNext = () =>
+  // Paso 1 (Cédula): requiere frente, reverso y número de cédula de 10 dígitos
+  const canContinueToSelfie = hasFront && hasBack && numberOk;
+
+  // Subir documentos pendientes de la cédula y avanzar a la selfie
+  const handleNextToSelfie = () =>
     a.asyncRun(async () => {
-      if (!photo) return;
-      const uri = local[photo.type];
-      // Solo se sube lo que cambió: lo que ya está en el servidor se conserva.
-      if (uri && sent[photo.type] !== uri) {
-        apply(await kycService.upload(photo.type, uri));
-        setSent((prev) => ({ ...prev, [photo.type]: uri }));
+      if (!hasFront || !hasBack)
+        throw Error("Toma la foto frontal y posterior de tu cédula.");
+      if (!numberOk)
+        throw Error("Ingresa el número de tu cédula de 10 dígitos.");
+
+      // Subir ID_FRONT si hay archivo local nuevo
+      const frontUri = local["ID_FRONT"];
+      if (frontUri && sent["ID_FRONT"] !== frontUri) {
+        apply(await kycService.upload("ID_FRONT", frontUri));
+        setSent((prev) => ({ ...prev, ID_FRONT: frontUri }));
       }
-      setStep(step + 1);
+
+      // Subir ID_BACK si hay archivo local nuevo
+      const backUri = local["ID_BACK"];
+      if (backUri && sent["ID_BACK"] !== backUri) {
+        apply(await kycService.upload("ID_BACK", backUri));
+        setSent((prev) => ({ ...prev, ID_BACK: backUri }));
+      }
+
+      setCurrentStep(2);
     });
 
-  const submit = () =>
+  // Paso 2 (Selfie): subir selfie y enviar cédula para revisión final
+  const handleSubmitAll = () =>
     a.asyncRun(async () => {
-      if (!numberOk) throw Error("La cédula debe tener 10 dígitos.");
+      if (!hasSelfie)
+        throw Error("Tómate una selfie para verificar tu rostro.");
+
+      // Subir selfie si es nueva
+      const selfieUri = local["SELFIE"];
+      if (selfieUri && sent["SELFIE"] !== selfieUri) {
+        apply(await kycService.upload("SELFIE", selfieUri));
+        setSent((prev) => ({ ...prev, SELFIE: selfieUri }));
+      }
+
+      // Enviar solicitud con el número de cédula digitado
       const state = await kycService.submit(number);
       setKyc(state);
-      // El servidor la deja pendiente; la navegación pasa a la pantalla de espera.
       execute((r) => r.setKycStatus(state.status, state.rejectionReason));
     });
 
@@ -149,12 +147,14 @@ export function KycUploadScreen() {
         </Card>
       </Page>
     );
+
   if (!kyc)
     return (
       <Page>
         <Body muted>Consultando tu verificación...</Body>
       </Page>
     );
+
   if (!kyc.canSubmit)
     return (
       <Page>
@@ -175,87 +175,116 @@ export function KycUploadScreen() {
 
   return (
     <Page
-      onBack={step > 1 ? () => setStep(step - 1) : undefined}
+      onBack={currentStep > 1 ? () => setCurrentStep(currentStep - 1) : undefined}
       footer={
-        photo ? (
+        currentStep === 1 ? (
           <Button
-            label="Continuar"
-            disabled={!ready}
+            label="Continuar a foto del rostro"
+            disabled={!canContinueToSelfie}
             busy={a.busy}
-            onPress={() => void goNext()}
+            onPress={() => void handleNextToSelfie()}
             testID="kyc_next_button"
           />
         ) : (
           <Button
-            label="Enviar verificación"
-            disabled={!numberOk}
+            label="Enviar verificación completa"
+            disabled={!hasSelfie}
             busy={a.busy}
-            onPress={() => void submit()}
+            onPress={() => void handleSubmitAll()}
             testID="kyc_submit_button"
           />
         )
       }
     >
-      <Stepper step={step} labels={STEPS} />
+      <Stepper step={currentStep} labels={KYC_STEPS} />
+
       {kyc.status === "REJECTED" && kyc.rejectionReason ? (
         <Card>
           <Body>Motivo del rechazo anterior: {kyc.rejectionReason}</Body>
-          <Body muted>
-            Reenvíos restantes: {kyc.resubmissionsLeft}.
-          </Body>
+          <Body muted>Reenvíos restantes: {kyc.resubmissionsLeft}.</Body>
         </Card>
       ) : null}
-      {photo ? (
-        <Card>
-          <Icon
-            name={photo.selfie ? "person-circle-outline" : "card-outline"}
-            size={42}
-          />
-          <Body>{photo.help}</Body>
-          {local[photo.type] ? (
-            <Image
-              source={{ uri: local[photo.type] }}
-              accessibilityLabel={`Vista previa: ${photo.label}`}
-              style={{ width: "100%", height: 200, borderRadius: 12 }}
-              resizeMode="contain"
-            />
-          ) : onServer(photo.type) ? (
-            <Body muted>
-              Ya subiste esta imagen. Puedes continuar o reemplazarla.
-            </Body>
-          ) : null}
-          <PhotoAttachment
-            label={photo.label}
-            uri={local[photo.type]}
-            selfie={photo.selfie}
-            onChange={(uri) => setLocal((prev) => ({ ...prev, [photo.type]: uri }))}
-          />
-          {a.feedback}
-        </Card>
-      ) : (
-        <Card>
+
+      {currentStep === 1 ? (
+        <>
           <Body>
-            Escribe el número de tu cédula tal como aparece en el documento.
-            Lo usaremos para confirmar que es correcto.
+            Fotografía ambos lados de tu cédula en el recuadro horizontal y
+            confirma tu número.
           </Body>
-          <View style={[ui.row, { gap: 8 }]}>
-            {PHOTO_STEPS.map((p) => (
-              <View key={p.type} style={[ui.row, { gap: 4 }]}>
-                <Icon name="checkmark-circle-outline" />
-                <Body muted>{p.label}</Body>
-              </View>
-            ))}
-          </View>
-          <Field
-            label="Número de cédula"
-            value={number}
-            onChangeText={(v) => setNumber(v.replace(/\D/g, "").slice(0, 10))}
-            keyboardType="number-pad"
-            maxLength={10}
-            validate={(v) =>
-              /^\d{10}$/.test(v) ? undefined : "La cédula debe tener 10 dígitos."
-            }
-            testID="kyc_document_number"
+
+          {/* Frente de la cédula con recuadro horizontal */}
+          <Card>
+            <Title>1. Cédula, lado frontal</Title>
+            <Body muted>
+              Encuadra la cara delantera de tu cédula dentro del recuadro.
+            </Body>
+            <PhotoAttachment
+              label="Frente de la cédula"
+              uri={local["ID_FRONT"]}
+              aspect="horizontal"
+              selfie={false}
+              onChange={(uri) =>
+                setLocal((prev) => ({ ...prev, ID_FRONT: uri }))
+              }
+            />
+          </Card>
+
+          {/* Reverso de la cédula con recuadro horizontal */}
+          <Card>
+            <Title>2. Cédula, lado posterior</Title>
+            <Body muted>
+              Encuadra el reverso de tu cédula dentro del recuadro.
+            </Body>
+            <PhotoAttachment
+              label="Reverso de la cédula"
+              uri={local["ID_BACK"]}
+              aspect="horizontal"
+              selfie={false}
+              onChange={(uri) =>
+                setLocal((prev) => ({ ...prev, ID_BACK: uri }))
+              }
+            />
+          </Card>
+
+          {/* Confirmar número de cédula */}
+          <Card>
+            <Title>3. Número de cédula</Title>
+            <Body muted>
+              Escribe el número de 10 dígitos exactamente como aparece en tu
+              cédula física.
+            </Body>
+            <Field
+              label="Número de cédula"
+              value={number}
+              onChangeText={(v) =>
+                setNumber(v.replace(/\D/g, "").slice(0, 10))
+              }
+              keyboardType="number-pad"
+              maxLength={10}
+              validate={(v) =>
+                /^\d{10}$/.test(v)
+                  ? undefined
+                  : "La cédula debe tener exactamente 10 dígitos."
+              }
+              testID="kyc_document_number"
+            />
+            {a.feedback}
+          </Card>
+        </>
+      ) : (
+        /* Etapa 3: Foto del rostro / Selfie */
+        <Card>
+          <Title>Foto del rostro (Selfie)</Title>
+          <Body>
+            Tómate una selfie de frente con buena iluminación y el rostro
+            despejado para contrastarla con tu cédula.
+          </Body>
+          <PhotoAttachment
+            label="Foto del rostro"
+            uri={local["SELFIE"]}
+            aspect="oval"
+            selfie={true}
+            onChange={(uri) => setLocal((prev) => ({ ...prev, SELFIE: uri }))}
           />
           {a.feedback}
         </Card>
