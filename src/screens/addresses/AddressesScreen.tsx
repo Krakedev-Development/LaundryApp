@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { orderService } from "../../services/orders/orderService";
 import { Text, View } from "react-native";
 import { Page } from "../../components/Page";
+import PinMapSelector from "../../components/PinMapSelector";
 import { Accordion, ListItem } from "../../components/presentation";
 import {
   BottomSheet,
@@ -82,13 +83,27 @@ export function AddressesScreen() {
                     a.run(() => {
                       if (!lat.trim() || !lng.trim())
                         throw Error("Ingresa las coordenadas.");
+                      const numLat = Number(lat);
+                      const numLng = Number(lng);
+                      if (!Number.isFinite(numLat) || !Number.isFinite(numLng))
+                        throw Error("Coordenadas inválidas.");
                       execute((r) =>
                         r.saveAddress({
                           ...draft,
-                          latitude: Number(lat),
-                          longitude: Number(lng),
+                          latitude: numLat,
+                          longitude: numLng,
                         }),
                       );
+                      void orderService
+                        .createAddress({
+                          title: draft.title,
+                          fullAddress: draft.fullAddress,
+                          reference: draft.reference,
+                          latitude: numLat,
+                          longitude: numLng,
+                          isPrimary: draft.isPrimary,
+                        })
+                        .catch(() => {});
                     }, "Dirección guardada.")
                   )
                     setDraft(null);
@@ -131,13 +146,27 @@ export function AddressesScreen() {
               value={draft.reference}
               onChangeText={(reference) => setDraft({ ...draft, reference })}
             />
+            <View style={{ gap: 8, marginVertical: 6 }}>
+              <Body style={addressStyles.label}>
+                Ubicación en el mapa de Guayaquil
+              </Body>
+              <PinMapSelector
+                coordinate={{
+                  latitude: Number(lat) || -2.1894,
+                  longitude: Number(lng) || -79.8891,
+                }}
+                onChangeCoordinate={(coord) => {
+                  setLat(String(coord.latitude));
+                  setLng(String(coord.longitude));
+                }}
+              />
+            </View>
             <Accordion
-              title="Ubicación para la entrega"
-              subtitle="Coordenadas usadas para orientar al chofer"
+              title="Ajuste fino de coordenadas"
+              subtitle="Latitud y longitud numéricas para orientar al chofer"
             >
               <Body muted>
-                Este MVP no convierte la dirección a coordenadas
-                automáticamente. Verifica el punto del domicilio.
+                Puedes usar el mapa interactivo superior o ingresar valores numéricos directamente.
               </Body>
               <Field
                 label="Latitud"

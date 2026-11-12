@@ -6,6 +6,14 @@ export const GUAYAQUIL_BASE = {
   longitude: -79.8891,
 } as const;
 
+export const GUAYAQUIL_SECTORS = [
+  { name: "Centro", latitude: -2.1894, longitude: -79.8891 },
+  { name: "Kennedy Norte", latitude: -2.1585, longitude: -79.8962 },
+  { name: "Urdesa", latitude: -2.172, longitude: -79.911 },
+  { name: "Samborondón", latitude: -2.145, longitude: -79.865 },
+  { name: "Los Ceibos", latitude: -2.179, longitude: -79.945 },
+] as const;
+
 export const MAP_MODE_STORAGE_KEY = "laundry.map-theme-mode.v1";
 
 export const OSM_TILE_URLS = {
