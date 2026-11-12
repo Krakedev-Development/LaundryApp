@@ -116,3 +116,22 @@ test("buildSimulatedTracking correctly maps activeLeg based on transit status", 
   order.status = "DELIVERED";
   assert.equal(buildSimulatedTracking(order).activeLeg, null);
 });
+
+test("orderService.getOrderTracking validates token and rejects unauthorized requests", async () => {
+  await assert.rejects(
+    async () => {
+      const result: OrderTrackingDto = await orderService.getOrderTracking(
+        "00000000-0000-0000-0000-000000000000",
+        "invalid-token",
+      );
+      assert.ok(result);
+    },
+    (err: any) => {
+      return (
+        typeof err?.message === "string" &&
+        (err.message.includes("Unauthorized") ||
+          err.message.includes("No hay una sesión activa"))
+      );
+    },
+  );
+});
