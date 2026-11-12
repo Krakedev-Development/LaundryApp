@@ -11,6 +11,7 @@ import type {
   PricingStatus,
   TimelineEvent,
 } from "../../domain/models";
+import { facilities } from "../../domain/catalog";
 import { apiClient } from "../api/apiClient";
 import { getStoredAuthSession } from "../auth/authService";
 
@@ -129,6 +130,39 @@ export interface BackendOrderEvent {
   title: string;
   note?: string | null;
   createdAt: string;
+}
+
+export interface AssignedDriverDto {
+  driverId: string;
+  name: string;
+  phone: string | null;
+  plate: string | null;
+  vehicle: string | null;
+  status: "AVAILABLE" | "ON_SERVICE";
+  latitude: number | null;
+  longitude: number | null;
+  locationAt: string | null;
+}
+
+export interface OrderTrackingDto {
+  orderId: string;
+  orderNumber: number;
+  status: string;
+  mode: string;
+  activeLeg: "INBOUND" | "OUTBOUND" | null;
+  customerAddress: {
+    text: string;
+    latitude: number;
+    longitude: number;
+  };
+  facility: {
+    id: string;
+    name: string;
+    address: string;
+    latitude: number;
+    longitude: number;
+  };
+  assignedDriver: AssignedDriverDto | null;
 }
 
 export interface BackendOrderDetails extends BackendOrderSummary {
@@ -434,4 +468,100 @@ export const orderService = {
       accessToken: token,
     });
   },
+
+  async getOrderTracking(
+    id: string,
+    explicitToken?: string | null,
+  ): Promise<OrderTrackingDto> {
+    const token = await resolveToken(explicitToken);
+    return await apiClient.get<OrderTrackingDto>(`/orders/${id}/tracking`, {
+      accessToken: token,
+    });
+  },
 };
+
+export function buildSimulatedTracking(order: Order): OrderTrackingDto {
+  const isOutbound = [
+    "READY_FOR_DELIVERY",
+    "DELIVERY_ASSIGNED",
+    "OUT_FOR_DELIVERY",
+    "ARRIVED_FOR_DELIVERY",
+  ].includes(order.status);
+  const isInbound = [
+    "CONFIRMED",
+    "PICKUP_ASSIGNED",
+    "HEADING_TO_PICKUP",
+    "ARRIVED_FOR_PICKUP",
+  ].includes(order.status);
+  const activeLeg: "INBOUND" | "OUTBOUND" | null = isInbound
+    ? "INBOUND"
+    : isOutbound
+      ? "OUTBOUND"
+      : null;
+
+  const leg = isOutbound
+    ? order.fulfillmentPlan.outbound
+    : order.fulfillmentPlan.inbound;
+
+  const facilityMatch = facilities.find((f) => f.name === order.facilityName);
+  const facility = {
+    id: facilityMatch?.id ?? "fac-kennedy",
+    name: facilityMatch?.name ?? order.facilityName ?? "Sede Central Guayaquil",
+    address:
+      facilityMatch?.address ??
+      "Av. 9 de Octubre y Malecón Simón Bolívar, Guayaquil",
+    latitude: facilityMatch?.latitude ?? GUAYAQUIL_DEFAULT_COORDINATES.latitude,
+    longitude:
+      facilityMatch?.longitude ?? GUAYAQUIL_DEFAULT_COORDINATES.longitude,
+  };
+
+  const hasDriver = !!(order.assignedDriverId || order.assignedDriverName);
+  const assignedDriver: AssignedDriverDto | null = hasDriver
+    ? {
+        driverId: order.assignedDriverId ?? "drv-default",
+        name: order.assignedDriverName ?? "Carlos Mendoza",
+        phone: order.assignedDriverPhone ?? "+593991234567",
+        plate: order.assignedDriverPlate ?? "GSE-1234",
+        vehicle: order.assignedDriverVehicle ?? "Camioneta Chevrolet D-Max",
+        status: [
+          "HEADING_TO_PICKUP",
+          "ARRIVED_FOR_PICKUP",
+          "OUT_FOR_DELIVERY",
+          "ARRIVED_FOR_DELIVERY",
+        ].includes(order.status)
+          ? "ON_SERVICE"
+          : "AVAILABLE",
+        latitude:
+          order.trackingPosition?.latitude ??
+          GUAYAQUIL_DEFAULT_COORDINATES.latitude + 0.0064,
+        longitude:
+          order.trackingPosition?.longitude ??
+          GUAYAQUIL_DEFAULT_COORDINATES.longitude - 0.0076,
+        locationAt: new Date().toISOString(),
+      }
+    : null;
+
+  const numMatch = order.id.match(/\d+/);
+  const orderNumber = numMatch ? parseInt(numMatch[0], 10) : 101;
+  const mode =
+    order.fulfillmentPlan?.outbound?.method === "CUSTOMER"
+      ? "HOME_STORE"
+      : "HOME_HOME";
+
+  return {
+    orderId: order.id,
+    orderNumber,
+    status: order.status,
+    mode,
+    activeLeg,
+    customerAddress: {
+      text: leg.addressFull || GUAYAQUIL_DEFAULT_COORDINATES.fullAddress,
+      latitude:
+        Number(leg.latitude) || GUAYAQUIL_DEFAULT_COORDINATES.latitude,
+      longitude:
+        Number(leg.longitude) || GUAYAQUIL_DEFAULT_COORDINATES.longitude,
+    },
+    facility,
+    assignedDriver,
+  };
+}
