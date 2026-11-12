@@ -130,6 +130,33 @@ export async function getStoredAuthSession(): Promise<{
 }
 
 export const authService = {
+  // Pide un código de 6 dígitos al correo. El servidor responde igual exista o no
+  // la cuenta, para no revelar qué correos están registrados.
+  async requestPasswordReset(email: string): Promise<string> {
+    const res = await apiClient.post<{ message: string }>(
+      "/auth/password-reset/request",
+      { email: email.trim().toLowerCase() },
+    );
+    return res.message;
+  },
+
+  // Cambia la contraseña con el código recibido; cierra las demás sesiones.
+  async confirmPasswordReset(payload: {
+    email: string;
+    code: string;
+    newPassword: string;
+  }): Promise<string> {
+    const res = await apiClient.post<{ message: string }>(
+      "/auth/password-reset/confirm",
+      {
+        email: payload.email.trim().toLowerCase(),
+        code: payload.code.trim(),
+        newPassword: payload.newPassword,
+      },
+    );
+    return res.message;
+  },
+
   async register(payload: RegisterPayload): Promise<AuthResponse> {
     const normalized: RegisterPayload = {
       firstName: payload.firstName.trim(),
