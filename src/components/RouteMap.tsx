@@ -26,11 +26,22 @@ export interface RouteMapProps {
   height?: number;
   origin: { latitude: number; longitude: number };
   destination: Pick<Leg, "latitude" | "longitude" | "addressFull">;
+  facility?: { latitude: number; longitude: number; name?: string };
+  driverInfo?: {
+    name?: string;
+    vehicle?: string;
+    plate?: string;
+    status?: string;
+  } | null;
+  isSearching?: boolean;
 }
 
 export default function RouteMap({
   origin,
   destination,
+  facility,
+  driverInfo,
+  isSearching = false,
   height = theme.layout.map,
 }: RouteMapProps) {
   const [mode, setMode] = useState<MapThemeMode>("tactical");
@@ -134,7 +145,13 @@ export default function RouteMap({
         />
         <Marker
           coordinate={normalized.origin}
-          title="Chofer · En camino"
+          title={
+            isSearching
+              ? "Radar · Buscando chofer"
+              : driverInfo?.name
+                ? `${driverInfo.name} · Chofer`
+                : "Chofer · En camino"
+          }
           anchor={{ x: 0.5, y: 0.5 }}
         >
           <View style={styles.driverMarkerWrap}>
@@ -144,14 +161,23 @@ export default function RouteMap({
                 isTactical ? styles.statusBadgeDark : styles.statusBadgeLight,
               ]}
             >
-              <View style={styles.liveDot} />
+              <View
+                style={[
+                  styles.liveDot,
+                  isSearching && { backgroundColor: "#FACC15" },
+                ]}
+              />
               <Text
                 style={[
                   styles.statusBadgeText,
                   { color: isTactical ? "#F8FAFC" : "#0F172A" },
                 ]}
               >
-                En camino
+                {isSearching
+                  ? "Buscando..."
+                  : driverInfo?.plate
+                    ? driverInfo.plate
+                    : "En camino"}
               </Text>
             </View>
             <View style={styles.radarCenter}>
@@ -159,7 +185,11 @@ export default function RouteMap({
                 style={[
                   styles.radarHalo,
                   {
-                    backgroundColor: isTactical ? "#38BDF8" : "#2563EB",
+                    backgroundColor: isSearching
+                      ? "#FACC15"
+                      : isTactical
+                        ? "#38BDF8"
+                        : "#2563EB",
                     opacity: pulseOpacity,
                     transform: [{ scale: pulseScale }],
                   },
@@ -169,17 +199,63 @@ export default function RouteMap({
                 style={[
                   styles.driverCore,
                   {
-                    backgroundColor: isTactical
-                      ? "#0284C7"
-                      : theme.colors.primary,
+                    backgroundColor: isSearching
+                      ? "#CA8A04"
+                      : isTactical
+                        ? "#0284C7"
+                        : theme.colors.primary,
                   },
                 ]}
               >
-                <Ionicons name="car-sport" size={16} color="#FFFFFF" />
+                <Ionicons
+                  name={isSearching ? "radio-outline" : "car-sport"}
+                  size={16}
+                  color="#FFFFFF"
+                />
               </View>
             </View>
           </View>
         </Marker>
+        {facility && (
+          <Marker
+            coordinate={{
+              latitude: facility.latitude,
+              longitude: facility.longitude,
+            }}
+            title={facility.name ?? "Sede Central"}
+            description="Centro de operaciones y lavado"
+            anchor={{ x: 0.5, y: 0.5 }}
+          >
+            <View style={styles.facilityMarkerWrap}>
+              <View
+                style={[
+                  styles.facilityCore,
+                  {
+                    backgroundColor: isTactical ? "#334155" : "#475569",
+                  },
+                ]}
+              >
+                <Ionicons name="business" size={15} color="#FFFFFF" />
+              </View>
+              <View
+                style={[
+                  styles.facilityLabelBox,
+                  isTactical ? styles.statusBadgeDark : styles.statusBadgeLight,
+                ]}
+              >
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.facilityLabelText,
+                    { color: isTactical ? "#E2E8F0" : "#1E293B" },
+                  ]}
+                >
+                  {facility.name ?? "Sede"}
+                </Text>
+              </View>
+            </View>
+          </Marker>
+        )}
         <Marker
           coordinate={normalized.destination}
           title="Destino"
@@ -412,6 +488,32 @@ const styles = StyleSheet.create({
     maxWidth: 150,
   },
   destLabelText: {
+    fontSize: 10,
+    lineHeight: 14,
+    fontWeight: "600",
+  },
+  facilityMarkerWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  facilityCore: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  facilityLabelBox: {
+    marginTop: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    maxWidth: 140,
+  },
+  facilityLabelText: {
     fontSize: 10,
     lineHeight: 14,
     fontWeight: "600",
