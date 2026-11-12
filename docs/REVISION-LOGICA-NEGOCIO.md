@@ -70,4 +70,4 @@ Se encolan cambios y mensajes de demo y se “sincronizan” localmente al volve
 4. Aprobar modelo de KYC, pagos, privacidad y notificaciones reales.
 5. Trasladar autorizaciones, ledger y estados operativos al backend antes de una operación multi-dispositivo.
 
-La matriz de flujos y los límites técnicos están en [FLUJOS-APP-DEMO.md](FLUJOS-APP-DEMO.md); la propuesta de límites por módulo en [organización](PROPUESTA-ORGANIZACION-MODULOS.md).
+La matriz de flujos y los límites técnicos están en [FLUJOS-APP.md](FLUJOS-APP.md); la propuesta de límites por módulo en [organización](PROPUESTA-ORGANIZACION-MODULOS.md).

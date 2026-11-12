@@ -1,6 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { initializeState, transact } from "../src/domain/repository";
+import { transact } from "../src/domain/repository";
+import { initializeSeededState as initializeState } from "./fixtures/seedState";
 import { decodeState } from "../src/store/persistence";
 import { cardInputError, expiryError } from "../src/domain/paymentMethods";
 
@@ -154,7 +155,17 @@ test("default changes and deletion remain scoped to each customer", () => {
   const other = transact(
     state,
     (repo) =>
-      repo.register("Otra Persona", "otra@example.com", "0991234567", "hash"),
+      repo.authenticateFromApi(
+        {
+          id: "cust-otra",
+          email: "otra@example.com",
+          name: "Otra Persona",
+          phone: "0991234567",
+          role: "CLIENT",
+          kycStatus: "APPROVED",
+        },
+        "hash",
+      ),
     now,
   ).state;
   assert.throws(
@@ -187,7 +198,8 @@ test("older saved data gains methods without changing existing wallet records", 
   const raw = JSON.parse(JSON.stringify(state));
   delete raw.paymentMethods;
   const loaded = decodeState(JSON.stringify(raw));
-  assert.deepEqual(loaded.paymentMethods, state.paymentMethods);
+  // El producto no inventa métodos de pago al migrar datos antiguos.
+  assert.deepEqual(loaded.paymentMethods, []);
   assert.deepEqual(loaded.walletTransactions, state.walletTransactions);
   assert.equal(
     loaded.customers[0].walletBalance,

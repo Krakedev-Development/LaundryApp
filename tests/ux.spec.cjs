@@ -1,4 +1,4 @@
-﻿const { test, expect } = require("@playwright/test");
+﻿const { test, expect } = require("./support/fixtures.cjs");
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
   await page.evaluate(() => localStorage.clear());
@@ -119,11 +119,11 @@ test("recharge is contextual, applies once on double tap and persists", async ({
   });
   await amount.fill("-1");
   await expect(
-    page.getByRole("button", { name: "Confirmar recarga · Demo", exact: true }),
+    page.getByRole("button", { name: "Confirmar recarga", exact: true }),
   ).toBeDisabled();
   await amount.fill("20");
   await page
-    .getByRole("button", { name: "Confirmar recarga · Demo", exact: true })
+    .getByRole("button", { name: "Confirmar recarga", exact: true })
     .dblclick();
   await expect(
     page.getByRole("heading", { name: "$48.50", exact: true }),
@@ -210,7 +210,7 @@ test("request cancellation retains the warning and creates the existing late fee
     page.getByText("Cargo regularizado.", { exact: true }),
   ).toBeVisible();
 });
-test("email validation is contextual and client login exposes only its own demo", async ({
+test("email validation is contextual and login has no demo access", async ({
   page,
 }) => {
   await page.getByRole("tab", { name: "Perfil", exact: true }).click();
@@ -230,13 +230,12 @@ test("email validation is contextual and client login exposes only its own demo"
   await expect(
     page.getByText("Revisa el formato del correo.", { exact: true }),
   ).not.toBeVisible();
-  await expect(page.getByRole("button", { name: "Cliente demo", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Cliente demo", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Chofer con contraseña temporal · Demo", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Conocer Laundry", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Acceso rápido del prototipo", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Chofer demo", exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: "Cliente demo", exact: true }).click();
-  await expect(page.getByRole("tab", { name: "Inicio", exact: true })).toBeVisible();
+  await expect(page.getByText(/demo/i)).toHaveCount(0);
 });
 for (const viewport of [
   { width: 320, height: 640 },

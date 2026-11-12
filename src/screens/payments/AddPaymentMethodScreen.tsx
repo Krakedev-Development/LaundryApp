@@ -223,7 +223,7 @@ export function AddPaymentMethodScreen() {
       )}
       {action.feedback}
       <Body muted>
-        Registro de demostración. No se realizan cobros ni transferencias
+        Registro local. No se realizan cobros ni transferencias
         reales.
       </Body>
     </Page>

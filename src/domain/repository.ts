@@ -2,7 +2,6 @@ import {
   isCustomerHandoff,
   type CustomerHandoffType,
 } from "./customerHandoffs";
-import { demoOrderTracking } from "./fixtures/orderTracking";
 import { authenticateSession } from "@laundry/mobile-auth";
 import {
   formatOrderCode,
@@ -34,8 +33,8 @@ import {
   rewards,
   services,
 } from "./catalog";
-import { createSeedState, seedHandoff } from "./seed";
 import {
+  handoffLabels,
   modeFor,
   pickupStatuses,
   round,
@@ -68,17 +67,23 @@ export function scheduleDate(date: string, now = new Date()): string {
   if (/^mañana$/i.test(date)) return today(new Date(now.getTime() + 86400000));
   return date;
 }
+// El producto arranca sin datos: el cliente, sus pedidos y su billetera llegan de la API.
 export function initializeState(now = new Date()): AppState {
-  const s = createSeedState();
-  s.timeSlots.forEach((slot) => {
-    slot.date = scheduleDate(slot.date, now);
-  });
-  s.orders.forEach((o) => {
-    o.pickup.date = scheduleDate(o.pickup.date, now);
-    o.delivery.date = scheduleDate(o.delivery.date, now);
-    o.fulfillmentPlan.inbound.scheduledDate = o.pickup.date;
-    o.fulfillmentPlan.outbound.scheduledDate = o.delivery.date;
-  });
+  const s: AppState = {
+    version: 1,
+    customers: [],
+    session: null,
+    accounts: [],
+    orders: [],
+    customerCharges: [],
+    walletTransactions: [],
+    paymentMethods: [],
+    loyaltyRedemptions: [],
+    notifications: [],
+    chatMessages: {},
+    timeSlots: [],
+    rescheduleRequests: [],
+  };
   refreshSchedule(s, now);
   return s;
 }
@@ -110,8 +115,14 @@ export function refreshSchedule(s: AppState, now = new Date()): void {
     }
   }
 }
+// Cliente de la sesión activa; sin sesión no hay cliente.
+export function findCustomer(s: AppState): Customer | undefined {
+  return s.customers.find((c) => c.id === s.session?.id);
+}
 export function currentCustomer(s: AppState): Customer {
-  return s.customers.find((c) => c.id === s.session?.id) ?? s.customers[0];
+  const customer = findCustomer(s);
+  if (!customer) throw Error("No hay un cliente con sesión activa.");
+  return customer;
 }
 export function visibleOrders(s: AppState): Order[] {
   if (!s.session || s.session.role !== "CLIENT") return [];
@@ -283,7 +294,7 @@ export class LaundryRepository {
     if (/billetera/i.test(method)) {
       if (customer.walletBalance < amount)
         throw Error(
-          "Saldo insuficiente. Recarga tu billetera o elige tarjeta demo.",
+          "Saldo insuficiente. Recarga tu billetera o elige una tarjeta.",
         );
       customer.walletBalance = round(customer.walletBalance - amount);
       this.state.walletTransactions.unshift({
@@ -332,7 +343,10 @@ export class LaundryRepository {
       }
       customer.billingName = cleanName;
       customer.billingEmail = normalizedEmail;
-      if (kycStatusOverride) customer.kycStatus = kycStatusOverride;
+      const serverKyc = kycStatusOverride ?? user.kycStatus;
+      if (serverKyc) customer.kycStatus = serverKyc;
+      if (user.membershipPlan !== undefined)
+        customer.membershipTier = user.membershipPlan?.name ?? "";
       if (previousId && previousId !== user.id) {
         this.state.orders.forEach((o) => {
           if (o.customerId === previousId) o.customerId = user.id;
@@ -359,12 +373,13 @@ export class LaundryRepository {
         name: cleanName,
         email: normalizedEmail,
         phone: cleanPhone,
-        kycStatus: kycStatusOverride ?? "APPROVED",
+        kycStatus: kycStatusOverride ?? user.kycStatus ?? "NOT_SUBMITTED",
         kycDocumentType: "Cédula de Identidad",
         addresses: [],
         walletBalance: 0,
         loyaltyPoints: 0,
-        membershipTier: "Básico",
+        // Sin plan elegido no hay membresía (cadena vacía); el servidor lo informa.
+        membershipTier: user.membershipPlan?.name ?? "",
         billingName: cleanName,
         billingTaxId: "",
         billingEmail: normalizedEmail,
@@ -399,11 +414,12 @@ export class LaundryRepository {
     passwordHash = "",
   ): Promise<AuthUser> {
     const response = await authService.login({ email, password });
-    this.authenticateFromApi(response.user, passwordHash, "APPROVED");
+    this.authenticateFromApi(response.user, passwordHash);
     return response.user;
   }
   async registerWithApi(
-    name: string,
+    firstName: string,
+    lastName: string,
     email: string,
     phone: string,
     password: string,
@@ -411,23 +427,22 @@ export class LaundryRepository {
   ): Promise<AuthUser> {
     const cleanEmail = email.trim().toLowerCase();
     if (
-      !name.trim() ||
+      !firstName.trim() ||
+      !lastName.trim() ||
       !/^\S+@\S+\.\S+$/.test(cleanEmail) ||
       phone.replace(/\D/g, "").length < 8
     ) {
-      throw Error("Revisa nombre, correo y teléfono.");
+      throw Error("Revisa nombre, apellido, correo y teléfono.");
     }
     const response = await authService.register({
-      name: name.trim(),
+      firstName,
+      lastName,
       email: cleanEmail,
       phone: phone.trim(),
       password,
     });
-    this.authenticateFromApi(response.user, passwordHash, "APPROVED");
+    this.authenticateFromApi(response.user, passwordHash);
     return response.user;
-  }
-  demoLogin(): void {
-    this.state.session = { id: "cust-1", role: "CLIENT" };
   }
   syncAddressesFromApi(addresses: (CustomerAddress | Address)[]): void {
     const c = this.client();
@@ -540,73 +555,22 @@ export class LaundryRepository {
   removePaymentMethod(id: string): void {
     removePaymentMethod(this.state, this.client().id, id);
   }
-  register(
-    name: string,
-    email: string,
-    phone: string,
-    passwordHash: string,
-  ): void {
-    email = email.trim().toLowerCase();
-    if (
-      !name.trim() ||
-      !/^\S+@\S+\.\S+$/.test(email) ||
-      phone.replace(/\D/g, "").length < 8
-    )
-      throw Error("Revisa nombre, correo y teléfono.");
-    if (this.state.accounts.some((a) => a.email === email))
-      throw Error("El correo ya tiene una cuenta.");
-    const id = this.id("cust");
-    this.state.customers.push({
-      id,
-      name: name.trim(),
-      email,
-      phone: phone.trim(),
-      kycStatus: "NOT_SUBMITTED",
-      kycDocumentType: "Cédula de Identidad",
-      addresses: [],
-      walletBalance: 0,
-      loyaltyPoints: 0,
-      membershipTier: "Básico",
-      billingName: name.trim(),
-      billingTaxId: "",
-      billingEmail: email,
-      billingPhone: phone,
-      billingAddress: "",
-    });
-    this.state.accounts.push({ id, email, role: "CLIENT", passwordHash });
-    this.state.session = { id, role: "CLIENT" };
-  }
   changePassword(currentHash: string, newHash: string): void {
     const a = this.state.accounts.find((a) => a.id === this.state.session?.id);
     if (!a || a.passwordHash !== currentHash)
       throw Error("La contraseña actual es incorrecta.");
     a.passwordHash = newHash;
   }
-  saveKycDocument(documentType: string, documentId: string, uri: string): void {
-    const c = this.client();
-    if (!documentId.trim() || !uri)
-      throw Error("Adjunta el documento e ingresa su número.");
-    c.kycDocumentType = documentType;
-    c.kycDocumentId = documentId.trim();
-    c.documentUri = uri;
-  }
-  submitKyc(selfieUri: string): void {
-    const c = this.client();
-    if (!c.documentUri || !c.kycDocumentId || !selfieUri)
-      throw Error("Completa el documento y la selfie.");
-    c.selfieUri = selfieUri;
-    c.kycStatus = "PENDING";
-    delete c.kycRejectionReason;
-  }
-  simulateKyc(
-    approved: boolean,
-    reason = "La imagen del documento no es legible.",
+  // El servidor decide el estado de la verificación; aquí solo se refleja.
+  setKycStatus(
+    status: Customer["kycStatus"],
+    rejectionReason?: string | null,
   ): void {
     const c = this.client();
-    if (c.kycStatus !== "PENDING")
-      throw Error("La verificación no está pendiente.");
-    c.kycStatus = approved ? "APPROVED" : "REJECTED";
-    c.kycRejectionReason = approved ? undefined : reason;
+    c.kycStatus = status;
+    if (status === "REJECTED" && rejectionReason)
+      c.kycRejectionReason = rejectionReason;
+    else delete c.kycRejectionReason;
   }
   canCreateNewOrder(): boolean {
     const c = this.client();
@@ -741,7 +705,6 @@ export class LaundryRepository {
       },
       facilityName:
         inbound.facilityName ?? outbound.facilityName ?? facilities[0].name,
-      ...clone(demoOrderTracking),
       paymentMethod: input.paymentMethod,
       paymentStatus:
         input.pricingModel === "FIXED" ? "PAGADO" : "PENDIENTE_PESO",
@@ -801,11 +764,18 @@ export class LaundryRepository {
     )
       return;
     const code = String(100000 + Math.floor(Math.random() * 900000));
-    const h = seedHandoff(o.id, type, code, pending ? "PENDING" : "ACTIVE");
-    h.id = this.id("h");
-    h.qrToken = this.id(`QR-${o.id}`);
-    h.createdAt = this.stamp();
-    o.handoffs.push(h);
+    o.handoffs.push({
+      id: this.id("h"),
+      orderId: o.id,
+      type,
+      status: pending ? "PENDING" : "ACTIVE",
+      qrToken: this.id(`QR-${o.id}`),
+      fallbackCode: code,
+      title: handoffLabels[type],
+      description:
+        "Presenta este código únicamente al realizar la transferencia de tus prendas.",
+      createdAt: this.stamp(),
+    });
   }
   regenerateHandoffCode(orderId: string, handoffId: string): void {
     const o = this.order(orderId, "CLIENT");
@@ -863,7 +833,7 @@ export class LaundryRepository {
     this.event(
       o,
       "IN_PROCESS",
-      "Peso y valor final confirmados. Pago demo registrado.",
+      "Peso y valor final confirmados. Pago registrado.",
     );
   }
   private editable(o: Order, legName: "INBOUND" | "OUTBOUND"): void {
@@ -1084,7 +1054,7 @@ export class LaundryRepository {
       amount: round(amount),
       type: "CREDIT",
       reference: "Recarga Online",
-      description: "Recarga demo a tu Billetera Laundry",
+      description: "Recarga a tu Billetera Laundry",
       date: this.stamp(),
     });
   }

@@ -1,8 +1,9 @@
 ﻿import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { authenticateSession } from "@laundry/mobile-auth";
-import { initializeState, transact } from "../src/domain/repository";
-import { DEMO_PASSWORD_HASH } from "../src/domain/seed";
+import { transact } from "../src/domain/repository";
+import { initializeSeededState as initializeState } from "./fixtures/seedState";
+import { TEST_PASSWORD_HASH } from "./fixtures/seedState";
 import { decodeState } from "../src/store/persistence";
 
 test("customer app contains only customer accounts and operations", () => {
@@ -10,12 +11,12 @@ test("customer app contains only customer accounts and operations", () => {
   assert.equal("driver" in state, false);
   assert.ok(state.accounts.every((account) => account.role === "CLIENT"));
   const logged = transact(state, (repo) =>
-    repo.login(" MARIA.TORRES@GMAIL.COM ", DEMO_PASSWORD_HASH),
+    repo.login(" MARIA.TORRES@GMAIL.COM ", TEST_PASSWORD_HASH),
   );
   assert.equal(logged.state.session?.role, "CLIENT");
   assert.throws(() =>
     transact(state, (repo) =>
-      repo.login("carlos.mendoza@laundryfresh.com", DEMO_PASSWORD_HASH),
+      repo.login("carlos.mendoza@laundryfresh.com", TEST_PASSWORD_HASH),
     ),
   );
   transact(state, (repo) => {
@@ -33,14 +34,22 @@ test("customer app contains only customer accounts and operations", () => {
     assert.equal(repo.changePassword.length, 2);
   });
   assert.equal(
-    transact(state, (repo) => repo.demoLogin()).state.session?.role,
+    transact(state, (repo) =>
+      repo.authenticateFromApi({
+        id: state.customers[0].id,
+        email: state.customers[0].email,
+        name: state.customers[0].name,
+        role: "CLIENT",
+        kycStatus: "APPROVED",
+      }),
+    ).state.session?.role,
     "CLIENT",
   );
   assert.throws(() =>
     authenticateSession(
       state.accounts,
       state.customers[0].email,
-      DEMO_PASSWORD_HASH,
+      TEST_PASSWORD_HASH,
       "DRIVER",
     ),
   );
@@ -53,7 +62,7 @@ test("legacy sessions and private operational data are discarded while customer 
     id: "drv-1",
     email: "carlos.mendoza@laundryfresh.com",
     role: "DRIVER",
-    passwordHash: DEMO_PASSWORD_HASH,
+    passwordHash: TEST_PASSWORD_HASH,
   });
   snapshot.driver = {
     id: "drv-1",

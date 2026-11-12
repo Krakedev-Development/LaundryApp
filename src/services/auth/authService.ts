@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { apiClient } from "../api/apiClient";
+import { ApiError, apiClient } from "../api/apiClient";
 
 export const AUTH_STORAGE_KEYS = {
   ACCESS_TOKEN: "laundry.auth.accessToken",
@@ -18,6 +18,10 @@ export interface AuthUser {
   role: string;
   status?: string;
   facilityId?: string | null;
+  // Estado de la verificación de identidad que informa el servidor.
+  kycStatus?: "NOT_SUBMITTED" | "PENDING" | "APPROVED" | "REJECTED" | null;
+  // Plan elegido por el cliente; null mientras no haya elegido ninguno.
+  membershipPlan?: { id: string; name: string } | null;
 }
 
 export interface AuthTokens {
@@ -32,7 +36,8 @@ export interface AuthResponse {
 }
 
 export interface RegisterPayload {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   phone: string;
   password: string;
@@ -127,7 +132,8 @@ export async function getStoredAuthSession(): Promise<{
 export const authService = {
   async register(payload: RegisterPayload): Promise<AuthResponse> {
     const normalized: RegisterPayload = {
-      name: payload.name.trim(),
+      firstName: payload.firstName.trim(),
+      lastName: payload.lastName.trim(),
       email: payload.email.trim().toLowerCase(),
       phone: payload.phone.trim(),
       password: payload.password,
@@ -169,6 +175,36 @@ export const authService = {
     }
     await saveAuthSession(response.user, response.tokens);
     return response;
+  },
+
+  // Perfil vigente desde el servidor (incluye el estado de verificación). Si el token de
+  // acceso venció, se renueva una vez con el de renovación.
+  async me(): Promise<AuthUser> {
+    const load = async () => {
+      const { accessToken } = await getStoredAuthSession();
+      return apiClient.get<AuthUser>("/auth/me", { accessToken });
+    };
+    try {
+      return await load();
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.statusCode !== 401) throw error;
+      await authService.refresh();
+      return load();
+    }
+  },
+
+  // Actualiza el perfil guardado con el vigente del servidor (estado de verificación,
+  // por ejemplo). Sin conexión o sin sesión válida conserva el guardado.
+  async syncProfile(): Promise<AuthUser | null> {
+    try {
+      const fresh = await authService.me();
+      const stored = await getStoredAuthSession();
+      const user: AuthUser = { ...stored.user, ...fresh };
+      await safeSetItem(AUTH_STORAGE_KEYS.USER_PROFILE, JSON.stringify(user));
+      return user;
+    } catch {
+      return null;
+    }
   },
 
   async refresh(refreshToken?: string): Promise<AuthTokens> {

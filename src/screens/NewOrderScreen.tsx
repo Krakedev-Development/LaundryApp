@@ -544,7 +544,7 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
               <Body style={scheduledStyles.text}>
                 {model === "PER_WEIGHT"
                   ? "El pago se confirma después del pesaje certificado."
-                  : `Pago demo confirmado: ${money(pricing.total)}.`}
+                  : `Pago confirmado: ${money(pricing.total)}.`}
               </Body>
             </ScheduledInfo>
           </View>
@@ -908,7 +908,7 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
                 subtitle={
                   payment === "Billetera"
                     ? "Billetera Laundry · " + money(c.walletBalance)
-                    : "Tarjeta · Demo"
+                    : "Tarjeta"
                 }
                 icon="card-outline"
                 onPress={() => setPanel("payment")}
@@ -918,7 +918,7 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
                 visible={panel === "payment"}
                 onClose={() => setPanel(undefined)}
               >
-                <Body muted>Pagos de demostración local.</Body>
+                <Body muted>Los pagos se registran solo en este dispositivo.</Body>
                 {["Billetera", "Tarjeta"].map((method) => (
                   <Choice
                     key={method}
@@ -930,7 +930,7 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
                     label={
                       method === "Billetera"
                         ? `Billetera Laundry · ${money(c.walletBalance)}`
-                        : "Tarjeta · Demo"
+                        : "Tarjeta"
                     }
                     selected={payment === method}
                     onPress={() => {

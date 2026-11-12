@@ -51,7 +51,7 @@ export function PaymentMethodsScreen() {
         onPress={() => navigation.navigate("ClientAddPaymentMethod")}
       />
       <Body muted>
-        Métodos de demostración guardados en este dispositivo. No se realizan
+        Métodos guardados en este dispositivo. No se realizan
         cobros ni transferencias reales.
       </Body>
       <ConfirmDialog

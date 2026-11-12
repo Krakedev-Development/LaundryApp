@@ -3,7 +3,8 @@ import { createHash } from "node:crypto";
 import { test } from "node:test";
 import { facilities } from "../src/domain/catalog";
 import { modeFor, type AppState, type Leg, type Method, type OrderItem } from "../src/domain/models";
-import { calculatePricing, initializeState, LaundryRepository, refreshSchedule, slotRange, today, transact, visibleOrders } from "../src/domain/repository";
+import { calculatePricing, LaundryRepository, refreshSchedule, slotRange, today, transact, visibleOrders } from "../src/domain/repository";
+import { initializeSeededState as initializeState } from "./fixtures/seedState";
 import { decodeState, PersistenceQueue, STORAGE_KEY } from "../src/store/persistence";
 const now = new Date("2026-10-07T12:00:00Z");
 const shirt: OrderItem = {
@@ -189,22 +190,42 @@ test("timely cancellation releases both reservations without a charge", () => {
   );
   assert.equal(h.state.customerCharges.length, 0);
 });
-test("KYC rejects, retries and approves; accounts are isolated and password changes persist", () => {
+test("KYC status mirrors the server; accounts are isolated and password changes persist", () => {
   const h = harness();
   const hash = createHash("sha256").update("NuevaClave1").digest("hex");
-  h.run((r) => r.register("Ana Torres", "ana@example.com", "0991234567", hash));
+  h.run((r) =>
+    r.authenticateFromApi(
+      {
+        id: "cust-ana",
+        email: "ana@example.com",
+        name: "Ana Torres",
+        phone: "0991234567",
+        role: "CLIENT",
+        kycStatus: "NOT_SUBMITTED",
+      },
+      hash,
+    ),
+  );
   assert.equal(visibleOrders(h.state).length, 0);
+  assert.equal(h.state.customers[1].kycStatus, "NOT_SUBMITTED");
   assert.equal(
     h.run((r) => r.canCreateNewOrder()),
     false,
   );
-  assert.throws(() => h.run((r) => r.submitKyc("file:///selfie")), /documento/);
-  h.run((r) => r.saveKycDocument("DNI", "12345678", "file:///document"));
-  h.run((r) => r.submitKyc("file:///selfie"));
-  h.run((r) => r.simulateKyc(false, "Documento borroso"));
+  h.run((r) => r.setKycStatus("PENDING"));
+  assert.equal(
+    h.run((r) => r.canCreateNewOrder()),
+    false,
+  );
+  h.run((r) => r.setKycStatus("REJECTED", "Documento borroso"));
   assert.equal(h.state.customers[1].kycStatus, "REJECTED");
-  h.run((r) => r.submitKyc("file:///new-selfie"));
-  h.run((r) => r.simulateKyc(true));
+  assert.equal(h.state.customers[1].kycRejectionReason, "Documento borroso");
+  assert.equal(
+    h.run((r) => r.canCreateNewOrder()),
+    false,
+  );
+  h.run((r) => r.setKycStatus("APPROVED"));
+  assert.equal(h.state.customers[1].kycRejectionReason, undefined);
   assert.equal(
     h.run((r) => r.canCreateNewOrder()),
     true,

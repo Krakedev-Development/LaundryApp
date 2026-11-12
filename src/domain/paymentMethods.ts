@@ -1,4 +1,4 @@
-import type { AppState, PaymentMethod } from "./models";
+import type { AppState } from "./models";
 
 export interface CardInput {
   number: string;
@@ -95,28 +95,9 @@ export function bankAccountError(input: BankAccountInput): string | undefined {
     return "Selecciona el tipo de cuenta.";
   return undefined;
 }
-export function initialPaymentMethods(): PaymentMethod[] {
-  return [
-    {
-      id: "pm-demo-visa",
-      customerId: "cust-1",
-      kind: "CARD",
-      brand: "Visa",
-      holder: "María Torres",
-      last4: "4242",
-      expiry: "12/27",
-      isDefault: true,
-    },
-  ];
-}
 /** Additive migration: existing customer balances, orders and payment records stay intact. */
 export function migratePaymentMethods(state: AppState): AppState {
-  if (state.paymentMethods === undefined)
-    state.paymentMethods = state.customers.some(
-      (customer) => customer.id === "cust-1",
-    )
-      ? initialPaymentMethods()
-      : [];
+  if (state.paymentMethods === undefined) state.paymentMethods = [];
   if (!Array.isArray(state.paymentMethods))
     throw Error("Los métodos de pago locales no tienen un formato compatible.");
   const ids = new Set<string>();

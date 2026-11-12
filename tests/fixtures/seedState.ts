@@ -1,6 +1,11 @@
-import { demoOrderTracking } from "./fixtures/orderTracking";
-import { facilities, initialSlots } from "./catalog";
-import { initialPaymentMethods } from "./paymentMethods";
+import { demoOrderTracking } from "./orderTracking";
+import { loadTestCatalog, testFacilities as facilities, testSlots as initialSlots } from "./testCatalog";
+
+loadTestCatalog();
+import {
+  refreshSchedule,
+  scheduleDate,
+} from "../../src/domain/repository";
 import {
   handoffLabels,
   modeFor,
@@ -14,8 +19,24 @@ import {
   type Order,
   type OrderItem,
   type OrderStatus,
-} from "./models";
-export const DEMO_PASSWORD_HASH =
+  type PaymentMethod,
+} from "../../src/domain/models";
+// Método de pago de prueba: el producto no trae ninguno.
+export function initialPaymentMethods(): PaymentMethod[] {
+  return [
+    {
+      id: "pm-demo-visa",
+      customerId: "cust-1",
+      kind: "CARD",
+      brand: "Visa",
+      holder: "María Torres",
+      last4: "4242",
+      expiry: "12/27",
+      isDefault: true,
+    },
+  ];
+}
+export const TEST_PASSWORD_HASH =
   "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92";
 export function seedCustomer(): Customer {
   return {
@@ -336,7 +357,7 @@ export function createSeedState(): AppState {
         id: "cust-1",
         email: "maria.torres@gmail.com",
         role: "CLIENT",
-        passwordHash: DEMO_PASSWORD_HASH,
+        passwordHash: TEST_PASSWORD_HASH,
       },
     ],
     orders: [hh, weight, adj, hs, ss, sh],
@@ -446,4 +467,20 @@ export function createSeedState(): AppState {
     timeSlots: initialSlots.map((s) => ({ ...s })),
     rescheduleRequests: [],
   };
+}
+
+// Estado con cliente, pedidos y agenda de prueba, equivalente al que antes traía el producto.
+export function initializeSeededState(now = new Date()): AppState {
+  const s = createSeedState();
+  s.timeSlots.forEach((slot) => {
+    slot.date = scheduleDate(slot.date, now);
+  });
+  s.orders.forEach((o) => {
+    o.pickup.date = scheduleDate(o.pickup.date, now);
+    o.delivery.date = scheduleDate(o.delivery.date, now);
+    o.fulfillmentPlan.inbound.scheduledDate = o.pickup.date;
+    o.fulfillmentPlan.outbound.scheduledDate = o.delivery.date;
+  });
+  refreshSchedule(s, now);
+  return s;
 }

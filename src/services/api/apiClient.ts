@@ -40,6 +40,11 @@ export async function apiRequest<T>(
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
+  return parseResponse<T>(response);
+}
+
+// Interpreta la respuesta de la API y convierte los errores en ApiError.
+export async function parseResponse<T>(response: Response): Promise<T> {
   const text = await response.text();
   let parsed: unknown = null;
   if (text) {

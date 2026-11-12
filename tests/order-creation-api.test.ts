@@ -1,10 +1,14 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import {
-  initializeState,
   LaundryRepository,
-  visibleOrders,
-} from "../src/domain/repository";
+  visibleOrders} from "../src/domain/repository";
+import { initializeSeededState as initializeState } from "./fixtures/seedState";
+import {
+  ADMIN_REQUIRED,
+  adminConfigured,
+  approveClientKyc,
+} from "./support/backendKyc";
 import { fetchGarments, fetchServices } from "../src/services/catalog/catalogService";
 import {
   orderService,
@@ -12,18 +16,21 @@ import {
 } from "../src/services/orders/orderService";
 import { slotService } from "../src/services/slots/slotService";
 
-test("slotService and orderService create and list real orders on backend with Guayaquil address", async () => {
+test("slotService and orderService create and list real orders on backend with Guayaquil address", { skip: !adminConfigured && ADMIN_REQUIRED }, async () => {
   const uniqueEmail = `cliente.orders.${Date.now()}@laundryguayaquil.com`;
   const repo = new LaundryRepository(initializeState());
 
   // 1. Register and login client
   const registeredUser = await repo.registerWithApi(
-    "Carlos Guayaquil",
+    "Carlos",
+    "Guayaquil",
     uniqueEmail,
     "0998765432",
     "Password123!",
   );
   assert.equal(registeredUser.email, uniqueEmail);
+  await approveClientKyc(uniqueEmail);
+  repo.setKycStatus("APPROVED");
 
   // 2. Query slots for DRIVER_PICKUP
   const slots = await slotService.fetchSlots({ context: "DRIVER_PICKUP" });

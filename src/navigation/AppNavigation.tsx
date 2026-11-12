@@ -7,17 +7,18 @@ import { Stack } from "./RootStack";
 import { BootstrapState } from "../components/BootstrapState";
 import { clientScreens } from "./ClientScreens";
 import { authScreens, kycScreens } from "./AuthScreens";
-import { currentCustomer } from "../domain/repository";
+import { findCustomer } from "../domain/repository";
 export function AppNavigation() {
   const { state, ready, error, reset, retry } = useApp();
   const reduced = useReducedMotion();
   if (!ready)
     return <BootstrapState error={error} reset={reset} retry={retry} />;
   const session = state.session;
-  const customer = currentCustomer(state);
+  const customer = findCustomer(state);
+  const kycStatus = customer?.kycStatus ?? "NOT_SUBMITTED";
   const flow = !session
     ? "auth"
-    : customer.kycStatus === "APPROVED"
+    : kycStatus === "APPROVED"
       ? "client"
       : "kyc";
   const initial =
@@ -25,14 +26,14 @@ export function AppNavigation() {
       ? "Login"
       : flow === "client"
         ? "ClientTabs"
-        : customer.kycStatus === "PENDING"
+        : kycStatus === "PENDING"
           ? "KycPending"
-          : customer.kycStatus === "REJECTED"
+          : kycStatus === "REJECTED"
             ? "KycRejected"
             : "KycUpload";
   return (
     <NavigationContainer
-      key={session?.id + "-" + flow + "-" + customer.kycStatus}
+      key={session?.id + "-" + flow + "-" + kycStatus}
     >
       <OverlayProvider>
         <Stack.Navigator

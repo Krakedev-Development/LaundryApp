@@ -35,6 +35,6 @@ No convertir cada carpeta en una capa vacía. Extraer solo unidades con responsa
 ## Lecturas relacionadas
 
 - [Propuesta de organización de módulos](PROPUESTA-ORGANIZACION-MODULOS.md)
-- [Flujos y límites de demo](FLUJOS-APP-DEMO.md)
+- [Flujos y límites de demo](FLUJOS-APP.md)
 - [Revisión de reglas de negocio](REVISION-LOGICA-NEGOCIO.md)
 - [Clean Code de LaundryWeb](../../LaundryWeb/docs/CLEAN_CODE.md)

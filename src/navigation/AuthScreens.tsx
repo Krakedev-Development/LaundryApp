@@ -2,7 +2,6 @@ import { SplashScreen } from "../screens/auth/SplashScreen";
 import { LoginScreen } from "../screens/auth/LoginScreen";
 import { RegisterScreen } from "../screens/registration/RegisterScreen";
 import { KycUploadScreen } from "../screens/verification/KycUploadScreen";
-import { KycSelfieScreen } from "../screens/verification/KycSelfieScreen";
 import { KycPendingScreen } from "../screens/verification/KycPendingScreen";
 import { KycRejectedScreen } from "../screens/verification/KycRejectedScreen";
 import { Stack } from "./RootStack";
@@ -19,7 +18,6 @@ export function kycScreens() {
   return (
     <>
       <Stack.Screen name="KycUpload" component={KycUploadScreen} />
-      <Stack.Screen name="KycSelfie" component={KycSelfieScreen} />
       <Stack.Screen name="KycPending" component={KycPendingScreen} />
       <Stack.Screen name="KycRejected" component={KycRejectedScreen} />
     </>

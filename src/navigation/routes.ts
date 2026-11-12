@@ -7,7 +7,6 @@ export type Routes = {
   Login: undefined;
   RegisterStep1: undefined;
   KycUpload: undefined;
-  KycSelfie: undefined;
   KycPending: undefined;
   KycRejected: undefined;
   ClientHome: undefined;
@@ -43,8 +42,7 @@ export const titles: Record<keyof Routes, string> = {
   Splash: "Laundry Clean & Fresh",
   Login: "Iniciar sesión",
   RegisterStep1: "Crear cuenta",
-  KycUpload: "Documento de identidad",
-  KycSelfie: "Verificación con selfie",
+  KycUpload: "Verificación de identidad",
   KycPending: "Verificación pendiente",
   KycRejected: "Verificación rechazada",
   ClientHome: "Tu lavandería, más fácil",

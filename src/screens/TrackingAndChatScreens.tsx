@@ -106,7 +106,7 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
         origin={origin}
         destination={destination}
       />
-      <Badge>Posición y ruta simuladas · Demo</Badge>
+      <Badge>Posición y ruta simuladas</Badge>
       <ListItem
         title={o.id}
         subtitle={destination.addressFull}
@@ -127,7 +127,7 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
             : "El tramo de seguimiento aún no está en camino."}
         </Body>
         <Body muted>
-          La línea representa el recorrido de demostración. No corresponde a una
+          La línea representa el recorrido simulado. No corresponde a una
           ruta vial calculada ni a GPS en tiempo real.
         </Body>
         {o.handoffs
@@ -173,7 +173,7 @@ export function ChatScreen({ route }: ScreenProps<"Chat">) {
     <Page scroll={false}>
       <View>
         <Title>{recipient ?? "Chat de solicitud"}</Title>
-        <Body muted>{o.id} · Mensajes locales de demostración</Body>
+        <Body muted>{o.id} · Mensajes locales</Body>
       </View>
       <FlatList
         ref={list}
