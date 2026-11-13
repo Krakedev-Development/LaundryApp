@@ -22,8 +22,10 @@ import {
   type MapThemeMode,
 } from "./routeMapShared";
 import type { PinMapSelectorProps } from "./PinMapSelector";
+import { PlaceSearchBar } from "./PlaceSearchBar";
+import type { PlaceSearchResult } from "../services/maps/geocodingService";
 
-const ZOOM = 14;
+const ZOOM = 16;
 const TILE_SIZE = 256;
 
 function lngToTileX(lng: number, zoom: number): number {
@@ -54,6 +56,9 @@ export default function PinMapSelector({
 }: PinMapSelectorProps) {
   const [mode, setMode] = useState<MapThemeMode>("tactical");
   const [layout, setLayout] = useState({ width: 420, height });
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const pulseAnim = useRef(new Animated.Value(0)).current;
   const reduced = useReducedMotion();
 
@@ -123,47 +128,38 @@ export default function PinMapSelector({
     });
   };
 
-  const centerTileX = lngToTileX(GUAYAQUIL_BASE.longitude, ZOOM);
-  const centerTileY = latToTileY(GUAYAQUIL_BASE.latitude, ZOOM);
+  const centerTileX = lngToTileX(validCoord.longitude, ZOOM);
+  const centerTileY = latToTileY(validCoord.latitude, ZOOM);
 
-  const coordToPixel = (pt: { latitude: number; longitude: number }) => {
-    const x = lngToTileX(pt.longitude, ZOOM);
-    const y = latToTileY(pt.latitude, ZOOM);
-    return {
-      x: layout.width / 2 + (x - centerTileX) * TILE_SIZE,
-      y: layout.height / 2 + (y - centerTileY) * TILE_SIZE,
-    };
+  const commitDrag = (offsetX: number, offsetY: number) => {
+    dragStartRef.current = null;
+    setIsDragging(false);
+    setDragOffset({ x: 0, y: 0 });
+    if (Math.abs(offsetX) < 2 && Math.abs(offsetY) < 2) return;
+
+    const newTileX = centerTileX - offsetX / TILE_SIZE;
+    const newTileY = centerTileY - offsetY / TILE_SIZE;
+    handleSelectCoordinate({
+      latitude: tileYToLat(newTileY, ZOOM),
+      longitude: tileXToLng(newTileX, ZOOM),
+    });
   };
 
-  const handleMapPress = (e: any) => {
-    const clickX = e.nativeEvent?.locationX ?? e.nativeEvent?.layerX;
-    const clickY = e.nativeEvent?.locationY ?? e.nativeEvent?.layerY;
-    if (typeof clickX !== "number" || typeof clickY !== "number") return;
-
-    const dx = clickX - layout.width / 2;
-    const dy = clickY - layout.height / 2;
-
-    const targetTileX = centerTileX + dx / TILE_SIZE;
-    const targetTileY = centerTileY + dy / TILE_SIZE;
-
-    const newLng = tileXToLng(targetTileX, ZOOM);
-    const newLat = tileYToLat(targetTileY, ZOOM);
-
+  const handlePlaceSelect = (place: PlaceSearchResult) => {
     handleSelectCoordinate({
-      latitude: newLat,
-      longitude: newLng,
+      latitude: place.latitude,
+      longitude: place.longitude,
     });
   };
 
   const isTactical = mode === "tactical";
 
-  // Compute tile matrix around center
   const centerTileIntX = Math.floor(centerTileX);
   const centerTileIntY = Math.floor(centerTileY);
   const fracX = (centerTileX - centerTileIntX) * TILE_SIZE;
   const fracY = (centerTileY - centerTileIntY) * TILE_SIZE;
-  const originPixelX = layout.width / 2 - fracX;
-  const originPixelY = layout.height / 2 - fracY;
+  const originPixelX = layout.width / 2 - fracX + dragOffset.x;
+  const originPixelY = layout.height / 2 - fracY + dragOffset.y;
 
   const tileRange = [-2, -1, 0, 1, 2];
   const tiles: Array<{
@@ -190,8 +186,6 @@ export default function PinMapSelector({
     }
   }
 
-  const pinPos = coordToPixel(validCoord);
-
   const pulseScale = pulseAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [1, 2.2],
@@ -203,6 +197,11 @@ export default function PinMapSelector({
 
   return (
     <View style={styles.wrapper}>
+      <PlaceSearchBar
+        isTactical={isTactical}
+        onSelectPlace={handlePlaceSelect}
+      />
+
       <View
         style={[
           styles.container,
@@ -218,12 +217,32 @@ export default function PinMapSelector({
             height: e.nativeEvent.layout.height,
           })
         }
+        onPointerDown={(e) => {
+          const { pageX, pageY } = e.nativeEvent;
+          dragStartRef.current = { x: pageX, y: pageY };
+          setIsDragging(true);
+        }}
+        onPointerMove={(e) => {
+          if (!dragStartRef.current) return;
+          const { pageX, pageY } = e.nativeEvent;
+          setDragOffset({
+            x: pageX - dragStartRef.current.x,
+            y: pageY - dragStartRef.current.y,
+          });
+        }}
+        onPointerUp={() => {
+          if (dragStartRef.current) {
+            commitDrag(dragOffset.x, dragOffset.y);
+          }
+        }}
+        onPointerLeave={() => {
+          if (dragStartRef.current) {
+            commitDrag(dragOffset.x, dragOffset.y);
+          }
+        }}
+        accessibilityLabel="Arrastra el mapa interactivo para fijar el domicilio"
       >
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={handleMapPress}
-          accessibilityLabel="Toca el mapa interactivo para fijar el domicilio"
-        >
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
           {tiles.map((t) => (
             <Image
               key={t.key}
@@ -240,17 +259,18 @@ export default function PinMapSelector({
               resizeMode="cover"
             />
           ))}
+        </View>
 
-          {/* Interactive Tactical Pin Marker */}
+        {/* Fixed Center Pin Marker */}
+        <View
+          style={[StyleSheet.absoluteFill, styles.centerPinOverlay]}
+          pointerEvents="none"
+        >
           <View
             style={[
               styles.markerAnchor,
-              {
-                left: pinPos.x - 17,
-                top: pinPos.y - 34,
-              },
+              isDragging && { transform: [{ translateY: -6 }] },
             ]}
-            pointerEvents="none"
           >
             <Animated.View
               style={[
@@ -274,9 +294,24 @@ export default function PinMapSelector({
             >
               <Ionicons name="location" size={18} color="#FFFFFF" />
             </View>
-            <View style={styles.markerTip} />
+            <View
+              style={[
+                styles.markerTip,
+                {
+                  borderTopColor: isTactical
+                    ? "#0284C7"
+                    : theme.colors.primary,
+                },
+              ]}
+            />
           </View>
-        </Pressable>
+          <View
+            style={[
+              styles.centerShadowDot,
+              { opacity: isDragging ? 0.5 : 0.25 },
+            ]}
+          />
+        </View>
 
         {/* Top Controls Overlay */}
         <View style={styles.topOverlay} pointerEvents="box-none">
@@ -341,7 +376,7 @@ export default function PinMapSelector({
             ]}
           >
             <Ionicons
-              name="finger-print-outline"
+              name="move-outline"
               size={12}
               color={isTactical ? "#94A3B8" : "#64748B"}
             />
@@ -351,7 +386,9 @@ export default function PinMapSelector({
                 { color: isTactical ? "#CBD5E1" : "#475569" },
               ]}
             >
-              Toca el mapa para fijar la ubicación exacta
+              {isDragging
+                ? "Suelta para fijar este punto..."
+                : "Arrastra el mapa para ubicar el pin en tu puerta"}
             </Text>
           </View>
         </View>
@@ -451,6 +488,17 @@ const styles = StyleSheet.create({
   tile: {
     position: "absolute",
   },
+  centerPinOverlay: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  centerShadowDot: {
+    width: 10,
+    height: 4,
+    borderRadius: 5,
+    backgroundColor: "#000000",
+    marginTop: -6,
+  },
   topOverlay: {
     position: "absolute",
     top: 10,
@@ -516,11 +564,11 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   markerAnchor: {
-    position: "absolute",
     alignItems: "center",
     justifyContent: "center",
     width: 34,
     height: 42,
+    marginBottom: 22,
   },
   markerHalo: {
     position: "absolute",
@@ -540,7 +588,6 @@ const styles = StyleSheet.create({
     shadowColor: "#000000",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
-    shadowRadius: 3,
   },
   markerTip: {
     width: 0,
@@ -550,7 +597,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 6,
     borderLeftColor: "transparent",
     borderRightColor: "transparent",
-    borderTopColor: "#0284C7",
     marginTop: -2,
   },
   sectorBar: {

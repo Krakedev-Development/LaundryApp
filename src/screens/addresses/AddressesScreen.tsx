@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { orderService } from "../../services/orders/orderService";
-import { Text, View } from "react-native";
+import { reverseGeocode } from "../../services/maps/geocodingService";
+import { ActivityIndicator, Text, View } from "react-native";
 import { Page } from "../../components/Page";
 import PinMapSelector from "../../components/PinMapSelector";
 import { Accordion, ListItem } from "../../components/presentation";
@@ -57,9 +58,50 @@ export function AddressesScreen() {
   const [draft, setDraft] = useState<Address | null>(null),
     [lat, setLat] = useState(""),
     [lng, setLng] = useState("");
+  const [resolvingAddress, setResolvingAddress] = useState(false);
+  const geocodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const geocodeReqIdRef = useRef(0);
   const [options, setOptions] = useState<Address>(),
     [remove, setRemove] = useState<Address>();
+
+  useEffect(() => {
+    return () => {
+      if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);
+    };
+  }, []);
+
+  const clearPendingGeocode = () => {
+    if (geocodeTimerRef.current) {
+      clearTimeout(geocodeTimerRef.current);
+      geocodeTimerRef.current = null;
+    }
+    geocodeReqIdRef.current++;
+    setResolvingAddress(false);
+  };
+
+  const scheduleReverseGeocode = (latitude: number, longitude: number) => {
+    if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);
+    const reqId = ++geocodeReqIdRef.current;
+    setResolvingAddress(true);
+
+    geocodeTimerRef.current = setTimeout(() => {
+      void reverseGeocode(latitude, longitude)
+        .then((resolved) => {
+          if (geocodeReqIdRef.current !== reqId || !resolved) return;
+          setDraft((prev) =>
+            prev ? { ...prev, fullAddress: resolved } : prev,
+          );
+        })
+        .finally(() => {
+          if (geocodeReqIdRef.current === reqId) {
+            setResolvingAddress(false);
+          }
+        });
+    }, 600);
+  };
+
   const edit = (address: Address) => {
+    clearPendingGeocode();
     setDraft({ ...address });
     setLat(String(address.latitude));
     setLng(String(address.longitude));
@@ -139,6 +181,20 @@ export function AddressesScreen() {
                 setDraft({ ...draft, fullAddress })
               }
             />
+            {resolvingAddress && (
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 6,
+                  marginTop: -4,
+                  marginBottom: 4,
+                }}
+              >
+                <ActivityIndicator size="small" />
+                <Body muted>Obteniendo dirección desde el pin...</Body>
+              </View>
+            )}
             <Field
               label="Referencia"
               labelStyle={addressStyles.label}
@@ -158,6 +214,7 @@ export function AddressesScreen() {
                 onChangeCoordinate={(coord) => {
                   setLat(String(coord.latitude));
                   setLng(String(coord.longitude));
+                  scheduleReverseGeocode(coord.latitude, coord.longitude);
                 }}
               />
             </View>

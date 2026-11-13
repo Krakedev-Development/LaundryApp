@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Pressable,
@@ -8,7 +8,7 @@ import {
   View,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import MapView, { Marker, UrlTile } from "react-native-maps";
+import { WebView, type WebViewMessageEvent } from "react-native-webview";
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "../design-system/tokens";
 import { tactile } from "../design-system/interaction";
@@ -16,9 +16,11 @@ import {
   GUAYAQUIL_BASE,
   GUAYAQUIL_SECTORS,
   MAP_MODE_STORAGE_KEY,
-  OSM_TILE_URLS,
   type MapThemeMode,
 } from "./routeMapShared";
+import { buildPinPickerLeafletHtml } from "./leafletHtml";
+import { PlaceSearchBar } from "./PlaceSearchBar";
+import type { PlaceSearchResult } from "../services/maps/geocodingService";
 
 export interface PinMapSelectorProps {
   coordinate: { latitude: number; longitude: number };
@@ -32,8 +34,10 @@ export default function PinMapSelector({
   height = 280,
 }: PinMapSelectorProps) {
   const [mode, setMode] = useState<MapThemeMode>("tactical");
-  const mapRef = useRef<MapView>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const webViewRef = useRef<WebView>(null);
   const pulseAnim = useRef(new Animated.Value(0)).current;
+  const liftAnim = useRef(new Animated.Value(0)).current;
 
   const validCoord = {
     latitude:
@@ -46,12 +50,27 @@ export default function PinMapSelector({
         : GUAYAQUIL_BASE.longitude,
   };
 
+  // Keep initial coords frozen for HTML generation so WebView never reloads.
+  const initialCoordsRef = useRef(validCoord);
+  const initialHtml = useMemo(
+    () =>
+      buildPinPickerLeafletHtml(
+        initialCoordsRef.current.latitude,
+        initialCoordsRef.current.longitude,
+        "tactical",
+      ),
+    [],
+  );
+
   useEffect(() => {
     let mounted = true;
     void AsyncStorage.getItem(MAP_MODE_STORAGE_KEY)
       .then((saved) => {
         if (mounted && (saved === "tactical" || saved === "light")) {
           setMode(saved);
+          webViewRef.current?.injectJavaScript(
+            `window.setTileMode && window.setTileMode("${saved}"); true;`,
+          );
         }
       })
       .catch(() => {});
@@ -79,11 +98,23 @@ export default function PinMapSelector({
     return () => loop.stop();
   }, [pulseAnim]);
 
+  useEffect(() => {
+    Animated.spring(liftAnim, {
+      toValue: isDragging ? -8 : 0,
+      useNativeDriver: true,
+      speed: 24,
+      bounciness: 6,
+    }).start();
+  }, [isDragging, liftAnim]);
+
   const toggleMode = () => {
     tactile("selection");
     const next: MapThemeMode = mode === "tactical" ? "light" : "tactical";
     setMode(next);
     void AsyncStorage.setItem(MAP_MODE_STORAGE_KEY, next).catch(() => {});
+    webViewRef.current?.injectJavaScript(
+      `window.setTileMode && window.setTileMode("${next}"); true;`,
+    );
   };
 
   const handleSelectCoordinate = (coord: {
@@ -97,20 +128,50 @@ export default function PinMapSelector({
     });
   };
 
+  const flyToCoordinate = (coord: { latitude: number; longitude: number }) => {
+    handleSelectCoordinate(coord);
+    webViewRef.current?.injectJavaScript(
+      `window.flyToPoint && window.flyToPoint(${coord.latitude}, ${coord.longitude}); true;`,
+    );
+  };
+
   const handleSectorSelect = (sector: (typeof GUAYAQUIL_SECTORS)[number]) => {
-    handleSelectCoordinate({
+    flyToCoordinate({
       latitude: sector.latitude,
       longitude: sector.longitude,
     });
-    mapRef.current?.animateToRegion(
-      {
-        latitude: sector.latitude,
-        longitude: sector.longitude,
-        latitudeDelta: 0.012,
-        longitudeDelta: 0.012,
-      },
-      400,
-    );
+  };
+
+  const handlePlaceSelect = (place: PlaceSearchResult) => {
+    flyToCoordinate({
+      latitude: place.latitude,
+      longitude: place.longitude,
+    });
+  };
+
+  const handleWebViewMessage = (event: WebViewMessageEvent) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data) as {
+        type?: string;
+        latitude?: number;
+        longitude?: number;
+      };
+      if (data.type === "MOVE_START") {
+        setIsDragging(true);
+      } else if (
+        data.type === "MOVE_END" &&
+        typeof data.latitude === "number" &&
+        typeof data.longitude === "number"
+      ) {
+        setIsDragging(false);
+        handleSelectCoordinate({
+          latitude: data.latitude,
+          longitude: data.longitude,
+        });
+      }
+    } catch {
+      // Ignore malformed messages from WebView
+    }
   };
 
   const isTactical = mode === "tactical";
@@ -126,6 +187,11 @@ export default function PinMapSelector({
 
   return (
     <View style={styles.wrapper}>
+      <PlaceSearchBar
+        isTactical={isTactical}
+        onSelectPlace={handlePlaceSelect}
+      />
+
       <View
         style={[
           styles.container,
@@ -136,58 +202,70 @@ export default function PinMapSelector({
           },
         ]}
       >
-        <MapView
-          ref={mapRef}
+        <WebView
+          ref={webViewRef}
+          originWhitelist={["*"]}
+          source={{ html: initialHtml }}
           style={StyleSheet.absoluteFill}
-          mapType="none"
-          initialRegion={{
-            latitude: validCoord.latitude,
-            longitude: validCoord.longitude,
-            latitudeDelta: 0.02,
-            longitudeDelta: 0.02,
+          onMessage={handleWebViewMessage}
+          javaScriptEnabled
+          domStorageEnabled
+          scrollEnabled={false}
+          nestedScrollEnabled
+          onLoadEnd={() => {
+            webViewRef.current?.injectJavaScript(
+              `window.setTileMode && window.setTileMode("${mode}"); true;`,
+            );
           }}
-          onPress={(e) => handleSelectCoordinate(e.nativeEvent.coordinate)}
-          accessibilityLabel="Mapa táctico de selección de domicilio en Guayaquil"
+        />
+
+        {/* Fixed Center Pin Overlay (Uber / Rappi style) */}
+        <View
+          style={[StyleSheet.absoluteFill, styles.centerPinOverlay]}
+          pointerEvents="none"
         >
-          <UrlTile
-            key={mode}
-            urlTemplate={OSM_TILE_URLS[mode]}
-            maximumZ={19}
-            flipY={false}
-          />
-          <Marker
-            coordinate={validCoord}
-            draggable
-            onDragEnd={(e) => handleSelectCoordinate(e.nativeEvent.coordinate)}
-            title="Punto de entrega"
-            description="Toca o arrastra para mover el marcador"
-            anchor={{ x: 0.5, y: 0.85 }}
+          <Animated.View
+            style={[
+              styles.markerContainer,
+              { transform: [{ translateY: liftAnim }] },
+            ]}
           >
-            <View style={styles.markerContainer}>
-              <Animated.View
-                style={[
-                  styles.markerHalo,
-                  {
-                    backgroundColor: isTactical ? "#38BDF8" : "#2563EB",
-                    opacity: pulseOpacity,
-                    transform: [{ scale: pulseScale }],
-                  },
-                ]}
-              />
-              <View
-                style={[
-                  styles.markerPin,
-                  {
-                    backgroundColor: isTactical ? "#0284C7" : theme.colors.primary,
-                  },
-                ]}
-              >
-                <Ionicons name="location" size={18} color="#FFFFFF" />
-              </View>
-              <View style={styles.markerTip} />
+            <Animated.View
+              style={[
+                styles.markerHalo,
+                {
+                  backgroundColor: isTactical ? "#38BDF8" : "#2563EB",
+                  opacity: pulseOpacity,
+                  transform: [{ scale: pulseScale }],
+                },
+              ]}
+            />
+            <View
+              style={[
+                styles.markerPin,
+                {
+                  backgroundColor: isTactical ? "#0284C7" : theme.colors.primary,
+                },
+              ]}
+            >
+              <Ionicons name="location" size={18} color="#FFFFFF" />
             </View>
-          </Marker>
-        </MapView>
+            <View
+              style={[
+                styles.markerTip,
+                {
+                  borderTopColor: isTactical ? "#0284C7" : theme.colors.primary,
+                },
+              ]}
+            />
+          </Animated.View>
+          <View
+            style={[
+              styles.centerShadowDot,
+              { opacity: isDragging ? 0.55 : 0.25 },
+            ]}
+          />
+        </View>
 
         {/* Top Controls Overlay */}
         <View style={styles.topOverlay} pointerEvents="box-none">
@@ -252,7 +330,7 @@ export default function PinMapSelector({
             ]}
           >
             <Ionicons
-              name="finger-print-outline"
+              name="move-outline"
               size={12}
               color={isTactical ? "#94A3B8" : "#64748B"}
             />
@@ -262,7 +340,9 @@ export default function PinMapSelector({
                 { color: isTactical ? "#CBD5E1" : "#475569" },
               ]}
             >
-              Toca o arrastra para fijar la ubicación exacta
+              {isDragging
+                ? "Suelta para fijar este punto..."
+                : "Mueve el mapa para ubicar el pin en tu puerta"}
             </Text>
           </View>
         </View>
@@ -354,6 +434,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     position: "relative",
   },
+  centerPinOverlay: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  centerShadowDot: {
+    width: 10,
+    height: 4,
+    borderRadius: 5,
+    backgroundColor: "#000000",
+    marginTop: -10,
+  },
   topOverlay: {
     position: "absolute",
     top: 10,
@@ -423,6 +514,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 44,
     height: 48,
+    marginBottom: 24,
   },
   markerHalo: {
     position: "absolute",
@@ -453,7 +545,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 6,
     borderLeftColor: "transparent",
     borderRightColor: "transparent",
-    borderTopColor: "#0284C7",
     marginTop: -2,
   },
   sectorBar: {
