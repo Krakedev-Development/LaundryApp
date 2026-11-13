@@ -129,7 +129,7 @@ export function Page({
                 { justifyContent: "space-between", flexWrap: "nowrap" },
               ]}
             >
-              {primary || !navigation.canGoBack() ? (
+              {primary || (!onBack && !navigation.canGoBack()) ? (
                 <View
                   style={{
                     width: theme.layout.touch,

@@ -20,6 +20,7 @@ export function kycScreens() {
   return (
     <>
       <Stack.Screen name="KycUpload" component={KycUploadScreen} />
+      <Stack.Screen name="RegisterStep1" component={RegisterScreen} />
       <Stack.Screen name="KycPending" component={KycPendingScreen} />
       <Stack.Screen name="KycRejected" component={KycRejectedScreen} />
     </>
