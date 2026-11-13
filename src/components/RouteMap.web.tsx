@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Svg, { Circle, Line } from "react-native-svg";
+import Svg, { Circle, Line, Polyline as SvgPolyline } from "react-native-svg";
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "../design-system/tokens";
 import { tactile } from "../design-system/interaction";
@@ -41,6 +41,10 @@ function latToTileY(lat: number, zoom: number): number {
 export default function RouteMap({
   origin,
   destination,
+  facility,
+  driverInfo,
+  isSearching = false,
+  routeCoordinates,
   height = theme.layout.map,
 }: RouteMapProps) {
   const [mode, setMode] = useState<MapThemeMode>("tactical");
@@ -116,6 +120,16 @@ export default function RouteMap({
 
   const driverPt = project(normalized.origin);
   const destPt = project(normalized.destination);
+  const facilityPt = facility ? project(facility) : null;
+  const polyPointsString =
+    routeCoordinates && routeCoordinates.length >= 2
+      ? routeCoordinates
+          .map((coord) => {
+            const p = project(coord);
+            return `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+          })
+          .join(" ")
+      : null;
 
   const tiles: { key: string; url: string; left: number; top: number }[] = [];
   for (let dx = -2; dx <= 2; dx++) {
@@ -205,25 +219,49 @@ export default function RouteMap({
         style={StyleSheet.absoluteFill}
         pointerEvents="none"
       >
-        <Line
-          x1={driverPt.x}
-          y1={driverPt.y}
-          x2={destPt.x}
-          y2={destPt.y}
-          stroke={isTactical ? "rgba(56, 189, 248, 0.25)" : "rgba(20, 63, 115, 0.2)"}
-          strokeWidth={9}
-          strokeLinecap="round"
-        />
-        <Line
-          x1={driverPt.x}
-          y1={driverPt.y}
-          x2={destPt.x}
-          y2={destPt.y}
-          stroke={isTactical ? "#38BDF8" : theme.colors.primary}
-          strokeWidth={3.5}
-          strokeDasharray="8 6"
-          strokeLinecap="round"
-        />
+        {polyPointsString ? (
+          <>
+            <SvgPolyline
+              points={polyPointsString}
+              fill="none"
+              stroke={isTactical ? "rgba(56, 189, 248, 0.25)" : "rgba(20, 63, 115, 0.2)"}
+              strokeWidth={9}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <SvgPolyline
+              points={polyPointsString}
+              fill="none"
+              stroke={isTactical ? "#38BDF8" : theme.colors.primary}
+              strokeWidth={3.5}
+              strokeDasharray="8 6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        ) : (
+          <>
+            <Line
+              x1={driverPt.x}
+              y1={driverPt.y}
+              x2={destPt.x}
+              y2={destPt.y}
+              stroke={isTactical ? "rgba(56, 189, 248, 0.25)" : "rgba(20, 63, 115, 0.2)"}
+              strokeWidth={9}
+              strokeLinecap="round"
+            />
+            <Line
+              x1={driverPt.x}
+              y1={driverPt.y}
+              x2={destPt.x}
+              y2={destPt.y}
+              stroke={isTactical ? "#38BDF8" : theme.colors.primary}
+              strokeWidth={3.5}
+              strokeDasharray="8 6"
+              strokeLinecap="round"
+            />
+          </>
+        )}
         <Circle
           cx={destPt.x}
           cy={destPt.y}
@@ -266,6 +304,45 @@ export default function RouteMap({
         </View>
       </View>
 
+      {/* Facility Marker */}
+      {facilityPt && (
+        <View
+          pointerEvents="none"
+          style={[
+            styles.markerAnchor,
+            {
+              left: facilityPt.x,
+              top: facilityPt.y,
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.facilityCore,
+              { backgroundColor: isTactical ? "#334155" : "#475569" },
+            ]}
+          >
+            <Ionicons name="business" size={13} color="#FFFFFF" />
+          </View>
+          <View
+            style={[
+              styles.facilityLabelBox,
+              isTactical ? styles.badgeDark : styles.badgeLight,
+            ]}
+          >
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.facilityLabelText,
+                { color: isTactical ? "#E2E8F0" : "#1E293B" },
+              ]}
+            >
+              {facility?.name ?? "Sede Central"}
+            </Text>
+          </View>
+        </View>
+      )}
+
       {/* Driver Tactical Radar Marker */}
       <View
         pointerEvents="none"
@@ -283,14 +360,23 @@ export default function RouteMap({
             isTactical ? styles.badgeDark : styles.badgeLight,
           ]}
         >
-          <View style={styles.liveDot} />
+          <View
+            style={[
+              styles.liveDot,
+              isSearching && { backgroundColor: "#FACC15" },
+            ]}
+          />
           <Text
             style={[
               styles.statusBadgeText,
               { color: isTactical ? "#F8FAFC" : "#0F172A" },
             ]}
           >
-            En camino
+            {isSearching
+              ? "Buscando..."
+              : driverInfo?.plate
+                ? driverInfo.plate
+                : "En camino"}
           </Text>
         </View>
         <View style={styles.radarCenter}>
@@ -298,7 +384,11 @@ export default function RouteMap({
             style={[
               styles.radarHalo,
               {
-                backgroundColor: isTactical ? "#38BDF8" : "#2563EB",
+                backgroundColor: isSearching
+                  ? "#FACC15"
+                  : isTactical
+                    ? "#38BDF8"
+                    : "#2563EB",
                 opacity: pulseOpacity,
                 transform: [{ scale: pulseScale }],
               },
@@ -308,11 +398,19 @@ export default function RouteMap({
             style={[
               styles.driverCore,
               {
-                backgroundColor: isTactical ? "#0284C7" : theme.colors.primary,
+                backgroundColor: isSearching
+                  ? "#CA8A04"
+                  : isTactical
+                    ? "#0284C7"
+                    : theme.colors.primary,
               },
             ]}
           >
-            <Ionicons name="car-sport" size={15} color="#FFFFFF" />
+            <Ionicons
+              name={isSearching ? "radio-outline" : "car-sport"}
+              size={15}
+              color="#FFFFFF"
+            />
           </View>
         </View>
       </View>
@@ -562,6 +660,28 @@ const styles = StyleSheet.create({
   destLabelText: {
     fontSize: 10,
     lineHeight: 13,
+    fontWeight: "600",
+  },
+  facilityCore: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1.5,
+    borderColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  facilityLabelBox: {
+    marginTop: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    maxWidth: 160,
+  },
+  facilityLabelText: {
+    fontSize: 10,
+    lineHeight: 14,
     fontWeight: "600",
   },
   attribution: {
