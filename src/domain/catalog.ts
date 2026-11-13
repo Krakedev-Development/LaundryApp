@@ -51,26 +51,27 @@ export interface CatalogSnapshot {
   plans?: MembershipPlan[];
 }
 
+// Una lista presente reemplaza a la anterior aunque venga vacía; una ausente no cambia.
 export function syncCatalogState(snapshot: CatalogSnapshot): void {
-  if (snapshot.facilities?.length) {
+  if (snapshot.facilities) {
     facilities.splice(0, facilities.length, ...snapshot.facilities);
   }
-  if (snapshot.garments?.length) {
+  if (snapshot.garments) {
     garments.splice(0, garments.length, ...snapshot.garments);
   }
-  if (snapshot.services?.length) {
+  if (snapshot.services) {
     services.splice(0, services.length, ...snapshot.services);
   }
-  if (snapshot.extras?.length) {
+  if (snapshot.extras) {
     extras.splice(0, extras.length, ...snapshot.extras);
   }
-  if (snapshot.promos?.length) {
+  if (snapshot.promos) {
     promos.splice(0, promos.length, ...snapshot.promos);
   }
-  if (snapshot.rewards?.length) {
+  if (snapshot.rewards) {
     rewards.splice(0, rewards.length, ...snapshot.rewards);
   }
-  if (snapshot.plans?.length) {
+  if (snapshot.plans) {
     plans.splice(0, plans.length, ...snapshot.plans);
   }
 }

@@ -738,6 +738,13 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
                   <Title style={garmentStyles.sectionTitle}>
                     Catálogo completo
                   </Title>
+                  {catalogGarments.length === 0 && (
+                    <Body muted>
+                      Todavía no hay prendas disponibles en el catálogo. Puedes
+                      elegir la opción de ropa por peso para continuar, o
+                      intentarlo más tarde.
+                    </Body>
+                  )}
                   {catalogGarments.map((g) => {
                     const selected = items.find((i) => i.id === g.id);
                     const unitPrice =

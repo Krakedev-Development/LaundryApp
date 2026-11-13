@@ -335,11 +335,10 @@ export async function fetchGarments(
     const list = Array.isArray(data) ? data : data ? [data] : [];
     const active = list.filter((item) => item && item.active !== false);
     const mapped = active.map(mapGarment);
-    if (mapped.length) {
-      syncCatalogState({ garments: mapped });
-      await writeCache({ garments: mapped });
-      return mapped;
-    }
+    // El servidor respondió: su lista manda, aunque venga vacía (todo desactivado).
+    syncCatalogState({ garments: mapped });
+    await writeCache({ garments: mapped });
+    return mapped;
   } catch {
     const cached = await readCache();
     if (cached?.garments?.length) {
@@ -362,11 +361,10 @@ export async function fetchServices(
     const list = Array.isArray(data) ? data : data ? [data] : [];
     const active = list.filter((item) => item && item.active !== false);
     const mapped = active.map(mapService);
-    if (mapped.length) {
-      syncCatalogState({ services: mapped });
-      await writeCache({ services: mapped });
-      return mapped;
-    }
+    // El servidor respondió: su lista manda, aunque venga vacía (todo desactivado).
+    syncCatalogState({ services: mapped });
+    await writeCache({ services: mapped });
+    return mapped;
   } catch {
     const cached = await readCache();
     if (cached?.services?.length) {
@@ -389,11 +387,10 @@ export async function fetchExtras(
     const list = Array.isArray(data) ? data : data ? [data] : [];
     const active = list.filter((item) => item && item.active !== false);
     const mapped = active.map(mapExtra);
-    if (mapped.length) {
-      syncCatalogState({ extras: mapped });
-      await writeCache({ extras: mapped });
-      return mapped;
-    }
+    // El servidor respondió: su lista manda, aunque venga vacía (todo desactivado).
+    syncCatalogState({ extras: mapped });
+    await writeCache({ extras: mapped });
+    return mapped;
   } catch {
     const cached = await readCache();
     if (cached?.extras?.length) {
@@ -416,11 +413,10 @@ export async function fetchMemberships(
     const list = Array.isArray(data) ? data : data ? [data] : [];
     const active = list.filter((item) => item && item.active !== false);
     const mapped = active.map(mapMembership);
-    if (mapped.length) {
-      syncCatalogState({ plans: mapped });
-      await writeCache({ plans: mapped });
-      return mapped;
-    }
+    // El servidor respondió: su lista manda, aunque venga vacía (todo desactivado).
+    syncCatalogState({ plans: mapped });
+    await writeCache({ plans: mapped });
+    return mapped;
   } catch {
     const cached = await readCache();
     if (cached?.plans?.length) {
@@ -443,11 +439,10 @@ export async function fetchFacilities(
     const list = Array.isArray(data) ? data : data ? [data] : [];
     const active = list.filter((item) => item && item.active !== false);
     const mapped = active.map(mapFacility);
-    if (mapped.length) {
-      syncCatalogState({ facilities: mapped });
-      await writeCache({ facilities: mapped });
-      return mapped;
-    }
+    // El servidor respondió: su lista manda, aunque venga vacía (todo desactivado).
+    syncCatalogState({ facilities: mapped });
+    await writeCache({ facilities: mapped });
+    return mapped;
   } catch {
     const cached = await readCache();
     if (cached?.facilities?.length) {
@@ -471,11 +466,10 @@ export async function fetchPromotions(
     const mapped: Promo[] = list
       .filter((item) => item && item.code && item.active !== false)
       .map(mapPromo);
-    if (mapped.length) {
-      syncCatalogState({ promos: mapped });
-      await writeCache({ promos: mapped });
-      return mapped;
-    }
+    // El servidor respondió: su lista manda, aunque venga vacía (todo desactivado).
+    syncCatalogState({ promos: mapped });
+    await writeCache({ promos: mapped });
+    return mapped;
   } catch {
     const cached = await readCache();
     if (cached?.promos?.length) {
@@ -508,11 +502,10 @@ export async function fetchRewards(
           item.description?.trim() || "Canjeable con tus puntos disponibles.",
         category: item.category?.trim() || "Beneficios",
       }));
-    if (mapped.length) {
-      syncCatalogState({ rewards: mapped });
-      await writeCache({ rewards: mapped });
-      return mapped;
-    }
+    // El servidor respondió: su lista manda, aunque venga vacía (todo desactivado).
+    syncCatalogState({ rewards: mapped });
+    await writeCache({ rewards: mapped });
+    return mapped;
   } catch {
     const cached = await readCache();
     if (cached?.rewards?.length) {
