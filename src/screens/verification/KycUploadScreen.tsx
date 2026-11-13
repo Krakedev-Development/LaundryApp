@@ -177,23 +177,31 @@ export function KycUploadScreen() {
     <Page
       onBack={currentStep > 1 ? () => setCurrentStep(currentStep - 1) : undefined}
       footer={
-        currentStep === 1 ? (
+        <>
+          {currentStep === 1 ? (
+            <Button
+              label="Continuar a foto del rostro"
+              disabled={!canContinueToSelfie}
+              busy={a.busy}
+              onPress={() => void handleNextToSelfie()}
+              testID="kyc_next_button"
+            />
+          ) : (
+            <Button
+              label="Enviar verificación completa"
+              disabled={!hasSelfie}
+              busy={a.busy}
+              onPress={() => void handleSubmitAll()}
+              testID="kyc_submit_button"
+            />
+          )}
           <Button
-            label="Continuar a foto del rostro"
-            disabled={!canContinueToSelfie}
-            busy={a.busy}
-            onPress={() => void handleNextToSelfie()}
-            testID="kyc_next_button"
+            label="Cerrar sesión"
+            secondary
+            onPress={() => execute((r) => r.logout())}
+            testID="kyc_logout_button"
           />
-        ) : (
-          <Button
-            label="Enviar verificación completa"
-            disabled={!hasSelfie}
-            busy={a.busy}
-            onPress={() => void handleSubmitAll()}
-            testID="kyc_submit_button"
-          />
-        )
+        </>
       }
     >
       <Stepper step={currentStep} labels={KYC_STEPS} />
