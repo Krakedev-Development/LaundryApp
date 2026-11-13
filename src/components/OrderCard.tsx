@@ -11,6 +11,16 @@ import {
   money,
   type Order,
 } from "../domain/models";
+import { perPound } from "./WeightServiceCard";
+
+// Precio y bolsa que quedaron fijados en la solicitud; sin precio no se inventa uno.
+function weightSummary(order: Order) {
+  const parts = ["Ropa por peso"];
+  if (order.weightTierName) parts.push(order.weightTierName);
+  if (order.pricePerLb > 0) parts.push(`${perPound(order.pricePerLb)} / lb`);
+  return parts.join(" · ");
+}
+
 export function OrderCard({
   order,
   onDetail,
@@ -83,7 +93,7 @@ export function OrderCard({
             }
           >
             {order.pricingModel === "PER_WEIGHT"
-              ? "Ropa por peso · $2.20 / lb"
+              ? weightSummary(order)
               : garmentCount(order) +
                 " prendas · " +
                 (order.items[0]?.serviceType ?? "Lavado y cuidado")}

@@ -32,6 +32,7 @@ import {
   promos,
   rewards,
   services,
+  type WeightTier,
 } from "./catalog";
 import {
   handoffLabels,
@@ -214,7 +215,8 @@ export interface CreateOrderInput {
   inbound: Leg;
   outbound: Leg;
   pricingModel: PricingModel;
-  estimatedWeightLb?: number;
+  // Servicio por peso: bolsa elegida; de ella salen las libras estimadas y el precio por libra.
+  weightTier?: WeightTier;
   promoCode?: string;
   paymentMethod: string;
   notes: string;
@@ -642,13 +644,12 @@ export class LaundryRepository {
       )
         throw Error("Revisa las prendas y sus precios.");
     });
+    const tier = input.pricingModel === "PER_WEIGHT" ? input.weightTier : undefined;
     if (
       input.pricingModel === "PER_WEIGHT" &&
-      (!input.estimatedWeightLb ||
-        !Number.isFinite(input.estimatedWeightLb) ||
-        input.estimatedWeightLb <= 0)
+      (!tier || !(tier.estimatedWeightLb > 0) || !(tier.pricePerPound > 0))
     )
-      throw Error("Ingresa un peso orientativo válido.");
+      throw Error("Elige cuántas bolsas entregarás.");
     this.validateLeg(input.inbound);
     this.validateLeg(input.outbound);
     const inboundTime = new Date(
@@ -718,8 +719,9 @@ export class LaundryRepository {
       pricingModel: input.pricingModel,
       pricingStatus:
         input.pricingModel === "FIXED" ? "FINAL" : "PENDING_WEIGHT",
-      estimatedWeightLb: input.estimatedWeightLb,
-      pricePerLb: 2.2,
+      estimatedWeightLb: tier?.estimatedWeightLb,
+      pricePerLb: tier?.pricePerPound ?? 0,
+      weightTierName: tier?.name,
       handoffs: [],
       adjustments: [],
       canChangeOutboundMethod: true,

@@ -416,18 +416,35 @@ test("weight request remains deferred and the compact garment controls work at 3
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+  // El precio que se muestra es el de la bolsa propuesta (la primera que configuró el administrador).
   await page
     .getByRole("radio", { name: "Ropa por peso · $2.20 / lb", exact: true })
     .click();
-  await page
-    .getByRole("textbox", { name: "Peso estimado en libras", exact: true })
-    .fill("0");
+  // Las restricciones vienen del servidor.
   await expect(
-    page.getByRole("button", { name: "Continuar", exact: true }),
-  ).toBeDisabled();
+    page.getByText(/NO aplica para edredones gruesos o plumones\./).filter({ visible: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/NO aplica para vestidos con pedrería/).filter({ visible: true }),
+  ).toBeVisible();
+  // Cada bolsa tiene su propio precio por libra.
   await page
-    .getByRole("textbox", { name: "Peso estimado en libras", exact: true })
-    .fill("16");
+    .getByRole("radio", { name: /^3\+ bolsas, aproximadamente 35 libras, \$1\.80 por libra$/ })
+    .click();
+  await expect(
+    page.getByRole("radio", { name: "Ropa por peso · $1.80 / lb", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Servicio de Ropa por Peso: $1.80 / lb", { exact: true }).filter({ visible: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/35 lb × \$1\.80 = \$63\.00/).filter({ visible: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
   await page.getByRole("button", { name: "Continuar", exact: true }).click();
   await page.getByRole("button", { name: "Continuar", exact: true }).click();
   await expect(
@@ -446,6 +463,12 @@ test("weight request remains deferred and the compact garment controls work at 3
     .click();
   await expect(
     page.getByRole("heading", { name: "Pesaje certificado", exact: true }),
+  ).toBeVisible();
+  // La solicitud conserva la bolsa y el precio con que se creó.
+  await expect(
+    page
+      .getByText("Pendiente en planta · 3+ bolsas, estimado 35 lb · $1.80 / lb", { exact: true })
+      .filter({ visible: true }),
   ).toBeVisible();
 });
 test("benefits, unread notifications, support and chat remain reachable", async ({

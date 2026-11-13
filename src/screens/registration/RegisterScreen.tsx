@@ -12,19 +12,45 @@ import { useApp } from "../../store/AppProvider";
 import { passwordHash } from "../../services/passwordHash";
 import { authService } from "../../services/auth/authService";
 import { syncFullCatalog } from "../../services/catalog/catalogService";
+import { useLaundryNavigation } from "../../navigation/useLaundryNavigation";
+import { findCustomer } from "../../domain/repository";
 
 export function RegisterScreen() {
-  const { execute } = useApp();
+  const { state, execute } = useApp();
   const a = useAction();
+  const navigation = useLaundryNavigation();
+  const customer = findCustomer(state);
+  const isAlreadyRegistered = !!state.session && !!customer;
 
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
+  const initialFirst = customer?.name ? customer.name.split(" ")[0] : "";
+  const initialLast = customer?.name ? customer.name.split(" ").slice(1).join(" ") : "";
+
+  const [firstName, setFirstName] = useState(initialFirst);
+  const [lastName, setLastName] = useState(initialLast);
+  const [email, setEmail] = useState(customer?.email ?? "");
+  const [phone, setPhone] = useState(customer?.phone ?? "");
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(isAlreadyRegistered);
+
+  // Registro de interacción y submit para mostrar validaciones claras
+  const [submitted, setSubmitted] = useState(false);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  const markTouched = (field: string) => {
+    setTouched((prev) => (prev[field] ? prev : { ...prev, [field]: true }));
+  };
+
+  const handleBack = () => {
+    if (isAlreadyRegistered) {
+      execute((r) => r.logout());
+    } else if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate("Login");
+    }
+  };
 
   const cleanEmail = email.trim().toLowerCase();
   const rawPhone = phone.replace(/\D/g, "");
@@ -35,12 +61,13 @@ export function RegisterScreen() {
   const isLastNameValid =
     lastName.trim().length >= 2 && lastName.trim().length <= 50;
 
-  // Validación de correo estándar estricto
-  const isEmailValid = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(
-    cleanEmail,
-  );
+  // Validación de correo estándar estricto (máx 50 caracteres)
+  const isEmailValid =
+    cleanEmail.length > 0 &&
+    cleanEmail.length <= 50 &&
+    /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(cleanEmail);
 
-  // Validación de teléfono: exactamente 10 dígitos iniciando en 0 (formato móvil estándar Ecuador: 09XXXXXXXX)
+  // Validación de teléfono: exactamente 10 dígitos iniciando en 0 (Ecuador: 09XXXXXXXX)
   const isPhoneValid = /^0\d{9}$/.test(rawPhone);
 
   // Validaciones de contraseña (entre 8 y 12 caracteres, mayúscula y número)
@@ -49,10 +76,13 @@ export function RegisterScreen() {
   const hasLengthRange = hasMinChars && hasMaxChars;
   const hasUppercase = /[A-Z]/.test(password);
   const hasNumber = /\d/.test(password);
-  const isPasswordValid = hasLengthRange && hasUppercase && hasNumber;
+  const isPasswordValid =
+    (hasLengthRange && hasUppercase && hasNumber) ||
+    (isAlreadyRegistered && password.length === 0);
 
   const isConfirmationMatch =
-    confirmation.length > 0 && confirmation === password;
+    (confirmation.length > 0 && confirmation === password) ||
+    (isAlreadyRegistered && confirmation.length === 0);
 
   const isFormValid =
     isFirstNameValid &&
@@ -63,25 +93,114 @@ export function RegisterScreen() {
     isConfirmationMatch &&
     acceptedTerms;
 
+  // Mensajes de error específicos por campo
+  const getFirstNameError = (): string | null => {
+    if (!submitted && !touched.firstName) return null;
+    if (firstName.trim().length === 0) return "Ingresa tu nombre.";
+    if (firstName.trim().length < 2)
+      return "El nombre debe tener al menos 2 caracteres.";
+    if (firstName.trim().length > 50) return "Máximo 50 caracteres permitidos.";
+    return null;
+  };
+
+  const getLastNameError = (): string | null => {
+    if (!submitted && !touched.lastName) return null;
+    if (lastName.trim().length === 0) return "Ingresa tu apellido.";
+    if (lastName.trim().length < 2)
+      return "El apellido debe tener al menos 2 caracteres.";
+    if (lastName.trim().length > 50) return "Máximo 50 caracteres permitidos.";
+    return null;
+  };
+
+  const getEmailError = (): string | null => {
+    if (!submitted && !touched.email) return null;
+    if (cleanEmail.length === 0) return "Ingresa tu correo electrónico.";
+    if (!isEmailValid)
+      return "Ingresa un correo electrónico válido (ej. usuario@gmail.com).";
+    if (cleanEmail.length > 50) return "Máximo 50 caracteres permitidos.";
+    return null;
+  };
+
+  const getPhoneError = (): string | null => {
+    if (!submitted && !touched.phone) return null;
+    if (rawPhone.length === 0) return "Ingresa tu número de teléfono móvil.";
+    if (!rawPhone.startsWith("0"))
+      return "El teléfono debe iniciar con 0 (ej. 0991234567).";
+    if (rawPhone.length < 10)
+      return `Debe tener 10 dígitos (llevas ${rawPhone.length} de 10).`;
+    if (rawPhone.length > 10) return "Máximo 10 dígitos permitidos.";
+    return null;
+  };
+
+  const getPasswordError = (): string | null => {
+    if (!submitted && !touched.password) return null;
+    if (isAlreadyRegistered && password.length === 0) return null;
+    if (password.length === 0) return "Ingresa tu contraseña.";
+    if (!hasLengthRange) return "La contraseña debe tener entre 8 y 12 caracteres.";
+    if (!hasUppercase) return "Debe incluir al menos una letra mayúscula.";
+    if (!hasNumber) return "Debe incluir al menos un número.";
+    return null;
+  };
+
+  const getConfirmationError = (): string | null => {
+    if (!submitted && !touched.confirmation) return null;
+    if (isAlreadyRegistered && confirmation.length === 0) return null;
+    if (confirmation.length === 0) return "Confirma tu contraseña.";
+    if (!isConfirmationMatch) return "Las contraseñas no coinciden.";
+    return null;
+  };
+
+  const getTermsError = (): string | null => {
+    if (!submitted) return null;
+    if (!acceptedTerms)
+      return "Debes aceptar los Términos y Condiciones para continuar.";
+    return null;
+  };
+
+  const firstNameError = getFirstNameError();
+  const lastNameError = getLastNameError();
+  const emailError = getEmailError();
+  const phoneError = getPhoneError();
+  const passwordErrorMsg = getPasswordError();
+  const confirmationError = getConfirmationError();
+  const termsError = getTermsError();
+
+  const handlePressSubmit = () => {
+    setSubmitted(true);
+    setTouched({
+      firstName: true,
+      lastName: true,
+      email: true,
+      phone: true,
+      password: true,
+      confirmation: true,
+    });
+
+    if (!isFormValid) {
+      const firstErrorMessage =
+        getFirstNameError() ||
+        getLastNameError() ||
+        getEmailError() ||
+        getPhoneError() ||
+        getPasswordError() ||
+        getConfirmationError() ||
+        getTermsError() ||
+        "Por favor completa correctamente todos los campos.";
+      a.run(() => {
+        throw Error(firstErrorMessage);
+      });
+      return;
+    }
+
+    void create();
+  };
+
   const create = () =>
     a.asyncRun(async () => {
-      if (!isFirstNameValid)
-        throw Error("El nombre debe tener entre 2 y 50 caracteres.");
-      if (!isLastNameValid)
-        throw Error("El apellido debe tener entre 2 y 50 caracteres.");
-      if (!isEmailValid)
-        throw Error("Ingresa un correo electrónico válido (ejemplo: usuario@dominio.com).");
-      if (!isPhoneValid)
-        throw Error("El número de teléfono debe tener exactamente 10 dígitos e iniciar con 0 (ej. 0991234567).");
-      if (!hasLengthRange)
-        throw Error("La contraseña debe tener entre 8 y 12 caracteres.");
-      if (!isPasswordValid)
-        throw Error("La contraseña debe incluir al menos una mayúscula y un número.");
-      if (!isConfirmationMatch)
-        throw Error("Las contraseñas no coinciden.");
-      if (!acceptedTerms)
-        throw Error("Debes aceptar los Términos y Condiciones para continuar.");
-
+      if (isAlreadyRegistered) {
+        navigation.navigate("KycUpload");
+        return;
+      }
       const hash = await passwordHash(password);
       const response = await authService.register({
         firstName: firstName.trim(),
@@ -97,21 +216,40 @@ export function RegisterScreen() {
 
   return (
     <Page
+      onBack={handleBack}
       footer={
-        <Pressable
-          accessibilityRole="button"
-          disabled={!isFormValid || a.busy}
-          onPress={() => void create()}
-          style={({ pressed }) => [
-            styles.submitButton,
-            (!isFormValid || a.busy) && styles.submitButtonDisabled,
-            pressed && styles.submitButtonPressed,
-          ]}
-          testID="register_submit_button"
-        >
-          <Text style={styles.submitButtonText}>Crear cuenta y continuar</Text>
-          <Icon name="arrow-forward" size={18} color="#FFFFFF" />
-        </Pressable>
+        <View style={styles.footerContainer}>
+          <Pressable
+            accessibilityRole="button"
+            disabled={a.busy}
+            onPress={handlePressSubmit}
+            style={({ pressed }) => [
+              styles.submitButton,
+              a.busy && styles.submitButtonDisabled,
+              pressed && styles.submitButtonPressed,
+            ]}
+            testID="register_submit_button"
+          >
+            <Text style={styles.submitButtonText}>
+              {a.busy
+                ? "Guardando datos..."
+                : isAlreadyRegistered
+                ? "Continuar a verificación de cédula"
+                : "Crear cuenta y continuar"}
+            </Text>
+            {!a.busy && <Icon name="arrow-forward" size={18} color="#FFFFFF" />}
+          </Pressable>
+
+          <Pressable
+            onPress={handleBack}
+            style={styles.backLinkRow}
+            accessibilityRole="button"
+            hitSlop={8}
+          >
+            <Icon name="arrow-back" size={15} color="#0F4C81" />
+            <Text style={styles.backLinkText}>Volver a Iniciar sesión</Text>
+          </Pressable>
+        </View>
       }
     >
       {/* Cabecera de etapas */}
@@ -138,12 +276,25 @@ export function RegisterScreen() {
       <View style={styles.formCard}>
         {/* Nombre */}
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Nombre</Text>
-          <View style={styles.inputContainer}>
-            <Icon name="person-outline" size={18} color="#64748B" />
+          <View style={styles.labelRow}>
+            <Text style={styles.label}>Nombre</Text>
+            <Text style={styles.charCounter}>{firstName.length}/50</Text>
+          </View>
+          <View
+            style={[
+              styles.inputContainer,
+              !!firstNameError && styles.inputContainerError,
+            ]}
+          >
+            <Icon
+              name="person-outline"
+              size={18}
+              color={firstNameError ? "#DC2626" : "#64748B"}
+            />
             <TextInput
               value={firstName}
               onChangeText={setFirstName}
+              onBlur={() => markTouched("firstName")}
               placeholder="Ej. María"
               placeholderTextColor="#94A3B8"
               maxLength={50}
@@ -153,16 +304,35 @@ export function RegisterScreen() {
               testID="register_first_name"
             />
           </View>
+          {firstNameError && (
+            <View style={styles.errorRow}>
+              <Icon name="alert-circle" size={13} color="#DC2626" />
+              <Text style={styles.errorText}>{firstNameError}</Text>
+            </View>
+          )}
         </View>
 
         {/* Apellido */}
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Apellido</Text>
-          <View style={styles.inputContainer}>
-            <Icon name="person-outline" size={18} color="#64748B" />
+          <View style={styles.labelRow}>
+            <Text style={styles.label}>Apellido</Text>
+            <Text style={styles.charCounter}>{lastName.length}/50</Text>
+          </View>
+          <View
+            style={[
+              styles.inputContainer,
+              !!lastNameError && styles.inputContainerError,
+            ]}
+          >
+            <Icon
+              name="person-outline"
+              size={18}
+              color={lastNameError ? "#DC2626" : "#64748B"}
+            />
             <TextInput
               value={lastName}
               onChangeText={setLastName}
+              onBlur={() => markTouched("lastName")}
               placeholder="Ej. Torres"
               placeholderTextColor="#94A3B8"
               maxLength={50}
@@ -172,40 +342,88 @@ export function RegisterScreen() {
               testID="register_last_name"
             />
           </View>
+          {lastNameError && (
+            <View style={styles.errorRow}>
+              <Icon name="alert-circle" size={13} color="#DC2626" />
+              <Text style={styles.errorText}>{lastNameError}</Text>
+            </View>
+          )}
         </View>
 
         {/* Correo electrónico */}
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Correo electrónico</Text>
-          <View style={styles.inputContainer}>
-            <Icon name="mail-outline" size={18} color="#64748B" />
+          <View style={styles.labelRow}>
+            <Text style={styles.label}>Correo electrónico</Text>
+            <Text style={styles.charCounter}>{email.length}/50</Text>
+          </View>
+          <View
+            style={[
+              styles.inputContainer,
+              !!emailError && styles.inputContainerError,
+            ]}
+          >
+            <Icon
+              name="mail-outline"
+              size={18}
+              color={emailError ? "#DC2626" : "#64748B"}
+            />
             <TextInput
               value={email}
               onChangeText={setEmail}
+              onBlur={() => markTouched("email")}
               placeholder="maria.torres@email.com"
               placeholderTextColor="#94A3B8"
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
+              maxLength={50}
               style={styles.textInput}
               testID="register_email"
             />
           </View>
+          {emailError && (
+            <View style={styles.errorRow}>
+              <Icon name="alert-circle" size={13} color="#DC2626" />
+              <Text style={styles.errorText}>{emailError}</Text>
+            </View>
+          )}
         </View>
 
         {/* Teléfono móvil con prefijo de Ecuador */}
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Teléfono móvil</Text>
+          <View style={styles.labelRow}>
+            <Text style={styles.label}>Teléfono móvil</Text>
+            <Text style={styles.charCounter}>{rawPhone.length}/10</Text>
+          </View>
           <View style={styles.phoneRow}>
-            <View style={styles.countryCodeBadge}>
+            <View
+              style={[
+                styles.countryCodeBadge,
+                !!phoneError && styles.inputContainerError,
+              ]}
+            >
               <Text style={styles.countryCodeText}>EC +593</Text>
             </View>
-            <View style={[styles.inputContainer, styles.phoneInputContainer]}>
-              <Icon name="call-outline" size={18} color="#64748B" />
+            <View
+              style={[
+                styles.inputContainer,
+                styles.phoneInputContainer,
+                !!phoneError && styles.inputContainerError,
+              ]}
+            >
+              <Icon
+                name="call-outline"
+                size={18}
+                color={phoneError ? "#DC2626" : "#64748B"}
+              />
               <TextInput
                 value={phone}
-                onChangeText={(v) => setPhone(v.replace(/\D/g, "").slice(0, 10))}
-                placeholder="099 123 4567"
+                onChangeText={(v) => {
+                  const cleaned = v.replace(/\D/g, "").slice(0, 10);
+                  setPhone(cleaned);
+                }}
+                onBlur={() => markTouched("phone")}
+                placeholder="0991234567"
                 placeholderTextColor="#94A3B8"
                 keyboardType="phone-pad"
                 maxLength={10}
@@ -215,16 +433,39 @@ export function RegisterScreen() {
               />
             </View>
           </View>
+          {phoneError ? (
+            <View style={styles.errorRow}>
+              <Icon name="alert-circle" size={13} color="#DC2626" />
+              <Text style={styles.errorText}>{phoneError}</Text>
+            </View>
+          ) : (
+            <Text style={styles.helperText}>
+              10 dígitos iniciando con 0 (ej. 0991234567).
+            </Text>
+          )}
         </View>
 
         {/* Contraseña */}
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Contraseña</Text>
-          <View style={styles.inputContainer}>
-            <Icon name="lock-closed-outline" size={18} color="#64748B" />
+          <View style={styles.labelRow}>
+            <Text style={styles.label}>Contraseña</Text>
+            <Text style={styles.charCounter}>{password.length}/12</Text>
+          </View>
+          <View
+            style={[
+              styles.inputContainer,
+              !!passwordErrorMsg && styles.inputContainerError,
+            ]}
+          >
+            <Icon
+              name="lock-closed-outline"
+              size={18}
+              color={passwordErrorMsg ? "#DC2626" : "#64748B"}
+            />
             <TextInput
               value={password}
               onChangeText={(v) => setPassword(v.slice(0, 12))}
+              onBlur={() => markTouched("password")}
               placeholder="8 a 12 caracteres"
               placeholderTextColor="#94A3B8"
               maxLength={12}
@@ -245,6 +486,13 @@ export function RegisterScreen() {
               />
             </Pressable>
           </View>
+
+          {passwordErrorMsg && (
+            <View style={styles.errorRow}>
+              <Icon name="alert-circle" size={13} color="#DC2626" />
+              <Text style={styles.errorText}>{passwordErrorMsg}</Text>
+            </View>
+          )}
 
           {/* Barra indicadora y requisitos de contraseña */}
           {password.length > 0 && (
@@ -281,7 +529,11 @@ export function RegisterScreen() {
                     },
                   ]}
                 >
-                  {isPasswordValid ? "Segura" : hasMinChars && hasMaxChars ? "Media" : "Débil"}
+                  {isPasswordValid
+                    ? "Segura"
+                    : hasMinChars && hasMaxChars
+                    ? "Media"
+                    : "Débil"}
                 </Text>
               </View>
 
@@ -350,12 +602,25 @@ export function RegisterScreen() {
 
         {/* Confirmar contraseña */}
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Confirmar contraseña</Text>
-          <View style={styles.inputContainer}>
-            <Icon name="lock-closed-outline" size={18} color="#64748B" />
+          <View style={styles.labelRow}>
+            <Text style={styles.label}>Confirmar contraseña</Text>
+            <Text style={styles.charCounter}>{confirmation.length}/12</Text>
+          </View>
+          <View
+            style={[
+              styles.inputContainer,
+              !!confirmationError && styles.inputContainerError,
+            ]}
+          >
+            <Icon
+              name="lock-closed-outline"
+              size={18}
+              color={confirmationError ? "#DC2626" : "#64748B"}
+            />
             <TextInput
               value={confirmation}
               onChangeText={(v) => setConfirmation(v.slice(0, 12))}
+              onBlur={() => markTouched("confirmation")}
               placeholder="Repite tu contraseña"
               placeholderTextColor="#94A3B8"
               maxLength={12}
@@ -367,31 +632,47 @@ export function RegisterScreen() {
               <Icon name="checkmark-circle" size={18} color="#16A34A" />
             ) : null}
           </View>
+          {confirmationError && (
+            <View style={styles.errorRow}>
+              <Icon name="alert-circle" size={13} color="#DC2626" />
+              <Text style={styles.errorText}>{confirmationError}</Text>
+            </View>
+          )}
         </View>
 
         {/* Términos y Condiciones */}
-        <Pressable
-          onPress={() => setAcceptedTerms((v) => !v)}
-          style={styles.termsRow}
-          accessibilityRole="checkbox"
-          accessibilityState={{ checked: acceptedTerms }}
-        >
-          <View
-            style={[
-              styles.checkbox,
-              acceptedTerms && styles.checkboxChecked,
-            ]}
+        <View style={styles.fieldGroup}>
+          <Pressable
+            onPress={() => setAcceptedTerms((v) => !v)}
+            style={styles.termsRow}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: acceptedTerms }}
           >
-            {acceptedTerms && (
-              <Icon name="checkmark" size={14} color="#FFFFFF" />
-            )}
-          </View>
-          <Text style={styles.termsText}>
-            Acepto los{" "}
-            <Text style={styles.termsLink}>Términos y Condiciones</Text> y la{" "}
-            <Text style={styles.termsLink}>Política de Privacidad</Text> de CFL.
-          </Text>
-        </Pressable>
+            <View
+              style={[
+                styles.checkbox,
+                acceptedTerms && styles.checkboxChecked,
+                !!termsError && styles.checkboxError,
+              ]}
+            >
+              {acceptedTerms && (
+                <Icon name="checkmark" size={14} color="#FFFFFF" />
+              )}
+            </View>
+            <Text style={styles.termsText}>
+              Acepto los{" "}
+              <Text style={styles.termsLink}>Términos y Condiciones</Text> y la{" "}
+              <Text style={styles.termsLink}>Política de Privacidad</Text> de
+              CFL.
+            </Text>
+          </Pressable>
+          {termsError && (
+            <View style={styles.errorRow}>
+              <Icon name="alert-circle" size={13} color="#DC2626" />
+              <Text style={styles.errorText}>{termsError}</Text>
+            </View>
+          )}
+        </View>
 
         {a.feedback}
       </View>
@@ -461,10 +742,25 @@ const styles = StyleSheet.create({
   fieldGroup: {
     gap: 6,
   },
+  labelRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   label: {
     fontSize: 12,
     fontWeight: "700",
     color: "#334155",
+  },
+  charCounter: {
+    fontSize: 11,
+    color: "#94A3B8",
+    fontWeight: "500",
+  },
+  helperText: {
+    fontSize: 11,
+    color: "#64748B",
+    marginTop: 2,
   },
   inputContainer: {
     flexDirection: "row",
@@ -474,6 +770,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     height: 48,
     gap: 10,
+    borderWidth: 1.5,
+    borderColor: "transparent",
+  },
+  inputContainerError: {
+    borderColor: "#DC2626",
+    backgroundColor: "#FEF2F2",
   },
   textInput: {
     flex: 1,
@@ -494,6 +796,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 12,
     height: 48,
+    borderWidth: 1.5,
+    borderColor: "transparent",
   },
   countryCodeText: {
     fontSize: 13,
@@ -501,6 +805,18 @@ const styles = StyleSheet.create({
     color: "#1E293B",
   },
   phoneInputContainer: {
+    flex: 1,
+  },
+  errorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 3,
+  },
+  errorText: {
+    fontSize: 11,
+    color: "#DC2626",
+    fontWeight: "600",
     flex: 1,
   },
   passwordValidationBox: {
@@ -566,6 +882,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#0F4C81",
     borderColor: "#0F4C81",
   },
+  checkboxError: {
+    borderColor: "#DC2626",
+    backgroundColor: "#FEF2F2",
+  },
   termsText: {
     flex: 1,
     fontSize: 12,
@@ -576,6 +896,10 @@ const styles = StyleSheet.create({
     color: "#0F4C81",
     fontWeight: "700",
     textDecorationLine: "underline",
+  },
+  footerContainer: {
+    gap: 10,
+    width: "100%",
   },
   submitButton: {
     flexDirection: "row",
@@ -592,7 +916,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   submitButtonDisabled: {
-    opacity: 0.5,
+    opacity: 0.6,
     shadowOpacity: 0,
     elevation: 0,
   },
@@ -603,5 +927,17 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "700",
+  },
+  backLinkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 6,
+  },
+  backLinkText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#0F4C81",
   },
 });

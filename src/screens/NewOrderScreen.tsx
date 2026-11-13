@@ -39,14 +39,21 @@ import {
   extras,
   garments,
   services,
+  weightRestrictions,
+  weightTiers,
   type CatalogGarment,
   type CatalogService,
+  type WeightRestriction,
+  type WeightTier,
 } from "../domain/catalog";
 import {
   fetchExtras,
   fetchGarments,
   fetchServices,
+  fetchWeightRestrictions,
+  fetchWeightTiers,
 } from "../services/catalog/catalogService";
+import { WeightServiceCard, perPound } from "../components/WeightServiceCard";
 import {
   modeFor,
   modeLabels,
@@ -153,6 +160,14 @@ export function PricingSummary({
   );
 }
 
+// Cada bolsa tiene su precio: se muestra el de la elegida o, si no hay, desde el más bajo.
+function weightChoiceLabel(tiers: WeightTier[], selected?: WeightTier) {
+  if (selected) return `Ropa por peso · ${perPound(selected.pricePerPound)} / lb`;
+  if (!tiers.length) return "Ropa por peso";
+  const lowest = Math.min(...tiers.map((t) => t.pricePerPound));
+  return `Ropa por peso · desde ${perPound(lowest)} / lb`;
+}
+
 function buildDefaultSelection(
   catalogGarments: CatalogGarment[],
   catalogServices: CatalogService[],
@@ -212,9 +227,14 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
     catalogGarments,
     catalogServices,
   );
+  const [tiers, setTiers] = useState<WeightTier[]>(() => [...weightTiers]),
+    [restrictions, setRestrictions] = useState<WeightRestriction[]>(() => [
+      ...weightRestrictions,
+    ]);
   const [model, setModel] = useState<PricingModel>("FIXED"),
-    [weight, setWeight] = useState("15"),
+    [tierId, setTierId] = useState<string | undefined>(() => weightTiers[0]?.id),
     [service, setService] = useState(initialSelection.defaultService);
+  const selectedTier = tiers.find((t) => t.id === tierId);
   const [items, setItems] = useState<OrderItem[]>(
     initialSelection.defaultItems,
   );
@@ -232,6 +252,24 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
     [appliedPromo, setAppliedPromo] = useState<string>(),
     [payment, setPayment] = useState("Billetera"),
     [confirmedId, setConfirmedId] = useState<string>();
+
+  useEffect(() => {
+    let active = true;
+    void Promise.all([fetchWeightTiers(), fetchWeightRestrictions()]).then(
+      ([loadedTiers, loadedRestrictions]) => {
+        if (!active) return;
+        setTiers([...loadedTiers]);
+        setRestrictions([...loadedRestrictions]);
+        // Conserva la bolsa elegida si sigue disponible; si no, propone la primera.
+        setTierId((prev) =>
+          loadedTiers.some((t) => t.id === prev) ? prev : loadedTiers[0]?.id,
+        );
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -374,14 +412,13 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
       });
       return;
     }
-    if (
-      step === 3 &&
-      (model === "FIXED"
-        ? !items.length
-        : !Number.isFinite(Number(weight)) || Number(weight) <= 0)
-    ) {
+    if (step === 3 && (model === "FIXED" ? !items.length : !selectedTier)) {
       a.run(() => {
-        throw Error("Agrega prendas o un peso orientativo válido.");
+        throw Error(
+          model === "FIXED"
+            ? "Agrega al menos una prenda."
+            : "Elige cuántas bolsas entregarás.",
+        );
       });
       return;
     }
@@ -435,7 +472,10 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
           mode: "HOME_HOME",
           pickupAddressId: pickupAddressId!,
           pickupSlotId: pickupSlotId!,
-          items: orderItemsPayload,
+          // Por peso solo viaja la bolsa: libras y precio los pone el servidor.
+          ...(model === "PER_WEIGHT"
+            ? { weightTierId: selectedTier!.id }
+            : { items: orderItemsPayload }),
           extraIds: extraIds.length > 0 ? extraIds : undefined,
           promotionCode: appliedPromo || undefined,
           notes: notes.trim() || undefined,
@@ -449,8 +489,7 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
             inbound,
             outbound,
             pricingModel: model,
-            estimatedWeightLb:
-              model === "PER_WEIGHT" ? Number(weight) : undefined,
+            weightTier: model === "PER_WEIGHT" ? selectedTier : undefined,
             promoCode: appliedPromo,
             paymentMethod: payment,
             notes,
@@ -468,8 +507,7 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
               inbound,
               outbound,
               pricingModel: model,
-              estimatedWeightLb:
-                model === "PER_WEIGHT" ? Number(weight) : undefined,
+              weightTier: model === "PER_WEIGHT" ? selectedTier : undefined,
               promoCode: appliedPromo,
               paymentMethod: payment,
               notes,
@@ -497,7 +535,7 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
         : step === 3
           ? model === "FIXED"
             ? items.length > 0
-            : Number.isFinite(Number(weight)) && Number(weight) > 0
+            : !!selectedTier
           : true;
   if (blocked)
     return (
@@ -605,7 +643,9 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
         <Body muted>
           {step < 3
             ? "Elige una dirección o sede y un horario para continuar."
-            : "Agrega prendas o un peso estimado válido para continuar."}
+            : model === "PER_WEIGHT"
+              ? "Elige cuántas bolsas entregarás para continuar."
+              : "Agrega prendas para continuar."}
         </Body>
       )}
       <MotionSection key={step}>
@@ -657,35 +697,29 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
                 onPress={() => setModel("FIXED")}
               />
               <Choice
-                label="Ropa por peso · $2.20 / lb"
+                label={weightChoiceLabel(tiers, selectedTier)}
                 style={[
                   garmentStyles.choice,
                   model === "PER_WEIGHT" && garmentStyles.selectedChoice,
                 ]}
                 textStyle={garmentStyles.choiceText}
                 selected={model === "PER_WEIGHT"}
+                disabled={tiers.length === 0}
                 onPress={() => setModel("PER_WEIGHT")}
               />
+              {tiers.length === 0 && (
+                <Body muted>
+                  El servicio por peso no está disponible por ahora.
+                </Body>
+              )}
             </Card>
             {model === "PER_WEIGHT" ? (
-              <Card style={garmentStyles.card}>
-                <Field
-                  label="Peso estimado en libras"
-                  style={garmentStyles.input}
-                  labelStyle={garmentStyles.label}
-                  validate={(value) =>
-                    !Number.isFinite(Number(value)) || Number(value) <= 0
-                      ? "Ingresa un peso mayor a cero."
-                      : undefined
-                  }
-                  value={weight}
-                  onChangeText={setWeight}
-                  keyboardType="decimal-pad"
-                />
-                <Body>
-                  El monto exacto se determina en planta. No se cobra ahora.
-                </Body>
-              </Card>
+              <WeightServiceCard
+                tiers={tiers}
+                restrictions={restrictions}
+                selectedId={selectedTier?.id}
+                onSelect={setTierId}
+              />
             ) : (
               <>
                 <Card style={garmentStyles.card}>
@@ -738,6 +772,13 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
                   <Title style={garmentStyles.sectionTitle}>
                     Catálogo completo
                   </Title>
+                  {catalogGarments.length === 0 && (
+                    <Body muted>
+                      Todavía no hay prendas disponibles en el catálogo. Puedes
+                      elegir la opción de ropa por peso para continuar, o
+                      intentarlo más tarde.
+                    </Body>
+                  )}
                   {catalogGarments.map((g) => {
                     const selected = items.find((i) => i.id === g.id);
                     const unitPrice =

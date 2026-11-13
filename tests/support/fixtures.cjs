@@ -34,7 +34,7 @@ exports.test = base.test.extend({
     const catalog = fs.existsSync(CATALOG)
       ? JSON.parse(fs.readFileSync(CATALOG, "utf8"))
       : {};
-    for (const name of ["garments", "services", "extras", "memberships", "promotions", "rewards"])
+    for (const name of ["garments", "services", "extras", "memberships", "promotions", "rewards", "weight-tiers", "weight-restrictions"])
       await context.route(`**/api/v1/catalog/${name}`, (route) =>
         route.request().method() === "OPTIONS"
           ? route.fallback()

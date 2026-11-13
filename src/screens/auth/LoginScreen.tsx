@@ -16,6 +16,7 @@ export function LoginScreen() {
         execute((repo) => repo.authenticateFromApi(response.user, hash));
       }}
       onRegister={() => navigation.navigate("RegisterStep1")}
+      onForgotPassword={() => navigation.navigate("ForgotPassword")}
     />
   );
 }

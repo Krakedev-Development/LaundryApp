@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Stepper } from "../../components/presentation";
 import { Page } from "../../components/Page";
 import {
@@ -12,6 +13,7 @@ import {
 } from "../../components/ui";
 import { PhotoAttachment } from "../../components/PhotoAttachment";
 import { useApp } from "../../store/AppProvider";
+import { useLaundryNavigation } from "../../navigation/useLaundryNavigation";
 import {
   kycService,
   type KycDocumentType,
@@ -26,6 +28,7 @@ const KYC_STEPS = ["Cédula de identidad", "Foto del rostro"] as const;
 export function KycUploadScreen() {
   const { execute } = useApp();
   const a = useAction();
+  const navigation = useLaundryNavigation();
   const [kyc, setKyc] = useState<KycState | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -175,33 +178,55 @@ export function KycUploadScreen() {
 
   return (
     <Page
-      onBack={currentStep > 1 ? () => setCurrentStep(currentStep - 1) : undefined}
+      onBack={
+        currentStep > 1
+          ? () => setCurrentStep(currentStep - 1)
+          : () => navigation.navigate("RegisterStep1")
+      }
       footer={
-        <>
+        <View style={styles.footerContainer}>
           {currentStep === 1 ? (
-            <Button
-              label="Continuar a foto del rostro"
-              disabled={!canContinueToSelfie}
-              busy={a.busy}
-              onPress={() => void handleNextToSelfie()}
-              testID="kyc_next_button"
-            />
+            <>
+              <Button
+                label="Continuar a foto del rostro"
+                disabled={!canContinueToSelfie}
+                busy={a.busy}
+                onPress={() => void handleNextToSelfie()}
+                testID="kyc_next_button"
+              />
+              <Pressable
+                onPress={() => navigation.navigate("RegisterStep1")}
+                style={styles.backLinkRow}
+                accessibilityRole="button"
+                hitSlop={8}
+                testID="kyc_back_to_register_link"
+              >
+                <Icon name="arrow-back" size={15} color="#0F4C81" />
+                <Text style={styles.backLinkText}>Volver al formulario</Text>
+              </Pressable>
+            </>
           ) : (
-            <Button
-              label="Enviar verificación completa"
-              disabled={!hasSelfie}
-              busy={a.busy}
-              onPress={() => void handleSubmitAll()}
-              testID="kyc_submit_button"
-            />
+            <>
+              <Button
+                label="Enviar verificación completa"
+                disabled={!hasSelfie}
+                busy={a.busy}
+                onPress={() => void handleSubmitAll()}
+                testID="kyc_submit_button"
+              />
+              <Pressable
+                onPress={() => setCurrentStep(1)}
+                style={styles.backLinkRow}
+                accessibilityRole="button"
+                hitSlop={8}
+                testID="kyc_back_to_id_link"
+              >
+                <Icon name="arrow-back" size={15} color="#0F4C81" />
+                <Text style={styles.backLinkText}>Volver a fotos de cédula</Text>
+              </Pressable>
+            </>
           )}
-          <Button
-            label="Cerrar sesión"
-            secondary
-            onPress={() => execute((r) => r.logout())}
-            testID="kyc_logout_button"
-          />
-        </>
+        </View>
       }
     >
       <Stepper step={currentStep} labels={KYC_STEPS} />
@@ -300,3 +325,28 @@ export function KycUploadScreen() {
     </Page>
   );
 }
+
+const styles = StyleSheet.create({
+  footerContainer: {
+    gap: 8,
+    width: "100%",
+  },
+  backLinkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 6,
+  },
+  backLinkText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#0F4C81",
+  },
+  subtleLinkText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#64748B",
+  },
+});
+

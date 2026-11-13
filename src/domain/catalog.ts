@@ -23,6 +23,19 @@ export interface CatalogService {
   extraPrice: number;
 }
 
+// Servicio por peso: el cliente elige una bolsa; cada una tiene su propio precio por libra.
+export interface WeightTier {
+  id: string;
+  name: string;
+  estimatedWeightLb: number;
+  pricePerPound: number;
+}
+
+export interface WeightRestriction {
+  id: string;
+  text: string;
+}
+
 // El producto no trae catálogo propio: sedes, prendas, servicios, extras, promociones,
 // recompensas y planes vienen del servidor. Sin conexión solo queda lo último descargado.
 export const fallbackFacilities: Facility[] = [];
@@ -40,8 +53,12 @@ export const extras: OrderExtra[] = [...fallbackExtras];
 export const promos: Promo[] = [...fallbackPromos];
 export const rewards: LoyaltyReward[] = [...fallbackRewards];
 export const plans: MembershipPlan[] = [...fallbackPlans];
+export const weightTiers: WeightTier[] = [];
+export const weightRestrictions: WeightRestriction[] = [];
 
 export interface CatalogSnapshot {
+  weightTiers?: WeightTier[];
+  weightRestrictions?: WeightRestriction[];
   facilities?: Facility[];
   garments?: CatalogGarment[];
   services?: CatalogService[];
@@ -51,27 +68,38 @@ export interface CatalogSnapshot {
   plans?: MembershipPlan[];
 }
 
+// Una lista presente reemplaza a la anterior aunque venga vacía; una ausente no cambia.
 export function syncCatalogState(snapshot: CatalogSnapshot): void {
-  if (snapshot.facilities?.length) {
+  if (snapshot.facilities) {
     facilities.splice(0, facilities.length, ...snapshot.facilities);
   }
-  if (snapshot.garments?.length) {
+  if (snapshot.garments) {
     garments.splice(0, garments.length, ...snapshot.garments);
   }
-  if (snapshot.services?.length) {
+  if (snapshot.services) {
     services.splice(0, services.length, ...snapshot.services);
   }
-  if (snapshot.extras?.length) {
+  if (snapshot.extras) {
     extras.splice(0, extras.length, ...snapshot.extras);
   }
-  if (snapshot.promos?.length) {
+  if (snapshot.promos) {
     promos.splice(0, promos.length, ...snapshot.promos);
   }
-  if (snapshot.rewards?.length) {
+  if (snapshot.rewards) {
     rewards.splice(0, rewards.length, ...snapshot.rewards);
   }
-  if (snapshot.plans?.length) {
+  if (snapshot.plans) {
     plans.splice(0, plans.length, ...snapshot.plans);
+  }
+  if (snapshot.weightTiers) {
+    weightTiers.splice(0, weightTiers.length, ...snapshot.weightTiers);
+  }
+  if (snapshot.weightRestrictions) {
+    weightRestrictions.splice(
+      0,
+      weightRestrictions.length,
+      ...snapshot.weightRestrictions,
+    );
   }
 }
 
@@ -84,6 +112,8 @@ export function resetCatalogToFallback(): void {
   promos.splice(0, promos.length);
   rewards.splice(0, rewards.length);
   plans.splice(0, plans.length);
+  weightTiers.splice(0, weightTiers.length);
+  weightRestrictions.splice(0, weightRestrictions.length);
 }
 
 // Los cupos horarios los define y entrega el servidor.
