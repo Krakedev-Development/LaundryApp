@@ -205,7 +205,7 @@ export default function PinMapSelector({
         <WebView
           ref={webViewRef}
           originWhitelist={["*"]}
-          source={{ html: initialHtml }}
+          source={{ html: initialHtml, baseUrl: "https://laundrycleanfresh.app" }}
           style={StyleSheet.absoluteFill}
           onMessage={handleWebViewMessage}
           javaScriptEnabled

@@ -17,8 +17,8 @@ export const GUAYAQUIL_SECTORS = [
 export const MAP_MODE_STORAGE_KEY = "laundry.map-theme-mode.v1";
 
 export const OSM_TILE_URLS = {
-  tactical: "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-  light: "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+  tactical: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+  light: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
 } as const;
 
 export type MapThemeMode = keyof typeof OSM_TILE_URLS;

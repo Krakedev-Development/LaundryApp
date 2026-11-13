@@ -146,7 +146,7 @@ export default function RouteMap({
       <WebView
         ref={webViewRef}
         originWhitelist={["*"]}
-        source={{ html: initialHtml }}
+        source={{ html: initialHtml, baseUrl: "https://laundrycleanfresh.app" }}
         style={StyleSheet.absoluteFill}
         javaScriptEnabled
         domStorageEnabled
@@ -236,7 +236,7 @@ export default function RouteMap({
             { color: isTactical ? "#94A3B8" : "#475569" },
           ]}
         >
-          Leaflet · Carto · OSM
+          Leaflet · OpenStreetMap
         </Text>
       </View>
     </View>

@@ -3,11 +3,16 @@ import type { LatLng } from "../services/maps/routingService";
 
 const LEAFLET_CSS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
 const LEAFLET_JS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+const OSM_TILE_TEMPLATE = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 
-function cartoUrl(mode: MapThemeMode): string {
-  const variant = mode === "tactical" ? "dark_all" : "light_all";
-  return `https://{s}.basemaps.cartocdn.com/${variant}/{z}/{x}/{y}{r}.png`;
-}
+const TILE_FILTER_CSS = `
+    body.tactical .leaflet-tile-pane {
+      filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%) saturate(85%);
+    }
+    body.light .leaflet-tile-pane {
+      filter: contrast(98%) saturate(92%) brightness(101%);
+    }
+`;
 
 export function buildPinPickerLeafletHtml(
   initialLat: number,
@@ -15,7 +20,6 @@ export function buildPinPickerLeafletHtml(
   mode: MapThemeMode,
 ): string {
   const bg = mode === "tactical" ? "#0B1320" : "#E2E8F0";
-  const initialTile = cartoUrl(mode);
 
   return `<!DOCTYPE html>
 <html>
@@ -34,9 +38,10 @@ export function buildPinPickerLeafletHtml(
       touch-action: none;
     }
     .leaflet-control-attribution { display: none !important; }
+    ${TILE_FILTER_CSS}
   </style>
 </head>
-<body>
+<body class="${mode}">
   <div id="map"></div>
   <script src="${LEAFLET_JS}"></script>
   <script>
@@ -48,8 +53,7 @@ export function buildPinPickerLeafletHtml(
         attributionControl: false
       });
 
-      var tileLayer = L.tileLayer('${initialTile}', {
-        subdomains: 'abcd',
+      L.tileLayer('${OSM_TILE_TEMPLATE}', {
         maxZoom: 19
       }).addTo(map);
 
@@ -84,9 +88,8 @@ export function buildPinPickerLeafletHtml(
       };
 
       window.setTileMode = function (nextMode) {
-        var variant = nextMode === 'tactical' ? 'dark_all' : 'light_all';
+        document.body.className = nextMode;
         document.body.style.background = nextMode === 'tactical' ? '#0B1320' : '#E2E8F0';
-        tileLayer.setUrl('https://{s}.basemaps.cartocdn.com/' + variant + '/{z}/{x}/{y}{r}.png');
       };
     })();
   </script>
@@ -128,7 +131,6 @@ export function buildRouteRadarLeafletHtml(
 
   const isTactical = mode === "tactical";
   const bg = isTactical ? "#0B1320" : "#E2E8F0";
-  const initialTile = cartoUrl(mode);
   const lineColor = isTactical ? "#38BDF8" : "#2563EB";
   const initialCoords =
     routeCoordinates && routeCoordinates.length >= 2
@@ -277,9 +279,10 @@ export function buildRouteRadarLeafletHtml(
       75% { transform: scale(2.2); opacity: 0.15; }
       100% { transform: scale(2.4); opacity: 0; }
     }
+    ${TILE_FILTER_CSS}
   </style>
 </head>
-<body>
+<body class="${mode}">
   <div id="map"></div>
   <script src="${LEAFLET_JS}"></script>
   <script>
@@ -291,8 +294,7 @@ export function buildRouteRadarLeafletHtml(
         attributionControl: false
       });
 
-      var tileLayer = L.tileLayer('${initialTile}', {
-        subdomains: 'abcd',
+      L.tileLayer('${OSM_TILE_TEMPLATE}', {
         maxZoom: 19
       }).addTo(map);
 
@@ -369,9 +371,8 @@ export function buildRouteRadarLeafletHtml(
       };
 
       window.setTileMode = function (nextMode) {
-        var variant = nextMode === 'tactical' ? 'dark_all' : 'light_all';
+        document.body.className = nextMode;
         document.body.style.background = nextMode === 'tactical' ? '#0B1320' : '#E2E8F0';
-        tileLayer.setUrl('https://{s}.basemaps.cartocdn.com/' + variant + '/{z}/{x}/{y}{r}.png');
         routeLine.setStyle({ color: nextMode === 'tactical' ? '#38BDF8' : '#2563EB' });
       };
     })();
