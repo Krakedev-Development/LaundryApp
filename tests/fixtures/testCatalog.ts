@@ -11,6 +11,8 @@ import {
   syncCatalogState,
   type CatalogGarment,
   type CatalogService,
+  type WeightRestriction,
+  type WeightTier,
 } from "../../src/domain/catalog";
 
 // Datos solo para pruebas: el producto no trae catálogo, sedes ni cupos de ejemplo.
@@ -376,6 +378,18 @@ export const testSlots: TimeSlot[] = [
   },
 ];
 
+// Servicio por peso: cada bolsa con su precio por libra (como lo configura el administrador).
+export const testWeightTiers: WeightTier[] = [
+  { id: "tier-1", name: "1 bolsa", estimatedWeightLb: 10, pricePerPound: 2.2 },
+  { id: "tier-2", name: "2 bolsas", estimatedWeightLb: 20, pricePerPound: 2 },
+  { id: "tier-3", name: "3+ bolsas", estimatedWeightLb: 35, pricePerPound: 1.8 },
+];
+
+export const testWeightRestrictions: WeightRestriction[] = [
+  { id: "wr-1", text: "NO aplica para edredones gruesos o plumones." },
+  { id: "wr-2", text: "NO aplica para vestidos con pedrería o pedrería fina." },
+];
+
 // Carga el catálogo de prueba en memoria, como si lo hubiera descargado del servidor.
 export function loadTestCatalog(): void {
   syncCatalogState({
@@ -386,6 +400,8 @@ export function loadTestCatalog(): void {
     promos: testPromos,
     rewards: testRewards,
     plans: testPlans,
+    weightTiers: testWeightTiers,
+    weightRestrictions: testWeightRestrictions,
   });
   // Plantillas de cupos que la agenda local replica cada día.
   initialSlots.splice(0, initialSlots.length, ...testSlots.map((s) => ({ ...s })));

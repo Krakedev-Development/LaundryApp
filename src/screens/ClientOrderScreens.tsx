@@ -50,6 +50,7 @@ import type { ScreenProps } from "../navigation/routes";
 import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
 import { contentColors } from "../design-system/classic";
 import { HomeMetric, homeStyles } from "../components/HomePresentation";
+import { perPound } from "../components/WeightServiceCard";
 import {
   DetailMeta,
   detailStyles,
@@ -356,8 +357,8 @@ export function ClientOrderDetailScreen({
           <Title style={detailStyles.sectionTitle}>Pesaje certificado</Title>
           <Body style={detailStyles.body}>
             {order.weightLb
-              ? `${order.weightLb} lb · ${order.weightKg} kg · ${money(order.pricePerLb)} / lb`
-              : `Pendiente en planta · estimado ${order.estimatedWeightLb ?? "—"} lb`}
+              ? `${order.weightLb} lb · ${order.weightKg} kg · ${perPound(order.pricePerLb)} / lb`
+              : `Pendiente en planta · ${order.weightTierName ? `${order.weightTierName}, ` : ""}estimado ${order.estimatedWeightLb ?? "—"} lb${order.pricePerLb > 0 ? ` · ${perPound(order.pricePerLb)} / lb` : ""}`}
           </Body>
           {order.pricingStatus === "CALCULATED" && !closed && (
             <>

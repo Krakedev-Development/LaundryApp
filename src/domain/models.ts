@@ -255,7 +255,9 @@ export interface Order {
   weightLb?: number;
   weightKg?: number;
   estimatedWeightLb?: number;
+  // Servicio por peso: precio de la bolsa elegida, fijado al crear la solicitud.
   pricePerLb: number;
+  weightTierName?: string;
   handoffs: Handoff[];
   adjustments: Adjustment[];
   canChangeOutboundMethod: boolean;

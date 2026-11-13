@@ -82,10 +82,21 @@ test("per-weight order defers debit until certified weight, then pays once and e
       ...input(h.state, "DRIVER", "CUSTOMER"),
       items: [],
       pricingModel: "PER_WEIGHT",
-      estimatedWeightLb: 10,
+      weightTier: { id: "t-1", name: "1 bolsa", estimatedWeightLb: 10, pricePerPound: 1.8 },
     }),
   );
   assert.equal(o.paymentStatus, "PENDIENTE_PESO");
+  // Libras y precio salen de la bolsa elegida, no de un valor fijo.
+  assert.equal(o.estimatedWeightLb, 10);
+  assert.equal(o.pricePerLb, 1.8);
+  assert.equal(o.weightTierName, "1 bolsa");
+  assert.throws(
+    () =>
+      h.run((r) =>
+        r.createOrder({ ...input(h.state), items: [], pricingModel: "PER_WEIGHT" }),
+      ),
+    /bolsas/,
+  );
   assert.equal(h.state.customers[0].walletBalance, balance);
   assert.equal(h.state.customers[0].loyaltyPoints, 1540);
   assert.throws(() => h.run((r) => r.confirmWeightAndPay(o.id)), /pesaje/);

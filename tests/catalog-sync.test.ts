@@ -1,7 +1,16 @@
 import { strict as assert } from "node:assert";
 import { afterEach, test } from "node:test";
-import { garments, resetCatalogToFallback } from "../src/domain/catalog";
-import { fetchGarments } from "../src/services/catalog/catalogService";
+import {
+  garments,
+  resetCatalogToFallback,
+  weightRestrictions,
+  weightTiers,
+} from "../src/domain/catalog";
+import {
+  fetchGarments,
+  fetchWeightRestrictions,
+  fetchWeightTiers,
+} from "../src/services/catalog/catalogService";
 
 // La API se simula reemplazando fetch: estas pruebas no necesitan un backend encendido.
 const realFetch = globalThis.fetch;
@@ -50,4 +59,35 @@ test("sin conexión se usa la última lista que entregó el servidor", async () 
   offline();
   const loaded = await fetchGarments(null);
   assert.deepEqual(loaded.map((g) => g.name), ["Camisa"]);
+});
+
+test("las bolsas del servicio por peso traen su propio precio por libra", async () => {
+  serve([
+    { id: "t-1", name: "1 bolsa", estimatedWeightLb: "10", pricePerPound: "2.2", active: true },
+    { id: "t-3", name: "3+ bolsas", estimatedWeightLb: "35", pricePerPound: "1.8", active: true },
+    { id: "t-x", name: "Retirada", estimatedWeightLb: "5", pricePerPound: "1", active: false },
+    { id: "t-0", name: "Sin precio", estimatedWeightLb: "5", pricePerPound: "0", active: true },
+  ]);
+  const loaded = await fetchWeightTiers(null);
+  assert.deepEqual(loaded, [
+    { id: "t-1", name: "1 bolsa", estimatedWeightLb: 10, pricePerPound: 2.2 },
+    { id: "t-3", name: "3+ bolsas", estimatedWeightLb: 35, pricePerPound: 1.8 },
+  ]);
+  assert.equal(weightTiers.length, 2);
+  // Sin conexión se ofrece la última lista recibida.
+  offline();
+  assert.equal((await fetchWeightTiers(null)).length, 2);
+});
+
+test("las restricciones vienen del servidor y se pueden quitar todas", async () => {
+  serve([
+    { id: "r-1", text: " NO aplica para edredones. ", active: true },
+    { id: "r-2", text: "Inactiva", active: false },
+  ]);
+  assert.deepEqual(await fetchWeightRestrictions(null), [
+    { id: "r-1", text: "NO aplica para edredones." },
+  ]);
+  serve([]);
+  assert.deepEqual(await fetchWeightRestrictions(null), []);
+  assert.equal(weightRestrictions.length, 0);
 });

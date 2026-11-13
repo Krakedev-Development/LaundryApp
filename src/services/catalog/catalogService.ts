@@ -11,6 +11,8 @@ import {
   type CatalogGarment,
   type CatalogService,
   type CatalogSnapshot,
+  type WeightRestriction,
+  type WeightTier,
 } from "../../domain/catalog";
 import type {
   Facility,
@@ -516,6 +518,78 @@ export async function fetchRewards(
   return fallbackRewards;
 }
 
+interface BackendWeightTier {
+  id: string;
+  name: string;
+  estimatedWeightLb: string | number;
+  pricePerPound: string | number;
+  active?: boolean;
+}
+
+interface BackendWeightRestriction {
+  id: string;
+  text: string;
+  active?: boolean;
+}
+
+// Bolsas del servicio por peso, en el orden que define el administrador.
+export async function fetchWeightTiers(
+  accessToken?: string | null,
+): Promise<WeightTier[]> {
+  try {
+    const token = await resolveAccessToken(accessToken);
+    const data = await apiClient.get<BackendWeightTier[]>(
+      "/catalog/weight-tiers",
+      token ? { accessToken: token } : undefined,
+    );
+    const mapped: WeightTier[] = (Array.isArray(data) ? data : [])
+      .filter((item) => item && item.active !== false)
+      .map((item) => ({
+        id: item.id,
+        name: item.name.trim(),
+        estimatedWeightLb: Number(item.estimatedWeightLb) || 0,
+        pricePerPound: Number(item.pricePerPound) || 0,
+      }))
+      // Una bolsa sin precio válido no se puede cobrar: no se ofrece.
+      .filter((item) => item.estimatedWeightLb > 0 && item.pricePerPound > 0);
+    syncCatalogState({ weightTiers: mapped });
+    await writeCache({ weightTiers: mapped });
+    return mapped;
+  } catch {
+    const cached = await readCache();
+    if (cached?.weightTiers) {
+      syncCatalogState({ weightTiers: cached.weightTiers });
+      return cached.weightTiers;
+    }
+  }
+  return [];
+}
+
+export async function fetchWeightRestrictions(
+  accessToken?: string | null,
+): Promise<WeightRestriction[]> {
+  try {
+    const token = await resolveAccessToken(accessToken);
+    const data = await apiClient.get<BackendWeightRestriction[]>(
+      "/catalog/weight-restrictions",
+      token ? { accessToken: token } : undefined,
+    );
+    const mapped: WeightRestriction[] = (Array.isArray(data) ? data : [])
+      .filter((item) => item && item.text && item.active !== false)
+      .map((item) => ({ id: item.id, text: item.text.trim() }));
+    syncCatalogState({ weightRestrictions: mapped });
+    await writeCache({ weightRestrictions: mapped });
+    return mapped;
+  } catch {
+    const cached = await readCache();
+    if (cached?.weightRestrictions) {
+      syncCatalogState({ weightRestrictions: cached.weightRestrictions });
+      return cached.weightRestrictions;
+    }
+  }
+  return [];
+}
+
 export async function syncFullCatalog(
   accessToken?: string | null,
 ): Promise<{
@@ -526,6 +600,8 @@ export async function syncFullCatalog(
   facilities: Facility[];
   promos: Promo[];
   rewards: LoyaltyReward[];
+  weightTiers: WeightTier[];
+  weightRestrictions: WeightRestriction[];
 }> {
   const token = await resolveAccessToken(accessToken);
   const [
@@ -536,6 +612,8 @@ export async function syncFullCatalog(
     facilitiesList,
     promosList,
     rewardsList,
+    weightTiersList,
+    weightRestrictionsList,
   ] = await Promise.all([
     fetchGarments(token),
     fetchServices(token),
@@ -544,6 +622,8 @@ export async function syncFullCatalog(
     fetchFacilities(token),
     fetchPromotions(token),
     fetchRewards(token),
+    fetchWeightTiers(token),
+    fetchWeightRestrictions(token),
   ]);
   return {
     garments: garmentsList,
@@ -553,6 +633,8 @@ export async function syncFullCatalog(
     facilities: facilitiesList,
     promos: promosList,
     rewards: rewardsList,
+    weightTiers: weightTiersList,
+    weightRestrictions: weightRestrictionsList,
   };
 }
 
@@ -564,5 +646,7 @@ export const catalogService = {
   fetchFacilities,
   fetchPromotions,
   fetchRewards,
+  fetchWeightTiers,
+  fetchWeightRestrictions,
   syncFullCatalog,
 };

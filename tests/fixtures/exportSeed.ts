@@ -1,4 +1,13 @@
-import { testExtras, testGarments, testPlans, testPromos, testRewards, testServices } from "./testCatalog";
+import {
+  testExtras,
+  testGarments,
+  testPlans,
+  testPromos,
+  testRewards,
+  testServices,
+  testWeightRestrictions,
+  testWeightTiers,
+} from "./testCatalog";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { initializeSeededState } from "./seedState";
@@ -22,5 +31,7 @@ writeFileSync(
     memberships: testPlans,
     promotions: testPromos,
     rewards: testRewards,
+    "weight-tiers": testWeightTiers.map((t, i) => ({ ...t, sortOrder: i + 1, active: true })),
+    "weight-restrictions": testWeightRestrictions.map((r, i) => ({ ...r, sortOrder: i + 1, active: true })),
   }),
 );

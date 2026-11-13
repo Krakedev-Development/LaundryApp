@@ -54,8 +54,9 @@ export interface CreateOrderDto {
   mode: "HOME_HOME" | "HOME_STORE";
   pickupAddressId: string;
   pickupSlotId: string;
+  // Exactamente uno: prendas o la bolsa del servicio por peso (el servidor pone libras y precio).
   items?: OrderItemDto[];
-  estimatedWeightLb?: number;
+  weightTierId?: string;
   extraIds?: string[];
   promotionCode?: string;
   notes?: string;
@@ -169,8 +170,9 @@ export interface BackendOrderDetails extends BackendOrderSummary {
   customerId?: string;
   notes?: string | null;
   pricingModel?: "FIXED" | "PER_WEIGHT";
-  estimatedWeightLb?: number | null;
+  estimatedWeightLb?: string | number | null;
   pricePerPound?: string | number | null;
+  weightTier?: { id: string; name: string } | null;
   itemsSubtotal?: string | number;
   extrasTotal?: string | number;
   discount?: string | number;
@@ -367,7 +369,13 @@ export function mapBackendOrderToDomain(
     fulfillmentPlan,
     pricingModel: ("pricingModel" in raw && raw.pricingModel) || "FIXED",
     pricingStatus: (raw.pricingStatus as PricingStatus) || "CALCULATED",
-    pricePerLb: 1.75,
+    // Precio por libra que el servidor congeló al crear la solicitud (el de la bolsa elegida).
+    pricePerLb: Number("pricePerPound" in raw ? raw.pricePerPound : 0) || 0,
+    estimatedWeightLb:
+      "estimatedWeightLb" in raw && raw.estimatedWeightLb != null
+        ? Number(raw.estimatedWeightLb)
+        : undefined,
+    weightTierName: ("weightTier" in raw && raw.weightTier?.name) || undefined,
     handoffs: [],
     adjustments: [],
     canChangeOutboundMethod: false,
