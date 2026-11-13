@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Svg, { Circle, Line } from "react-native-svg";
+import Svg, { Circle, Line, Polyline as SvgPolyline } from "react-native-svg";
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "../design-system/tokens";
 import { tactile } from "../design-system/interaction";
@@ -44,6 +44,7 @@ export default function RouteMap({
   facility,
   driverInfo,
   isSearching = false,
+  routeCoordinates,
   height = theme.layout.map,
 }: RouteMapProps) {
   const [mode, setMode] = useState<MapThemeMode>("tactical");
@@ -120,6 +121,15 @@ export default function RouteMap({
   const driverPt = project(normalized.origin);
   const destPt = project(normalized.destination);
   const facilityPt = facility ? project(facility) : null;
+  const polyPointsString =
+    routeCoordinates && routeCoordinates.length >= 2
+      ? routeCoordinates
+          .map((coord) => {
+            const p = project(coord);
+            return `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+          })
+          .join(" ")
+      : null;
 
   const tiles: { key: string; url: string; left: number; top: number }[] = [];
   for (let dx = -2; dx <= 2; dx++) {
@@ -209,25 +219,49 @@ export default function RouteMap({
         style={StyleSheet.absoluteFill}
         pointerEvents="none"
       >
-        <Line
-          x1={driverPt.x}
-          y1={driverPt.y}
-          x2={destPt.x}
-          y2={destPt.y}
-          stroke={isTactical ? "rgba(56, 189, 248, 0.25)" : "rgba(20, 63, 115, 0.2)"}
-          strokeWidth={9}
-          strokeLinecap="round"
-        />
-        <Line
-          x1={driverPt.x}
-          y1={driverPt.y}
-          x2={destPt.x}
-          y2={destPt.y}
-          stroke={isTactical ? "#38BDF8" : theme.colors.primary}
-          strokeWidth={3.5}
-          strokeDasharray="8 6"
-          strokeLinecap="round"
-        />
+        {polyPointsString ? (
+          <>
+            <SvgPolyline
+              points={polyPointsString}
+              fill="none"
+              stroke={isTactical ? "rgba(56, 189, 248, 0.25)" : "rgba(20, 63, 115, 0.2)"}
+              strokeWidth={9}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <SvgPolyline
+              points={polyPointsString}
+              fill="none"
+              stroke={isTactical ? "#38BDF8" : theme.colors.primary}
+              strokeWidth={3.5}
+              strokeDasharray="8 6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        ) : (
+          <>
+            <Line
+              x1={driverPt.x}
+              y1={driverPt.y}
+              x2={destPt.x}
+              y2={destPt.y}
+              stroke={isTactical ? "rgba(56, 189, 248, 0.25)" : "rgba(20, 63, 115, 0.2)"}
+              strokeWidth={9}
+              strokeLinecap="round"
+            />
+            <Line
+              x1={driverPt.x}
+              y1={driverPt.y}
+              x2={destPt.x}
+              y2={destPt.y}
+              stroke={isTactical ? "#38BDF8" : theme.colors.primary}
+              strokeWidth={3.5}
+              strokeDasharray="8 6"
+              strokeLinecap="round"
+            />
+          </>
+        )}
         <Circle
           cx={destPt.x}
           cy={destPt.y}

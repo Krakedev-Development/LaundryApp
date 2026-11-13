@@ -29,6 +29,11 @@ import {
   formatOrderCode,
   type OrderTrackingDto,
 } from "../services/orders/orderService";
+import {
+  fetchDrivingRoute,
+  formatRouteEta,
+  type DrivingRouteResult,
+} from "../services/maps/routingService";
 import type { ScreenProps } from "../navigation/routes";
 import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
 function destinationFor(order: Order) {
@@ -56,6 +61,9 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
   const [codeId, setCodeId] = useState<string>();
   const [progress, setProgress] = useState(0.05);
   const [liveTracking, setLiveTracking] = useState<OrderTrackingDto | null>(null);
+  const [drivingRoute, setDrivingRoute] = useState<DrivingRouteResult | null>(
+    null,
+  );
 
   useEffect(() => {
     let active = true;
@@ -99,6 +107,49 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
     );
     return () => clearInterval(interval);
   }, [focused, reduced, o?.status]);
+
+  const activeDriverLat =
+    liveTracking?.assignedDriver?.latitude ??
+    o?.trackingPosition?.latitude ??
+    null;
+  const activeDriverLng =
+    liveTracking?.assignedDriver?.longitude ??
+    o?.trackingPosition?.longitude ??
+    null;
+  const activeDestLat =
+    liveTracking?.customerAddress?.latitude ??
+    o?.fulfillmentPlan.inbound.latitude ??
+    null;
+  const activeDestLng =
+    liveTracking?.customerAddress?.longitude ??
+    o?.fulfillmentPlan.inbound.longitude ??
+    null;
+
+  useEffect(() => {
+    if (
+      activeDriverLat === null ||
+      activeDriverLng === null ||
+      activeDestLat === null ||
+      activeDestLng === null
+    ) {
+      setDrivingRoute(null);
+      return;
+    }
+
+    let alive = true;
+    void fetchDrivingRoute(
+      { latitude: activeDriverLat, longitude: activeDriverLng },
+      { latitude: activeDestLat, longitude: activeDestLng },
+    ).then((routeResult) => {
+      if (alive) {
+        setDrivingRoute(routeResult);
+      }
+    });
+
+    return () => {
+      alive = false;
+    };
+  }, [activeDriverLat, activeDriverLng, activeDestLat, activeDestLng]);
 
   const trackingData = liveTracking ?? (o ? buildSimulatedTracking(o) : null);
   if (!trackingData && !o) {
@@ -200,6 +251,7 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
             : null
         }
         isSearching={!assignedDriver}
+        routeCoordinates={drivingRoute?.coordinates}
       />
 
       {/* Real-time Driver Radar Card */}
@@ -220,6 +272,18 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
                 : "Señal activa · Guayaquil"}
             </Text>
           </View>
+
+          {drivingRoute && (
+            <View style={radarStyles.etaBanner}>
+              <Ionicons name="time-outline" size={14} color="#38BDF8" />
+              <Text style={radarStyles.etaBannerText}>
+                {formatRouteEta(
+                  drivingRoute.distanceMeters,
+                  drivingRoute.durationSeconds,
+                )}
+              </Text>
+            </View>
+          )}
 
           <View style={radarStyles.driverRow}>
             <View style={radarStyles.driverAvatar}>
@@ -530,5 +594,22 @@ const radarStyles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 16,
     color: "#94A3B8",
+  },
+  etaBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(56, 189, 248, 0.12)",
+    borderColor: "rgba(56, 189, 248, 0.28)",
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  etaBannerText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#E0F2FE",
+    letterSpacing: 0.2,
   },
 });
