@@ -522,3 +522,92 @@ test("benefits, unread notifications, support and chat remain reachable", async 
     page.getByRole("textbox", { name: "Escribe un mensaje", exact: true }),
   ).toHaveValue("");
 });
+
+// Agenda del servidor controlada por la prueba: franjas de mañana, una completa.
+async function serveSlots(page, initial) {
+  const state = { rows: initial };
+  const tomorrow = new Date(Date.now() + 86400000 - 5 * 3600000).toISOString().slice(0, 10);
+  await page.route(/\/api\/v1\/slots(\?.*)?$/, (route) => {
+    if (route.request().method() === "OPTIONS") return route.fallback();
+    const q = new URL(route.request().url()).searchParams;
+    const rows = state.rows
+      .map((s) => ({ facilityId: "facility-test-1", context: "DRIVER_PICKUP", date: tomorrow, ...s }))
+      .filter((s) => s.context === q.get("context"))
+      .filter((s) => q.get("onlyAvailable") === "false" || s.available > 0);
+    return route.fulfill({
+      status: 200,
+      headers: { "access-control-allow-origin": "*" },
+      contentType: "application/json",
+      body: JSON.stringify(rows),
+    });
+  });
+  return { state, tomorrow };
+}
+
+test("las franjas completas se muestran como Completo y no se pueden elegir", async ({ page }) => {
+  const { tomorrow } = await serveSlots(page, [
+    { id: "srv-1", startTime: "08:00", endTime: "12:00", available: 0 },
+    { id: "srv-2", startTime: "13:00", endTime: "17:00", available: 1 },
+    { id: "srv-3", startTime: "17:00", endTime: "20:00", available: 6 },
+  ]);
+  await page.getByRole("tab", { name: "Solicitar", exact: true }).click();
+  await page.getByRole("button", { name: "Elegir fecha y horario", exact: true }).click();
+  await expect(page.getByRole("radio", { name: tomorrow, exact: true })).toBeChecked();
+  const full = page.getByRole("radio", { name: `${tomorrow} · 08:00 - 12:00`, exact: true });
+  await expect(full).toBeDisabled();
+  await expect(page.getByText("Completo", { exact: true })).toBeVisible();
+  await expect(page.getByText("1 cupo disponible", { exact: true })).toBeVisible();
+  await expect(page.getByText("6 cupos disponibles", { exact: true })).toBeVisible();
+  await page.getByRole("radio", { name: `${tomorrow} · 17:00 - 20:00`, exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: /Elegir fecha y horario/ }),
+  ).toContainText("17:00 - 20:00");
+});
+
+test("si otro cliente llena la franja elegida, al volver a abrir se avisa y se pide otra", async ({ page }) => {
+  const { state, tomorrow } = await serveSlots(page, [
+    { id: "srv-2", startTime: "13:00", endTime: "17:00", available: 1 },
+    { id: "srv-3", startTime: "17:00", endTime: "20:00", available: 6 },
+  ]);
+  await page.getByRole("tab", { name: "Solicitar", exact: true }).click();
+  await page.getByRole("button", { name: "Elegir fecha y horario", exact: true }).click();
+  await page.getByRole("radio", { name: `${tomorrow} · 13:00 - 17:00`, exact: true }).click();
+  // Otro cliente toma el último cupo mientras tanto.
+  state.rows = [
+    { id: "srv-2", startTime: "13:00", endTime: "17:00", available: 0 },
+    { id: "srv-3", startTime: "17:00", endTime: "20:00", available: 6 },
+  ];
+  await page.getByRole("button", { name: /Elegir fecha y horario/ }).click();
+  await expect(page.getByTestId("slot_notice")).toHaveText(
+    "La franja que elegiste ya no tiene cupo. Elige otro horario.",
+  );
+  await expect(
+    page.getByRole("radio", { name: `${tomorrow} · 13:00 - 17:00`, exact: true }),
+  ).toBeDisabled();
+  await page.getByRole("button", { name: "Cerrar panel", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Elegir fecha y horario", exact: true }),
+  ).toContainText("Selecciona una franja con cupo");
+});
+
+test("la entrega solo ofrece franjas que empiezan cuando termina la recogida", async ({ page }) => {
+  const { tomorrow } = await serveSlots(page, [
+    { id: "srv-p", startTime: "13:00", endTime: "17:00", available: 3 },
+    { id: "srv-d1", context: "DRIVER_DELIVERY", startTime: "08:00", endTime: "12:00", available: 4 },
+    { id: "srv-d2", context: "DRIVER_DELIVERY", startTime: "17:00", endTime: "20:00", available: 4 },
+  ]);
+  await page.getByRole("tab", { name: "Solicitar", exact: true }).click();
+  await page.getByRole("button", { name: "Elegir dirección", exact: true }).click();
+  await page.getByRole("radio", { name: /^Casa ·/ }).click();
+  await page.getByRole("button", { name: "Elegir fecha y horario", exact: true }).click();
+  await page.getByRole("radio", { name: `${tomorrow} · 13:00 - 17:00`, exact: true }).click();
+  await page.getByRole("button", { name: "Continuar", exact: true }).click();
+
+  await page.getByRole("button", { name: "Elegir fecha y horario", exact: true }).click();
+  await expect(
+    page.getByRole("radio", { name: `${tomorrow} · 17:00 - 20:00`, exact: true }),
+  ).toBeEnabled();
+  await expect(
+    page.getByRole("radio", { name: `${tomorrow} · 08:00 - 12:00`, exact: true }),
+  ).toHaveCount(0);
+});

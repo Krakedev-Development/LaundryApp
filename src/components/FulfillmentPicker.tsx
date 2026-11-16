@@ -1,10 +1,12 @@
 import { View } from "react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useApp } from "../store/AppProvider";
 import { facilities } from "../domain/catalog";
 import { fetchFacilities } from "../services/catalog/catalogService";
 import {
+  freeSeats,
   mapBackendSlotToTimeSlot,
+  seatsLabel,
   slotService,
   type BackendSlot,
 } from "../services/slots/slotService";
@@ -30,18 +32,31 @@ export function FulfillmentPicker({
   value,
   onChange,
   appearance = "default",
+  facilityId: lockedFacilityId,
+  notBefore,
 }: {
   leg: "INBOUND" | "OUTBOUND";
   value: Leg;
   onChange(value: Leg): void;
   appearance?: "default" | "request";
+  /** Sede que atiende la solicitud: la entrega debe ser de la misma sede que la recogida. */
+  facilityId?: string;
+  /** Fecha y hora en que termina la recogida: la entrega no puede empezar antes. */
+  notBefore?: { date: string; time: string };
 }) {
+  const facilityFilter = value.facilityId || lockedFacilityId;
   const { state } = useApp(),
     c = currentCustomer(state),
     nav = useLaundryNavigation();
   const [panel, setPanel] = useState<"place" | "time">();
   const [branches, setBranches] = useState<Facility[]>(() => [...facilities]);
-  const [backendSlots, setBackendSlots] = useState<BackendSlot[]>([]);
+  // null = el servidor aún no respondió (o no hay conexión): solo entonces se usa la agenda
+  // guardada. Una lista vacía del servidor significa que de verdad no hay franjas.
+  const [backendSlots, setBackendSlots] = useState<BackendSlot[] | null>(null);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [slotNotice, setSlotNotice] = useState("");
+  const latest = useRef({ value, onChange });
+  latest.current = { value, onChange };
   useEffect(() => {
     let active = true;
     void fetchFacilities().then((loaded) => {
@@ -51,6 +66,7 @@ export function FulfillmentPicker({
       active = false;
     };
   }, []);
+  const timeOpen = panel === "time";
   useEffect(() => {
     let active = true;
     const reqContext =
@@ -59,44 +75,57 @@ export function FulfillmentPicker({
         : value.method === "DRIVER"
           ? "DRIVER_DELIVERY"
           : "FACILITY_PICKUP";
+    setLoadingSlots(true);
+    // Se piden también las completas para mostrarlas como tales; se vuelve a pedir cada vez
+    // que se abre la hoja para reflejar los cupos que otros clientes reservaron.
     void slotService
       .fetchSlots({
         context: reqContext,
-        facilityId: value.facilityId,
-        onlyAvailable: true,
+        facilityId: facilityFilter,
+        onlyAvailable: false,
       })
       .then((loaded) => {
-        if (active && loaded && loaded.length > 0) {
-          setBackendSlots(loaded);
+        if (!active) return;
+        const rows = loaded ?? [];
+        setBackendSlots(rows);
+        const { value: current, onChange: change } = latest.current;
+        if (!current.timeSlotId) return;
+        const chosen = rows.find((s) => s.id === current.timeSlotId);
+        if (!chosen || chosen.available <= 0) {
+          change({ ...current, timeSlotId: undefined, timeSlotText: "" });
+          setSlotNotice(
+            "La franja que elegiste ya no tiene cupo. Elige otro horario.",
+          );
         }
       })
       .catch(() => {
-        // Fallback to local state slots
+        // Sin conexión: se mantiene la última agenda conocida.
+      })
+      .finally(() => {
+        if (active) setLoadingSlots(false);
       });
     return () => {
       active = false;
     };
-  }, [leg, value.method, value.facilityId]);
+  }, [leg, value.method, facilityFilter, timeOpen]);
 
   type PickerSlot = TimeSlot & { backendFacilityId?: string };
-  const slots: PickerSlot[] =
-    backendSlots.length > 0
+  const isUpcoming = (slot: TimeSlot) =>
+    new Date(`${slot.date}T${slot.endTime}:00-05:00`).getTime() > Date.now();
+  const slots: PickerSlot[] = (
+    backendSlots
       ? backendSlots.map((bs) => ({
           ...mapBackendSlotToTimeSlot(bs),
           backendFacilityId: bs.facilityId,
         }))
       : state.timeSlots.filter(
-    (s) => s.context === slotContext(leg, value.method) && s.date >= today(),
-  );
-  const availableSlots = slots.filter((slot) => {
-    const isAvailable =
-      slot.active &&
-      slot.reservedCount < slot.capacity &&
-      new Date(`${slot.date}T${slot.endTime}:00-05:00`).getTime() > Date.now();
-    return isAvailable;
-  });
-  const activeSlotPool = availableSlots.length > 0 ? availableSlots : slots;
-  const dates = [...new Set(activeSlotPool.map((s) => s.date))].sort();
+          (s) => s.context === slotContext(leg, value.method) && s.date >= today(),
+        )
+  )
+    .filter((s) => s.active && isUpcoming(s))
+    .filter((s) => !notBefore || `${s.date} ${s.startTime}` >= `${notBefore.date} ${notBefore.time}`);
+  // Las fechas con franjas aparecen aunque estén completas: el cliente ve que ese día no hay cupo.
+  const dates = [...new Set(slots.map((s) => s.date))].sort();
   const [date, setDate] = useState(value.scheduledDate || dates[0]);
   const selectedDate = dates.includes(date) ? date : dates[0];
   const changeMethod = (method: Leg["method"]) =>
@@ -208,7 +237,12 @@ export function FulfillmentPicker({
           </>
         ) : (
           branches
-            .filter((f) => leg === "OUTBOUND" && f.allowsPickup)
+            .filter(
+              (f) =>
+                leg === "OUTBOUND" &&
+                f.allowsPickup &&
+                (!lockedFacilityId || f.id === lockedFacilityId),
+            )
             .map((f) => (
               <View key={f.id} style={{ gap: 4 }}>
                 <Choice
@@ -278,14 +312,16 @@ export function FulfillmentPicker({
             />
           ))
         )}
+        {!!slotNotice && (
+          <View testID="slot_notice" accessibilityRole="alert">
+            <Body style={{ color: "#B45309" }}>{slotNotice}</Body>
+          </View>
+        )}
         {slots
           .filter((s) => s.date === selectedDate)
           .map((slot) => {
-            const available =
-              slot.active &&
-              slot.reservedCount < slot.capacity &&
-              new Date(slot.date + "T" + slot.endTime + ":00-05:00").getTime() >
-                Date.now();
+            const seats = freeSeats(slot);
+            const available = seats > 0;
             return (
               <View key={slot.id} style={{ gap: 4 }}>
                 <Choice
@@ -300,9 +336,10 @@ export function FulfillmentPicker({
                     appearance === "request" && requestStyles.choiceText
                   }
                   label={slot.date + " · " + slotRange(slot)}
-                  disabled={!available && slot.id !== value.timeSlotId}
+                  disabled={!available}
                   selected={value.timeSlotId === slot.id}
                   onPress={() => {
+                    setSlotNotice("");
                     onChange({
                       ...value,
                       timeSlotId: slot.id,
@@ -313,16 +350,16 @@ export function FulfillmentPicker({
                     setPanel(undefined);
                   }}
                 />
-                <Badge>
-                  {available
-                    ? slot.capacity - slot.reservedCount + " cupos disponibles"
-                    : "Completo"}
-                </Badge>
+                <Badge>{available ? seatsLabel(seats) : "Completo"}</Badge>
               </View>
             );
           })}
-        {!slots.length && (
+        {!slots.length && loadingSlots && <Body muted>Cargando horarios...</Body>}
+        {!slots.length && !loadingSlots && (
           <Body>No hay horarios disponibles para este tramo.</Body>
+        )}
+        {!!slots.length && !slots.some((s) => freeSeats(s) > 0) && (
+          <Body muted>Todas las franjas están completas. Vuelve a intentarlo más tarde.</Body>
         )}
       </BottomSheet>
     </View>

@@ -31,7 +31,8 @@ import {
   currentCustomer,
   today,
 } from "../domain/repository";
-import { slotService } from "../services/slots/slotService";
+import { slotEnd, slotService } from "../services/slots/slotService";
+import { deliveryPayload } from "../services/orders/deliveryPayload";
 import { orderService } from "../services/orders/orderService";
 import { getStoredAuthSession } from "../services/auth/authService";
 import { fetchFacilities } from "../services/catalog/catalogService";
@@ -355,6 +356,31 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
     };
   }, []);
 
+  // La entrega debe ser de la misma sede y empezar cuando termina la recogida o después.
+  const pickupEnd = inbound.timeSlotId
+    ? slotEnd(inbound.scheduledDate, inbound.timeSlotText)
+    : undefined;
+  useEffect(() => {
+    setOutbound((prev) => {
+      if (!prev.timeSlotId) return prev;
+      const start = prev.timeSlotText.split(" - ")[0]?.trim() ?? "";
+      const tooEarly =
+        !!pickupEnd && `${prev.scheduledDate} ${start}` < `${pickupEnd.date} ${pickupEnd.time}`;
+      const otherSite =
+        !!inbound.facilityId && !!prev.facilityId && prev.facilityId !== inbound.facilityId;
+      if (!tooEarly && !otherSite) return prev;
+      return {
+        ...prev,
+        timeSlotId: undefined,
+        timeSlotText: "",
+        scheduledDate: "",
+        ...(prev.method === "CUSTOMER" && otherSite
+          ? { facilityId: undefined, facilityName: undefined, addressFull: "" }
+          : {}),
+      };
+    });
+  }, [inbound.timeSlotId, inbound.facilityId]);
+
   const blocked = state.customerCharges.some(
     (ch) => ch.customerId === c.id && ch.status === "PENDING",
   );
@@ -467,11 +493,14 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
       });
 
       try {
+        // La franja de entrega se envía y se reserva junto con la de recogida.
+        const delivery = deliveryPayload(inbound, outbound, pickupAddressId!);
         const apiOrder = await orderService.createOrder({
           facilityId,
-          mode: "HOME_HOME",
+          mode: delivery.mode,
           pickupAddressId: pickupAddressId!,
           pickupSlotId: pickupSlotId!,
+          outbound: delivery.outbound,
           // Por peso solo viaja la bolsa: libras y precio los pone el servidor.
           ...(model === "PER_WEIGHT"
             ? { weightTierId: selectedTier!.id }
@@ -678,6 +707,8 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
             appearance="request"
             value={outbound}
             onChange={setOutbound}
+            facilityId={inbound.facilityId}
+            notBefore={pickupEnd}
           />
         )}
         {step === 3 && (

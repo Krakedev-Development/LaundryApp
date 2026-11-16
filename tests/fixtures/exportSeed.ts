@@ -33,5 +33,17 @@ writeFileSync(
     rewards: testRewards,
     "weight-tiers": testWeightTiers.map((t, i) => ({ ...t, sortOrder: i + 1, active: true })),
     "weight-restrictions": testWeightRestrictions.map((r, i) => ({ ...r, sortOrder: i + 1, active: true })),
+    // Agenda con la forma que el servidor entrega al cliente: solo cupos libres, sin capacidad.
+    slots: state.timeSlots
+      .filter((s) => s.active && s.context !== "FACILITY_DROPOFF")
+      .map((s) => ({
+        id: s.id,
+        facilityId: "facility-test-1",
+        context: s.context,
+        date: s.date,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        available: Math.max(s.capacity - s.reservedCount, 0),
+      })),
   }),
 );
