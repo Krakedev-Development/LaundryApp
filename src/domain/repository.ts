@@ -489,6 +489,13 @@ export class LaundryRepository {
               ? domainOrder.items
               : prev.items,
           fulfillmentPlan: domainOrder.fulfillmentPlan ?? prev.fulfillmentPlan,
+          // La lista llega sin eventos: se conserva el historial ya cargado desde el detalle.
+          timeline:
+            "events" in raw && raw.events?.length
+              ? domainOrder.timeline
+              : prev.timeline?.length
+                ? prev.timeline
+                : domainOrder.timeline,
         };
       } else {
         this.state.orders.unshift(domainOrder);

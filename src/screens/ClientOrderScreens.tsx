@@ -51,6 +51,7 @@ import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
 import { contentColors } from "../design-system/classic";
 import { HomeMetric, homeStyles } from "../components/HomePresentation";
 import { perPound } from "../components/WeightServiceCard";
+import { useServerOrderRefresh } from "../features/orders/model/useServerOrderRefresh";
 import {
   DetailMeta,
   detailStyles,
@@ -273,6 +274,12 @@ export function ClientOrderDetailScreen({
   const a = useAction();
   const [cancel, setCancel] = useState(false),
     [options, setOptions] = useState(false);
+  // Historial y estado al día con el servidor mientras el detalle está abierto.
+  useServerOrderRefresh(
+    order
+      ? ((order as unknown as { backendId?: string }).backendId ?? order.id)
+      : undefined,
+  );
   if (!order)
     return (
       <Page>
@@ -435,7 +442,7 @@ export function ClientOrderDetailScreen({
               {order.pickup.garmentCountConfirmed} prendas recibidas
             </Badge>
           )}
-          {order.pickup.evidencePhotoUri && (
+          {!!order.pickup.evidencePhotoUri && (
             <Body muted>Evidencia de recogida adjunta.</Body>
           )}
           <Title style={detailStyles.sectionTitle}>Salida</Title>
@@ -448,18 +455,20 @@ export function ClientOrderDetailScreen({
           <Body muted>
             {order.delivery.date} · {order.delivery.timeSlot}
           </Body>
-          {order.delivery.recipientName && (
+          {order.delivery.recipientName ? (
             <Body>
-              Recibido por {order.delivery.recipientName} ·{" "}
-              {order.delivery.recipientRelationship}
+              Recibido por {order.delivery.recipientName}
+              {order.delivery.recipientRelationship
+                ? ` · ${order.delivery.recipientRelationship}`
+                : ""}
             </Body>
-          )}
-          {order.delivery.deliveryNotes && (
+          ) : null}
+          {order.delivery.deliveryNotes ? (
             <Body muted>{order.delivery.deliveryNotes}</Body>
-          )}
-          {order.delivery.evidencePhotoUri && (
+          ) : null}
+          {order.delivery.evidencePhotoUri ? (
             <Body muted>Evidencia de entrega adjunta.</Body>
-          )}
+          ) : null}
         </Accordion>
       </Card>
       <Card style={detailStyles.accordionCard}>
@@ -495,7 +504,7 @@ export function ClientOrderDetailScreen({
           />
         </Accordion>
       </Card>
-      {order.assignedDriverId && (
+      {!!order.assignedDriverId && (
         <Card style={detailStyles.card}>
           <Title style={detailStyles.sectionTitle}>Chofer asignado</Title>
           <View style={detailStyles.driverRow}>

@@ -12,6 +12,7 @@ import type {
   TimelineEvent,
 } from "../../domain/models";
 import { facilities } from "../../domain/catalog";
+import { statusLabels } from "../../domain/models";
 import { apiClient } from "../api/apiClient";
 import { getStoredAuthSession } from "../auth/authService";
 
@@ -129,8 +130,15 @@ export interface BackendOrderEvent {
   id: string;
   status: string;
   title: string;
+  // El servidor guarda la nota del cambio en `description`.
+  description?: string | null;
   note?: string | null;
   createdAt: string;
+}
+
+// Título que ve el cliente para cada estado; el título del servidor ("Estado: X") es interno.
+export function eventTitle(status: string, fallback: string): string {
+  return (statusLabels as Record<string, string>)[status] ?? fallback;
 }
 
 export interface AssignedDriverDto {
@@ -330,15 +338,16 @@ export function mapBackendOrderToDomain(
     "events" in raw && raw.events
       ? raw.events.map((ev) => ({
           status: (ev.status as OrderStatus) ?? "PAYMENT_PENDING",
-          title: ev.title,
-          description: ev.note ?? "",
+          title: eventTitle(ev.status, ev.title),
+          description: ev.description ?? ev.note ?? "",
           timestamp: ev.createdAt,
           completed: true,
         }))
       : [
+          // Solo la lista llega sin eventos: se muestra el estado actual hasta cargar el detalle.
           {
             status: (raw.status as OrderStatus) ?? "PAYMENT_PENDING",
-            title: `Estado: ${raw.status}`,
+            title: eventTitle(raw.status, `Estado: ${raw.status}`),
             description: "",
             timestamp: raw.createdAt,
             completed: true,
