@@ -126,6 +126,24 @@ export interface BackendOrderExtra {
   price: string | number;
 }
 
+export interface PriceAdjustment {
+  id: string;
+  type: "WEIGHT_ADJUSTMENT" | "SERVICE_RECLASSIFICATION" | "EXTRA_ITEM" | "PRICE_ADJUSTMENT";
+  customerMessage: string;
+  amountDifference: string | number;
+  requiresCustomerApproval: boolean;
+  status: "PENDING_CUSTOMER" | "APPROVED" | "REJECTED";
+  createdAt: string;
+}
+
+export interface IssuedHandoff {
+  handoffId: string;
+  type: string;
+  code: string;
+  qrToken: string;
+  expiresAt: string;
+}
+
 export interface BackendOrderEvent {
   id: string;
   status: string;
@@ -136,9 +154,11 @@ export interface BackendOrderEvent {
   createdAt: string;
 }
 
-// Título que ve el cliente para cada estado; el título del servidor ("Estado: X") es interno.
-export function eventTitle(status: string, fallback: string): string {
-  return (statusLabels as Record<string, string>)[status] ?? fallback;
+// Título que ve el cliente. Los títulos automáticos del servidor ("Estado: X") se traducen al
+// nombre del estado; los ya redactados (p. ej. "Recogida fallida") se muestran tal cual.
+export function eventTitle(status: string, serverTitle: string): string {
+  if (serverTitle && !/^Estado:/i.test(serverTitle)) return serverTitle;
+  return (statusLabels as Record<string, string>)[status] ?? serverTitle;
 }
 
 export interface AssignedDriverDto {
@@ -176,6 +196,10 @@ export interface OrderTrackingDto {
 
 export interface BackendOrderDetails extends BackendOrderSummary {
   customerId?: string;
+  // Solo en el detalle: lo pagado y lo que falta pagar.
+  amountPaid?: string | number;
+  amountDue?: string | number;
+  paymentMethodKind?: "WALLET" | "CARD" | "TRANSFER" | null;
   notes?: string | null;
   pricingModel?: "FIXED" | "PER_WEIGHT";
   estimatedWeightLb?: string | number | null;
@@ -484,6 +508,62 @@ export const orderService = {
     return await apiClient.get<BackendOrderDetails>(`/orders/${id}`, {
       accessToken: token,
     });
+  },
+
+  // Paga con la billetera lo pendiente de la solicitud: el pago inicial (la confirma) o la
+  // diferencia de un precio final mayor. Si no alcanza el saldo, el servidor lo rechaza.
+  async payOrder(
+    orderId: string,
+    expectedVersion: number,
+    explicitToken?: string | null,
+  ): Promise<BackendOrderDetails> {
+    const token = await resolveToken(explicitToken);
+    return await apiClient.post<BackendOrderDetails>(
+      `/orders/${orderId}/pay`,
+      { expectedVersion },
+      { accessToken: token },
+    );
+  },
+
+  // Ajustes de precio que la sede registró (peso real, prenda extra...). El cliente aprueba o
+  // rechaza los que suben el precio; lo rechazado no se cobra.
+  async listAdjustments(orderId: string, explicitToken?: string | null): Promise<PriceAdjustment[]> {
+    const token = await resolveToken(explicitToken);
+    return (
+      (await apiClient.get<PriceAdjustment[]>(`/orders/${orderId}/adjustments`, {
+        accessToken: token,
+      })) ?? []
+    );
+  },
+
+  async decideAdjustment(
+    orderId: string,
+    adjustmentId: string,
+    approve: boolean,
+    expectedVersion: number,
+    explicitToken?: string | null,
+  ): Promise<{ pending: number; requiresStaffReview: boolean }> {
+    const token = await resolveToken(explicitToken);
+    return await apiClient.post(
+      `/orders/${orderId}/adjustments/${adjustmentId}/decision`,
+      { approve, expectedVersion },
+      { accessToken: token },
+    );
+  },
+
+  // Custodia: genera el código y el QR que el cliente muestra al chofer. El servidor solo los
+  // entrega esta vez (no los guarda en claro) y generar otro invalida el anterior.
+  async issueHandoff(
+    orderId: string,
+    type: "CUSTOMER_TO_DRIVER" | "DRIVER_TO_CUSTOMER" | "FACILITY_TO_CUSTOMER",
+    explicitToken?: string | null,
+  ): Promise<IssuedHandoff> {
+    const token = await resolveToken(explicitToken);
+    return await apiClient.post<IssuedHandoff>(
+      `/orders/${orderId}/handoffs/issue`,
+      { type },
+      { accessToken: token },
+    );
   },
 
   async getOrderTracking(

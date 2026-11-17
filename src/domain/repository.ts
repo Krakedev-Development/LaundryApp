@@ -296,7 +296,7 @@ export class LaundryRepository {
     if (/billetera/i.test(method)) {
       if (customer.walletBalance < amount)
         throw Error(
-          "Saldo insuficiente. Recarga tu billetera o elige una tarjeta.",
+          "Saldo insuficiente. Recarga tu billetera o paga por transferencia.",
         );
       customer.walletBalance = round(customer.walletBalance - amount);
       this.state.walletTransactions.unshift({

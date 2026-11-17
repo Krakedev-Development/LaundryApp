@@ -252,7 +252,13 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
     ),
     [appliedPromo, setAppliedPromo] = useState<string>(),
     [payment, setPayment] = useState("Billetera"),
-    [confirmedId, setConfirmedId] = useState<string>();
+    [confirmedId, setConfirmedId] = useState<string>(),
+    // Resultado del pago en el servidor (solo para solicitudes creadas en el servidor).
+    [paymentResult, setPaymentResult] = useState<
+      | { kind: "paid"; amount: number }
+      | { kind: "transfer"; amount: number }
+      | { kind: "pending"; message: string }
+    >();
 
   useEffect(() => {
     let active = true;
@@ -508,7 +514,7 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
           extraIds: extraIds.length > 0 ? extraIds : undefined,
           promotionCode: appliedPromo || undefined,
           notes: notes.trim() || undefined,
-          paymentMethodKind: "WALLET",
+          paymentMethodKind: payment === "Billetera" ? "WALLET" : "TRANSFER",
         });
 
         const registered = execute((r) =>
@@ -526,6 +532,25 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
         );
 
         createdCode = registered.id;
+
+        // Pago al crear: con billetera se cobra ya; si no alcanza el saldo, la solicitud queda
+        // creada y pendiente de pago (se paga desde el detalle). Con transferencia, la sede
+        // confirma el pago y entonces la solicitud avanza.
+        if (payment === "Billetera") {
+          try {
+            const paid = await orderService.payOrder(apiOrder.id, apiOrder.version);
+            execute((r) => r.syncOrdersFromApi([paid]));
+            setPaymentResult({ kind: "paid", amount: Number(paid.total) || 0 });
+          } catch (payError) {
+            setPaymentResult({
+              kind: "pending",
+              message:
+                payError instanceof Error ? payError.message : "No se pudo cobrar con la billetera.",
+            });
+          }
+        } else {
+          setPaymentResult({ kind: "transfer", amount: Number(apiOrder.total) || 0 });
+        }
       } catch (apiError) {
         const session = await getStoredAuthSession();
         if (!session.accessToken) {
@@ -609,9 +634,17 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
             <View style={scheduledStyles.divider} />
             <ScheduledInfo icon="wallet-outline">
               <Body style={scheduledStyles.text}>
-                {model === "PER_WEIGHT"
-                  ? "El pago se confirma después del pesaje certificado."
-                  : `Pago confirmado: ${money(pricing.total)}.`}
+                {paymentResult?.kind === "paid"
+                  ? model === "PER_WEIGHT"
+                    ? `Pagaste el estimado: ${money(paymentResult.amount)}. Tras el pesaje se devuelve o se cobra la diferencia.`
+                    : `Pago confirmado: ${money(paymentResult.amount)}.`
+                  : paymentResult?.kind === "transfer"
+                    ? `Transfiere ${money(paymentResult.amount)}. La sede confirmará tu pago y entonces programaremos la recogida.`
+                    : paymentResult?.kind === "pending"
+                      ? `Tu solicitud quedó pendiente de pago: ${paymentResult.message} Puedes pagarla desde el detalle.`
+                      : model === "PER_WEIGHT"
+                        ? "El pago se confirma después del pesaje certificado."
+                        : `Pago confirmado: ${money(pricing.total)}.`}
               </Body>
             </ScheduledInfo>
           </View>
@@ -980,7 +1013,7 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
                 subtitle={
                   payment === "Billetera"
                     ? "Billetera Laundry · " + money(c.walletBalance)
-                    : "Tarjeta"
+                    : "Transferencia bancaria"
                 }
                 icon="card-outline"
                 onPress={() => setPanel("payment")}
@@ -990,8 +1023,11 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
                 visible={panel === "payment"}
                 onClose={() => setPanel(undefined)}
               >
-                <Body muted>Los pagos se registran solo en este dispositivo.</Body>
-                {["Billetera", "Tarjeta"].map((method) => (
+                <Body muted>
+                  Con billetera se cobra al confirmar. Con transferencia, la sede confirma tu pago
+                  y entonces la solicitud avanza.
+                </Body>
+                {["Billetera", "Transferencia"].map((method) => (
                   <Choice
                     key={method}
                     style={[
@@ -1002,7 +1038,7 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
                     label={
                       method === "Billetera"
                         ? `Billetera Laundry · ${money(c.walletBalance)}`
-                        : "Tarjeta"
+                        : "Transferencia"
                     }
                     selected={payment === method}
                     onPress={() => {

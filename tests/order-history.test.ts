@@ -72,3 +72,19 @@ test("sincronizar la lista (sin eventos) no borra el historial cargado del detal
   assert.deepEqual(find().timeline.at(-1)?.title, "Chofer en tu dirección");
   assert.equal(find().timeline.length, 4);
 });
+
+test("los eventos con título propio (recogida fallida o reprogramada) se muestran tal cual", () => {
+  const order = mapBackendOrderToDomain({
+    ...base,
+    status: "INCIDENT",
+    events: [
+      ...events,
+      { id: "e5", status: "INCIDENT", title: "Recogida fallida", description: "Cliente ausente", createdAt: "2026-11-16T17:30:00.000Z" },
+      { id: "e6", status: "INCIDENT", title: "Recogida reprogramada", description: "Nueva recogida: 2026-11-18 08:00-12:00.", createdAt: "2026-11-16T18:00:00.000Z" },
+    ],
+  } as never);
+  assert.deepEqual(order.timeline.slice(-2).map((e) => [e.title, e.description]), [
+    ["Recogida fallida", "Cliente ausente"],
+    ["Recogida reprogramada", "Nueva recogida: 2026-11-18 08:00-12:00."],
+  ]);
+});

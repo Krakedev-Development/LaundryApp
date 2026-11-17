@@ -215,6 +215,19 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
       scroll={false}
       footer={
         <>
+          {/* Con el chofer en la puerta, el cliente necesita su código de custodia (en el detalle). */}
+          {effectiveStatus === "ARRIVED_FOR_PICKUP" ||
+          effectiveStatus === "ARRIVED_FOR_DELIVERY" ? (
+            <Button
+              label="Mostrar código para el chofer"
+              icon="qr-code-outline"
+              onPress={() =>
+                navigation.navigate("ClientOrderDetail", {
+                  orderId: route.params.orderId,
+                })
+              }
+            />
+          ) : null}
           <Button
             label="Abrir chat con el chofer"
             icon="chatbubble-outline"
