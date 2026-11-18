@@ -522,3 +522,251 @@ test("benefits, unread notifications, support and chat remain reachable", async 
     page.getByRole("textbox", { name: "Escribe un mensaje", exact: true }),
   ).toHaveValue("");
 });
+
+// Agenda del servidor controlada por la prueba: franjas de mañana, una completa.
+async function serveSlots(page, initial) {
+  const state = { rows: initial };
+  const tomorrow = new Date(Date.now() + 86400000 - 5 * 3600000).toISOString().slice(0, 10);
+  await page.route(/\/api\/v1\/slots(\?.*)?$/, (route) => {
+    if (route.request().method() === "OPTIONS") return route.fallback();
+    const q = new URL(route.request().url()).searchParams;
+    const rows = state.rows
+      .map((s) => ({ facilityId: "facility-test-1", context: "DRIVER_PICKUP", date: tomorrow, ...s }))
+      .filter((s) => s.context === q.get("context"))
+      .filter((s) => q.get("onlyAvailable") === "false" || s.available > 0);
+    return route.fulfill({
+      status: 200,
+      headers: { "access-control-allow-origin": "*" },
+      contentType: "application/json",
+      body: JSON.stringify(rows),
+    });
+  });
+  return { state, tomorrow };
+}
+
+test("las franjas completas se muestran como Completo y no se pueden elegir", async ({ page }) => {
+  const { tomorrow } = await serveSlots(page, [
+    { id: "srv-1", startTime: "08:00", endTime: "12:00", available: 0 },
+    { id: "srv-2", startTime: "13:00", endTime: "17:00", available: 1 },
+    { id: "srv-3", startTime: "17:00", endTime: "20:00", available: 6 },
+  ]);
+  await page.getByRole("tab", { name: "Solicitar", exact: true }).click();
+  await page.getByRole("button", { name: "Elegir fecha y horario", exact: true }).click();
+  await expect(page.getByRole("radio", { name: tomorrow, exact: true })).toBeChecked();
+  const full = page.getByRole("radio", { name: `${tomorrow} · 08:00 - 12:00`, exact: true });
+  await expect(full).toBeDisabled();
+  await expect(page.getByText("Completo", { exact: true })).toBeVisible();
+  await expect(page.getByText("1 cupo disponible", { exact: true })).toBeVisible();
+  await expect(page.getByText("6 cupos disponibles", { exact: true })).toBeVisible();
+  await page.getByRole("radio", { name: `${tomorrow} · 17:00 - 20:00`, exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: /Elegir fecha y horario/ }),
+  ).toContainText("17:00 - 20:00");
+});
+
+test("si otro cliente llena la franja elegida, al volver a abrir se avisa y se pide otra", async ({ page }) => {
+  const { state, tomorrow } = await serveSlots(page, [
+    { id: "srv-2", startTime: "13:00", endTime: "17:00", available: 1 },
+    { id: "srv-3", startTime: "17:00", endTime: "20:00", available: 6 },
+  ]);
+  await page.getByRole("tab", { name: "Solicitar", exact: true }).click();
+  await page.getByRole("button", { name: "Elegir fecha y horario", exact: true }).click();
+  await page.getByRole("radio", { name: `${tomorrow} · 13:00 - 17:00`, exact: true }).click();
+  // Otro cliente toma el último cupo mientras tanto.
+  state.rows = [
+    { id: "srv-2", startTime: "13:00", endTime: "17:00", available: 0 },
+    { id: "srv-3", startTime: "17:00", endTime: "20:00", available: 6 },
+  ];
+  await page.getByRole("button", { name: /Elegir fecha y horario/ }).click();
+  await expect(page.getByTestId("slot_notice")).toHaveText(
+    "La franja que elegiste ya no tiene cupo. Elige otro horario.",
+  );
+  await expect(
+    page.getByRole("radio", { name: `${tomorrow} · 13:00 - 17:00`, exact: true }),
+  ).toBeDisabled();
+  await page.getByRole("button", { name: "Cerrar panel", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Elegir fecha y horario", exact: true }),
+  ).toContainText("Selecciona una franja con cupo");
+});
+
+test("la entrega solo ofrece franjas que empiezan cuando termina la recogida", async ({ page }) => {
+  const { tomorrow } = await serveSlots(page, [
+    { id: "srv-p", startTime: "13:00", endTime: "17:00", available: 3 },
+    { id: "srv-d1", context: "DRIVER_DELIVERY", startTime: "08:00", endTime: "12:00", available: 4 },
+    { id: "srv-d2", context: "DRIVER_DELIVERY", startTime: "17:00", endTime: "20:00", available: 4 },
+  ]);
+  await page.getByRole("tab", { name: "Solicitar", exact: true }).click();
+  await page.getByRole("button", { name: "Elegir dirección", exact: true }).click();
+  await page.getByRole("radio", { name: /^Casa ·/ }).click();
+  await page.getByRole("button", { name: "Elegir fecha y horario", exact: true }).click();
+  await page.getByRole("radio", { name: `${tomorrow} · 13:00 - 17:00`, exact: true }).click();
+  await page.getByRole("button", { name: "Continuar", exact: true }).click();
+
+  await page.getByRole("button", { name: "Elegir fecha y horario", exact: true }).click();
+  await expect(
+    page.getByRole("radio", { name: `${tomorrow} · 17:00 - 20:00`, exact: true }),
+  ).toBeEnabled();
+  await expect(
+    page.getByRole("radio", { name: `${tomorrow} · 08:00 - 12:00`, exact: true }),
+  ).toHaveCount(0);
+});
+
+// Custodia de la recogida con el servidor: el cliente genera su código cuando el chofer llegó.
+test("con el chofer en el domicilio, el cliente genera su código de custodia en el servidor", async ({ page }) => {
+  const ORDER = "9d0a8700-d1c1-4f74-b2ef-73db0e9fd844";
+  const cors = { "access-control-allow-origin": "*" };
+  const backendOrder = {
+    id: ORDER,
+    number: 9001,
+    status: "ARRIVED_FOR_PICKUP",
+    mode: "HOME_HOME",
+    facilityId: "facility-test-1",
+    paymentStatus: "PAID",
+    pricingStatus: "ESTIMATED",
+    total: "12.50",
+    version: 5,
+    createdAt: new Date().toISOString(),
+    events: [
+      { id: "e1", status: "PICKUP_ASSIGNED", title: "Estado: PICKUP_ASSIGNED", description: null, createdAt: new Date().toISOString() },
+      { id: "e2", status: "ARRIVED_FOR_PICKUP", title: "Estado: ARRIVED_FOR_PICKUP", description: "Chofer llegó al domicilio", createdAt: new Date().toISOString() },
+    ],
+  };
+  const issued = [];
+  const json = (route, status, body) =>
+    route.fulfill({ status, headers: cors, contentType: "application/json", body: JSON.stringify(body) });
+  await page.route(/\/api\/v1\/orders(\/[^?]*)?(\?.*)?$/, (route) => {
+    const req = route.request();
+    if (req.method() === "OPTIONS")
+      return route.fulfill({
+        status: 204,
+        headers: { ...cors, "access-control-allow-headers": "*", "access-control-allow-methods": "*" },
+      });
+    const path = new URL(req.url()).pathname;
+    if (path.endsWith("/handoffs/issue")) {
+      issued.push(req.postDataJSON());
+      return json(route, 201, {
+        handoffId: `h-${issued.length}`,
+        type: "CUSTOMER_TO_DRIVER",
+        code: issued.length === 1 ? "482910" : "731045",
+        qrToken: "AbCdEfGhIjKlMnOpQrStUvWxYz012345",
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      });
+    }
+    if (path.endsWith(`/orders/${ORDER}`)) return json(route, 200, backendOrder);
+    if (path.endsWith("/orders")) return json(route, 200, [backendOrder]);
+    return json(route, 200, []);
+  });
+  await page.evaluate(() => localStorage.setItem("laundry.auth.accessToken", "test-access"));
+  await page.reload();
+  await page.getByRole("button", { name: "Ver detalle de ORD-9001", exact: true }).click();
+  await expect(page.getByText("Entrega tu ropa al chofer", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Mostrar código", exact: true }).click();
+  const panel = page.getByTestId("handoff_code");
+  await expect(panel).toContainText("482 910");
+  await expect(panel).toContainText(/Vence en (59|60) minutos/);
+  expect(issued).toEqual([{ type: "CUSTOMER_TO_DRIVER" }]);
+  // Generar otro reemplaza el código anterior.
+  await page.getByRole("button", { name: "Generar otro código", exact: true }).click();
+  await expect(panel).toContainText("731 045");
+  expect(issued).toHaveLength(2);
+  // El historial ya refleja la llegada del chofer con su título claro.
+  await expect(
+    page.getByText("Chofer en tu dirección", { exact: true }).filter({ visible: true }).first(),
+  ).toBeVisible();
+});
+
+// Ajustes de precio y saldo pendiente contra el servidor.
+test("el cliente aprueba un ajuste de precio y paga el saldo con su billetera", async ({ page }) => {
+  const ORDER = "9d0a8700-d1c1-4f74-b2ef-73db0e9fd844";
+  const cors = { "access-control-allow-origin": "*" };
+  const state = {
+    order: {
+      id: ORDER, number: 9002, status: "CUSTOMER_APPROVAL_PENDING", mode: "HOME_HOME", facilityId: "facility-test-1",
+      paymentStatus: "PAID", pricingStatus: "ADJUSTMENT_PENDING", total: "22.00", amountPaid: "22.00", amountDue: "0",
+      paymentMethodKind: "WALLET", version: 7, createdAt: new Date().toISOString(), events: [],
+    },
+    adjustments: [
+      { id: "adj-1", type: "EXTRA_ITEM", customerMessage: "Tratamiento de mancha", amountDifference: "2.50", requiresCustomerApproval: true, status: "PENDING_CUSTOMER", createdAt: new Date().toISOString() },
+    ],
+  };
+  const calls = [];
+  const json = (route, status, body) =>
+    route.fulfill({ status, headers: cors, contentType: "application/json", body: JSON.stringify(body) });
+  await page.route(/\/api\/v1\/orders(\/[^?]*)?(\?.*)?$/, (route) => {
+    const req = route.request();
+    if (req.method() === "OPTIONS")
+      return route.fulfill({ status: 204, headers: { ...cors, "access-control-allow-headers": "*", "access-control-allow-methods": "*" } });
+    const path = new URL(req.url()).pathname;
+    if (req.method() !== "GET") calls.push([path.replace(/^.*\/orders\/[^/]+/, ""), req.postDataJSON()]);
+    if (path.endsWith("/adjustments/adj-1/decision")) {
+      state.adjustments[0].status = "APPROVED";
+      // La sede fija el precio: sube a 24.50 y quedan 2.50 por pagar.
+      state.order = { ...state.order, status: "IN_PROCESS", total: "24.50", amountDue: "2.50", paymentStatus: "PENDING", version: 9 };
+      return json(route, 201, { pending: 0, requiresStaffReview: false });
+    }
+    if (path.endsWith("/pay")) {
+      state.order = { ...state.order, amountDue: "0", amountPaid: "24.50", paymentStatus: "PAID", version: 10 };
+      return json(route, 201, state.order);
+    }
+    if (path.endsWith("/adjustments")) return json(route, 200, state.adjustments);
+    if (path.endsWith(`/orders/${ORDER}`)) return json(route, 200, state.order);
+    if (path.endsWith("/orders")) return json(route, 200, [state.order]);
+    return json(route, 200, []);
+  });
+  await page.evaluate(() => localStorage.setItem("laundry.auth.accessToken", "test-access"));
+  await page.reload();
+  await page.getByRole("button", { name: "Ver detalle de ORD-9002", exact: true }).click();
+  await expect(page.getByTestId("adjustment_adj-1")).toContainText("Tratamiento de mancha");
+  await expect(page.getByTestId("adjustment_adj-1")).toContainText("+$2.50");
+  await page.getByRole("button", { name: "Aprobar", exact: true }).click();
+  await expect(page.getByText("Tratamiento de mancha · +$2.50 · Aplicado", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("amount_due")).toContainText("$2.50");
+  await page.getByRole("button", { name: "Pagar con billetera", exact: true }).click();
+  await expect(page.getByTestId("amount_due")).toHaveCount(0);
+  expect(calls).toEqual([
+    ["/adjustments/adj-1/decision", { approve: true, expectedVersion: 7 }],
+    ["/pay", { expectedVersion: 9 }],
+  ]);
+});
+
+for (const [status, mode, title, type] of [
+  ["ARRIVED_FOR_DELIVERY", "HOME_HOME", "Recibe tu ropa", "DRIVER_TO_CUSTOMER"],
+  ["READY_FOR_PICKUP", "HOME_STORE", "Retira tu ropa en la sede", "FACILITY_TO_CUSTOMER"],
+]) {
+  test(`al recibir la ropa (${status}) el cliente genera su código de custodia`, async ({ page }) => {
+    const ORDER = "9d0a8700-d1c1-4f74-b2ef-73db0e9fd844";
+    const cors = { "access-control-allow-origin": "*" };
+    const order = {
+      id: ORDER, number: 9003, status, mode, facilityId: "facility-test-1", paymentStatus: "PAID",
+      pricingStatus: "FINAL", total: "22.00", amountPaid: "22.00", amountDue: "0", version: 30,
+      createdAt: new Date().toISOString(), events: [],
+    };
+    const issued = [];
+    const json = (route, code, body) =>
+      route.fulfill({ status: code, headers: cors, contentType: "application/json", body: JSON.stringify(body) });
+    await page.route(/\/api\/v1\/orders(\/[^?]*)?(\?.*)?$/, (route) => {
+      const req = route.request();
+      if (req.method() === "OPTIONS")
+        return route.fulfill({ status: 204, headers: { ...cors, "access-control-allow-headers": "*", "access-control-allow-methods": "*" } });
+      const path = new URL(req.url()).pathname;
+      if (path.endsWith("/handoffs/issue")) {
+        issued.push(req.postDataJSON());
+        return json(route, 201, {
+          handoffId: "h-1", type, code: "265810", qrToken: "AbCdEfGhIjKlMnOpQrStUvWxYz012345",
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        });
+      }
+      if (path.endsWith(`/orders/${ORDER}`)) return json(route, 200, order);
+      if (path.endsWith("/orders")) return json(route, 200, [order]);
+      return json(route, 200, []);
+    });
+    await page.evaluate(() => localStorage.setItem("laundry.auth.accessToken", "test-access"));
+    await page.reload();
+    await page.getByRole("button", { name: "Ver detalle de ORD-9003", exact: true }).click();
+    await expect(page.getByText(title, { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Mostrar código", exact: true }).click();
+    await expect(page.getByTestId("handoff_code")).toContainText("265 810");
+    expect(issued).toEqual([{ type }]);
+  });
+}

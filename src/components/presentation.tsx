@@ -83,7 +83,7 @@ export function Accordion({
           >
             {title}
           </Title>
-          {subtitle && <Body muted>{subtitle}</Body>}
+          {subtitle ? <Body muted>{subtitle}</Body> : null}
         </View>
         <View
           style={{
@@ -179,7 +179,7 @@ export function ListItem({
         </View>
         <View style={{ flex: 1, gap: 3 }}>
           <Text style={[ui.text, { fontWeight: "600" }]}>{title}</Text>
-          {subtitle && <Body muted>{subtitle}</Body>}
+          {subtitle ? <Body muted>{subtitle}</Body> : null}
         </View>
         {trailing || (onPress && <Icon name="chevron-forward" size={18} />)}
       </>
@@ -534,7 +534,8 @@ export function Timeline({ events }: { events: Order["timeline"] }) {
           </View>
           <View style={{ flex: 1, gap: 3 }}>
             <Body>{event.title}</Body>
-            {event.description && <Body muted>{event.description}</Body>}
+            {/* Un texto vacío no puede quedar suelto dentro de un View. */}
+            {event.description ? <Body muted>{event.description}</Body> : null}
             <Body muted>{event.timestamp}</Body>
           </View>
         </View>

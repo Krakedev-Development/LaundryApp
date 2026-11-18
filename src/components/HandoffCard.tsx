@@ -63,7 +63,7 @@ export function HandoffCard({
           onPress={() => setOpen(true)}
         />
       )}
-      {handoff.usedAt && <Body muted>Usado: {handoff.usedAt}</Body>}
+      {handoff.usedAt ? <Body muted>Usado: {handoff.usedAt}</Body> : null}
       <BottomSheet
         title={handoff.title}
         visible={open && isActive}

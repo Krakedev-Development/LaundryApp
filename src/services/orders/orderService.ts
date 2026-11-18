@@ -12,6 +12,7 @@ import type {
   TimelineEvent,
 } from "../../domain/models";
 import { facilities } from "../../domain/catalog";
+import { statusLabels } from "../../domain/models";
 import { apiClient } from "../api/apiClient";
 import { getStoredAuthSession } from "../auth/authService";
 
@@ -125,12 +126,39 @@ export interface BackendOrderExtra {
   price: string | number;
 }
 
+export interface PriceAdjustment {
+  id: string;
+  type: "WEIGHT_ADJUSTMENT" | "SERVICE_RECLASSIFICATION" | "EXTRA_ITEM" | "PRICE_ADJUSTMENT";
+  customerMessage: string;
+  amountDifference: string | number;
+  requiresCustomerApproval: boolean;
+  status: "PENDING_CUSTOMER" | "APPROVED" | "REJECTED";
+  createdAt: string;
+}
+
+export interface IssuedHandoff {
+  handoffId: string;
+  type: string;
+  code: string;
+  qrToken: string;
+  expiresAt: string;
+}
+
 export interface BackendOrderEvent {
   id: string;
   status: string;
   title: string;
+  // El servidor guarda la nota del cambio en `description`.
+  description?: string | null;
   note?: string | null;
   createdAt: string;
+}
+
+// Título que ve el cliente. Los títulos automáticos del servidor ("Estado: X") se traducen al
+// nombre del estado; los ya redactados (p. ej. "Recogida fallida") se muestran tal cual.
+export function eventTitle(status: string, serverTitle: string): string {
+  if (serverTitle && !/^Estado:/i.test(serverTitle)) return serverTitle;
+  return (statusLabels as Record<string, string>)[status] ?? serverTitle;
 }
 
 export interface AssignedDriverDto {
@@ -168,6 +196,10 @@ export interface OrderTrackingDto {
 
 export interface BackendOrderDetails extends BackendOrderSummary {
   customerId?: string;
+  // Solo en el detalle: lo pagado y lo que falta pagar.
+  amountPaid?: string | number;
+  amountDue?: string | number;
+  paymentMethodKind?: "WALLET" | "CARD" | "TRANSFER" | null;
   notes?: string | null;
   pricingModel?: "FIXED" | "PER_WEIGHT";
   estimatedWeightLb?: string | number | null;
@@ -192,6 +224,13 @@ export const GUAYAQUIL_DEFAULT_COORDINATES = {
   fullAddress: "Av. 9 de Octubre y Malecón Simón Bolívar, Guayaquil",
   reference: "Guayaquil Centro",
 } as const;
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isUuid(value?: string | null): value is string {
+  return typeof value === "string" && UUID_REGEX.test(value.trim());
+}
 
 export function formatOrderCode(order: {
   id?: string;
@@ -330,15 +369,16 @@ export function mapBackendOrderToDomain(
     "events" in raw && raw.events
       ? raw.events.map((ev) => ({
           status: (ev.status as OrderStatus) ?? "PAYMENT_PENDING",
-          title: ev.title,
-          description: ev.note ?? "",
+          title: eventTitle(ev.status, ev.title),
+          description: ev.description ?? ev.note ?? "",
           timestamp: ev.createdAt,
           completed: true,
         }))
       : [
+          // Solo la lista llega sin eventos: se muestra el estado actual hasta cargar el detalle.
           {
             status: (raw.status as OrderStatus) ?? "PAYMENT_PENDING",
-            title: `Estado: ${raw.status}`,
+            title: eventTitle(raw.status, `Estado: ${raw.status}`),
             description: "",
             timestamp: raw.createdAt,
             completed: true,
@@ -475,6 +515,62 @@ export const orderService = {
     return await apiClient.get<BackendOrderDetails>(`/orders/${id}`, {
       accessToken: token,
     });
+  },
+
+  // Paga con la billetera lo pendiente de la solicitud: el pago inicial (la confirma) o la
+  // diferencia de un precio final mayor. Si no alcanza el saldo, el servidor lo rechaza.
+  async payOrder(
+    orderId: string,
+    expectedVersion: number,
+    explicitToken?: string | null,
+  ): Promise<BackendOrderDetails> {
+    const token = await resolveToken(explicitToken);
+    return await apiClient.post<BackendOrderDetails>(
+      `/orders/${orderId}/pay`,
+      { expectedVersion },
+      { accessToken: token },
+    );
+  },
+
+  // Ajustes de precio que la sede registró (peso real, prenda extra...). El cliente aprueba o
+  // rechaza los que suben el precio; lo rechazado no se cobra.
+  async listAdjustments(orderId: string, explicitToken?: string | null): Promise<PriceAdjustment[]> {
+    const token = await resolveToken(explicitToken);
+    return (
+      (await apiClient.get<PriceAdjustment[]>(`/orders/${orderId}/adjustments`, {
+        accessToken: token,
+      })) ?? []
+    );
+  },
+
+  async decideAdjustment(
+    orderId: string,
+    adjustmentId: string,
+    approve: boolean,
+    expectedVersion: number,
+    explicitToken?: string | null,
+  ): Promise<{ pending: number; requiresStaffReview: boolean }> {
+    const token = await resolveToken(explicitToken);
+    return await apiClient.post(
+      `/orders/${orderId}/adjustments/${adjustmentId}/decision`,
+      { approve, expectedVersion },
+      { accessToken: token },
+    );
+  },
+
+  // Custodia: genera el código y el QR que el cliente muestra al chofer. El servidor solo los
+  // entrega esta vez (no los guarda en claro) y generar otro invalida el anterior.
+  async issueHandoff(
+    orderId: string,
+    type: "CUSTOMER_TO_DRIVER" | "DRIVER_TO_CUSTOMER" | "FACILITY_TO_CUSTOMER",
+    explicitToken?: string | null,
+  ): Promise<IssuedHandoff> {
+    const token = await resolveToken(explicitToken);
+    return await apiClient.post<IssuedHandoff>(
+      `/orders/${orderId}/handoffs/issue`,
+      { type },
+      { accessToken: token },
+    );
   },
 
   async getOrderTracking(

@@ -50,7 +50,7 @@ export function ProfileRow({
         <Text style={[styles.rowLabel, subtitle && styles.balanceLabel]}>
           {label}
         </Text>
-        {subtitle && <Text style={styles.balanceAmount}>{subtitle}</Text>}
+        {subtitle ? <Text style={styles.balanceAmount}>{subtitle}</Text> : null}
       </View>
       <View style={styles.chevronBadge}>
         <Icon name="chevron-forward" size={15} color="#64748B" />

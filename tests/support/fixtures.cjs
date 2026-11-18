@@ -45,6 +45,31 @@ exports.test = base.test.extend({
               body: JSON.stringify(catalog[name] ?? []),
             }),
       );
+    // Agenda de prueba con las mismas reglas que el servidor para el cliente: por defecto solo
+    // franjas con cupo; con onlyAvailable=false también las completas (available: 0).
+    await context.route(/\/api\/v1\/slots(\?.*)?$/, (route) => {
+      if (route.request().method() === "OPTIONS") return route.fallback();
+      const q = new URL(route.request().url()).searchParams;
+      // Como el servidor, rechaza una sede que no es suya (p. ej. las sedes locales de los
+      // pedidos de prueba); la app entonces usa la agenda guardada.
+      if (q.get("facilityId") && q.get("facilityId") !== "facility-test-1")
+        return route.fulfill({
+          status: 400,
+          headers: cors,
+          contentType: "application/json",
+          body: JSON.stringify({ message: "facilityId must be a UUID" }),
+        });
+      const rows = (catalog.slots ?? [])
+        .filter((s) => !q.get("context") || s.context === q.get("context"))
+        .filter((s) => !q.get("facilityId") || s.facilityId === q.get("facilityId"))
+        .filter((s) => q.get("onlyAvailable") === "false" || s.available > 0);
+      return route.fulfill({
+        status: 200,
+        headers: cors,
+        contentType: "application/json",
+        body: JSON.stringify(rows),
+      });
+    });
     // Sede de prueba: las pruebas de interfaz eligen sede, y el producto no trae ninguna.
     await context.route('**/api/v1/facilities', (route) =>
       route.request().method() === 'OPTIONS'

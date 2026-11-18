@@ -296,7 +296,7 @@ export class LaundryRepository {
     if (/billetera/i.test(method)) {
       if (customer.walletBalance < amount)
         throw Error(
-          "Saldo insuficiente. Recarga tu billetera o elige una tarjeta.",
+          "Saldo insuficiente. Recarga tu billetera o paga por transferencia.",
         );
       customer.walletBalance = round(customer.walletBalance - amount);
       this.state.walletTransactions.unshift({
@@ -489,6 +489,13 @@ export class LaundryRepository {
               ? domainOrder.items
               : prev.items,
           fulfillmentPlan: domainOrder.fulfillmentPlan ?? prev.fulfillmentPlan,
+          // La lista llega sin eventos: se conserva el historial ya cargado desde el detalle.
+          timeline:
+            "events" in raw && raw.events?.length
+              ? domainOrder.timeline
+              : prev.timeline?.length
+                ? prev.timeline
+                : domainOrder.timeline,
         };
       } else {
         this.state.orders.unshift(domainOrder);

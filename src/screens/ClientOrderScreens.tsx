@@ -51,6 +51,9 @@ import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
 import { contentColors } from "../design-system/classic";
 import { HomeMetric, homeStyles } from "../components/HomePresentation";
 import { perPound } from "../components/WeightServiceCard";
+import { useServerOrderRefresh } from "../features/orders/model/useServerOrderRefresh";
+import { ServerHandoffCode } from "../components/ServerHandoffCode";
+import { ServerOrderBilling } from "../components/ServerOrderBilling";
 import {
   DetailMeta,
   detailStyles,
@@ -273,6 +276,12 @@ export function ClientOrderDetailScreen({
   const a = useAction();
   const [cancel, setCancel] = useState(false),
     [options, setOptions] = useState(false);
+  // Historial y estado al día con el servidor mientras el detalle está abierto.
+  useServerOrderRefresh(
+    order
+      ? ((order as unknown as { backendId?: string }).backendId ?? order.id)
+      : undefined,
+  );
   if (!order)
     return (
       <Page>
@@ -280,6 +289,12 @@ export function ClientOrderDetailScreen({
       </Page>
     );
   const closed = terminalStatuses.includes(order.status);
+  // Id del servidor (UUID): solo esas solicitudes usan la custodia del servidor.
+  const backendId =
+    (order as unknown as { backendId?: string }).backendId ?? order.id;
+  const serverId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(backendId)
+    ? backendId
+    : undefined;
   return (
     <Page>
       <Card style={detailStyles.hero}>
@@ -392,6 +407,33 @@ export function ClientOrderDetailScreen({
           )}
         </Card>
       )}
+      {/* Ajustes de precio por decidir y saldo pendiente, desde el servidor. */}
+      {serverId ? <ServerOrderBilling orderId={serverId} /> : null}
+      {/* Custodia en el servidor: el código se genera cuando el chofer ya está en el domicilio. */}
+      {order.status === "ARRIVED_FOR_PICKUP" && serverId ? (
+        <ServerHandoffCode
+          orderId={serverId}
+          type="CUSTOMER_TO_DRIVER"
+          title="Entrega tu ropa al chofer"
+          description="El chofer llegó. Muéstrale este código o QR para que registre la recogida de tus prendas."
+        />
+      ) : null}
+      {order.status === "ARRIVED_FOR_DELIVERY" && serverId ? (
+        <ServerHandoffCode
+          orderId={serverId}
+          type="DRIVER_TO_CUSTOMER"
+          title="Recibe tu ropa"
+          description="El chofer llegó con tu ropa. Muéstrale este código o QR para que registre la entrega."
+        />
+      ) : null}
+      {order.status === "READY_FOR_PICKUP" && serverId ? (
+        <ServerHandoffCode
+          orderId={serverId}
+          type="FACILITY_TO_CUSTOMER"
+          title="Retira tu ropa en la sede"
+          description="Tu ropa está lista. En la sede, muestra este código o QR para retirarla."
+        />
+      ) : null}
       {order.handoffs
         .filter(isCustomerHandoff)
         .filter((h) => h.status === "ACTIVE" || h.status === "PENDING")
@@ -435,7 +477,7 @@ export function ClientOrderDetailScreen({
               {order.pickup.garmentCountConfirmed} prendas recibidas
             </Badge>
           )}
-          {order.pickup.evidencePhotoUri && (
+          {!!order.pickup.evidencePhotoUri && (
             <Body muted>Evidencia de recogida adjunta.</Body>
           )}
           <Title style={detailStyles.sectionTitle}>Salida</Title>
@@ -448,18 +490,20 @@ export function ClientOrderDetailScreen({
           <Body muted>
             {order.delivery.date} · {order.delivery.timeSlot}
           </Body>
-          {order.delivery.recipientName && (
+          {order.delivery.recipientName ? (
             <Body>
-              Recibido por {order.delivery.recipientName} ·{" "}
-              {order.delivery.recipientRelationship}
+              Recibido por {order.delivery.recipientName}
+              {order.delivery.recipientRelationship
+                ? ` · ${order.delivery.recipientRelationship}`
+                : ""}
             </Body>
-          )}
-          {order.delivery.deliveryNotes && (
+          ) : null}
+          {order.delivery.deliveryNotes ? (
             <Body muted>{order.delivery.deliveryNotes}</Body>
-          )}
-          {order.delivery.evidencePhotoUri && (
+          ) : null}
+          {order.delivery.evidencePhotoUri ? (
             <Body muted>Evidencia de entrega adjunta.</Body>
-          )}
+          ) : null}
         </Accordion>
       </Card>
       <Card style={detailStyles.accordionCard}>
@@ -495,7 +539,7 @@ export function ClientOrderDetailScreen({
           />
         </Accordion>
       </Card>
-      {order.assignedDriverId && (
+      {!!order.assignedDriverId && (
         <Card style={detailStyles.card}>
           <Title style={detailStyles.sectionTitle}>Chofer asignado</Title>
           <View style={detailStyles.driverRow}>

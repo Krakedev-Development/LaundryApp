@@ -31,8 +31,9 @@ import {
   currentCustomer,
   today,
 } from "../domain/repository";
-import { slotService } from "../services/slots/slotService";
-import { orderService } from "../services/orders/orderService";
+import { slotEnd, slotService } from "../services/slots/slotService";
+import { deliveryPayload } from "../services/orders/deliveryPayload";
+import { isUuid, orderService } from "../services/orders/orderService";
 import { getStoredAuthSession } from "../services/auth/authService";
 import { fetchFacilities } from "../services/catalog/catalogService";
 import {
@@ -251,7 +252,13 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
     ),
     [appliedPromo, setAppliedPromo] = useState<string>(),
     [payment, setPayment] = useState("Billetera"),
-    [confirmedId, setConfirmedId] = useState<string>();
+    [confirmedId, setConfirmedId] = useState<string>(),
+    // Resultado del pago en el servidor (solo para solicitudes creadas en el servidor).
+    [paymentResult, setPaymentResult] = useState<
+      | { kind: "paid"; amount: number }
+      | { kind: "transfer"; amount: number }
+      | { kind: "pending"; message: string }
+    >();
 
   useEffect(() => {
     let active = true;
@@ -355,6 +362,31 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
     };
   }, []);
 
+  // La entrega debe ser de la misma sede y empezar cuando termina la recogida o después.
+  const pickupEnd = inbound.timeSlotId
+    ? slotEnd(inbound.scheduledDate, inbound.timeSlotText)
+    : undefined;
+  useEffect(() => {
+    setOutbound((prev) => {
+      if (!prev.timeSlotId) return prev;
+      const start = prev.timeSlotText.split(" - ")[0]?.trim() ?? "";
+      const tooEarly =
+        !!pickupEnd && `${prev.scheduledDate} ${start}` < `${pickupEnd.date} ${pickupEnd.time}`;
+      const otherSite =
+        !!inbound.facilityId && !!prev.facilityId && prev.facilityId !== inbound.facilityId;
+      if (!tooEarly && !otherSite) return prev;
+      return {
+        ...prev,
+        timeSlotId: undefined,
+        timeSlotText: "",
+        scheduledDate: "",
+        ...(prev.method === "CUSTOMER" && otherSite
+          ? { facilityId: undefined, facilityName: undefined, addressFull: "" }
+          : {}),
+      };
+    });
+  }, [inbound.timeSlotId, inbound.facilityId]);
+
   const blocked = state.customerCharges.some(
     (ch) => ch.customerId === c.id && ch.status === "PENDING",
   );
@@ -438,21 +470,52 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
         (await fetchFacilities())[0]?.id ||
         "3ab2f9fd-2f25-4c12-9f50-03c5d25417d5";
 
-      let pickupAddressId = inbound.addressId;
-      if (!pickupAddressId) {
-        const ensured = await orderService.ensureGuayaquilAddress();
-        pickupAddressId = ensured.id;
-        execute((r) => r.syncAddressesFromApi([ensured]));
-      }
+      const session = await getStoredAuthSession();
 
-      let pickupSlotId = inbound.timeSlotId;
-      if (!pickupSlotId) {
-        const slots = await slotService.fetchPickupSlots(facilityId);
-        const future =
-          slots.find((s) => s.date >= today() && s.available > 0) ??
-          slots[0];
-        if (future) pickupSlotId = future.id;
-      }
+      const resolveBackendAddressId = async (leg: Leg): Promise<string> => {
+        if (isUuid(leg.addressId)) {
+          return leg.addressId;
+        }
+        const localAddr = c.addresses.find((addr) => addr.id === leg.addressId);
+        let resolved;
+        if (
+          leg.addressFull?.trim() &&
+          Number.isFinite(leg.latitude) &&
+          Number.isFinite(leg.longitude) &&
+          leg.latitude !== 0
+        ) {
+          resolved = await orderService.createAddress(
+            {
+              title: localAddr?.title || "Mi Domicilio",
+              fullAddress: leg.addressFull.trim(),
+              reference: localAddr?.reference || undefined,
+              latitude: Number(leg.latitude),
+              longitude: Number(leg.longitude),
+              isPrimary: localAddr?.isPrimary ?? false,
+            },
+            session.accessToken,
+          );
+        } else {
+          resolved = await orderService.ensureGuayaquilAddress(
+            session.accessToken,
+          );
+        }
+
+        const allAddresses = await orderService
+          .getAddresses(session.accessToken)
+          .catch(() => null);
+        execute((r) => {
+          if (allAddresses?.length) {
+            r.syncAddressesFromApi(allAddresses);
+          } else {
+            const existingReal = c.addresses.filter(
+              (addr) => addr.id !== leg.addressId && isUuid(addr.id),
+            );
+            r.syncAddressesFromApi([...existingReal, resolved]);
+          }
+        });
+        return resolved.id;
+      };
 
       const orderItemsPayload = items.map((it) => {
         const serviceObj =
@@ -467,11 +530,50 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
       });
 
       try {
+        // Sin sesión no se llama al servidor: el catch crea la solicitud en el teléfono.
+        if (!session.accessToken) {
+          throw Error("No hay sesión activa");
+        }
+
+        // Las direcciones guardadas solo en el teléfono se registran en el servidor antes de
+        // crear la solicitud: el servidor solo acepta direcciones propias del cliente (UUID).
+        const pickupAddressId = await resolveBackendAddressId(inbound);
+        const homeDelivery = modeFor(inbound.method, outbound.method) === "HOME_HOME";
+        const outboundAddressId = !homeDelivery
+          ? undefined
+          : outbound.addressId && outbound.addressId === inbound.addressId
+            ? pickupAddressId
+            : await resolveBackendAddressId(outbound);
+
+        // La franja de recogida debe ser del servidor. Si no se eligió, se toma la primera con
+        // cupo; si viene de la agenda guardada en el teléfono, se pide elegirla de nuevo en lugar
+        // de cambiarla por otra sin avisar (igual que la franja de entrega).
+        let pickupSlotId = inbound.timeSlotId;
+        if (!pickupSlotId) {
+          const slots = await slotService.fetchPickupSlots(facilityId);
+          const future =
+            slots.find((s) => s.date >= today() && s.available > 0) ??
+            slots[0];
+          if (future) pickupSlotId = future.id;
+        } else if (!isUuid(pickupSlotId)) {
+          throw Error(
+            "Los horarios de recogida no están actualizados. Vuelve a elegir la franja de recogida.",
+          );
+        }
+
+        // La franja de entrega se envía y se reserva junto con la de recogida, con la dirección
+        // de entrega ya registrada en el servidor.
+        const delivery = deliveryPayload(
+          inbound,
+          { ...outbound, addressId: outboundAddressId ?? outbound.addressId },
+          pickupAddressId,
+        );
         const apiOrder = await orderService.createOrder({
           facilityId,
-          mode: "HOME_HOME",
-          pickupAddressId: pickupAddressId!,
+          mode: delivery.mode,
+          pickupAddressId,
           pickupSlotId: pickupSlotId!,
+          outbound: delivery.outbound,
           // Por peso solo viaja la bolsa: libras y precio los pone el servidor.
           ...(model === "PER_WEIGHT"
             ? { weightTierId: selectedTier!.id }
@@ -479,7 +581,7 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
           extraIds: extraIds.length > 0 ? extraIds : undefined,
           promotionCode: appliedPromo || undefined,
           notes: notes.trim() || undefined,
-          paymentMethodKind: "WALLET",
+          paymentMethodKind: payment === "Billetera" ? "WALLET" : "TRANSFER",
         });
 
         const registered = execute((r) =>
@@ -497,8 +599,26 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
         );
 
         createdCode = registered.id;
+
+        // Pago al crear: con billetera se cobra ya; si no alcanza el saldo, la solicitud queda
+        // creada y pendiente de pago (se paga desde el detalle). Con transferencia, la sede
+        // confirma el pago y entonces la solicitud avanza.
+        if (payment === "Billetera") {
+          try {
+            const paid = await orderService.payOrder(apiOrder.id, apiOrder.version);
+            execute((r) => r.syncOrdersFromApi([paid]));
+            setPaymentResult({ kind: "paid", amount: Number(paid.total) || 0 });
+          } catch (payError) {
+            setPaymentResult({
+              kind: "pending",
+              message:
+                payError instanceof Error ? payError.message : "No se pudo cobrar con la billetera.",
+            });
+          }
+        } else {
+          setPaymentResult({ kind: "transfer", amount: Number(apiOrder.total) || 0 });
+        }
       } catch (apiError) {
-        const session = await getStoredAuthSession();
         if (!session.accessToken) {
           const localOrder = execute((r) =>
             r.createOrder({
@@ -580,9 +700,17 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
             <View style={scheduledStyles.divider} />
             <ScheduledInfo icon="wallet-outline">
               <Body style={scheduledStyles.text}>
-                {model === "PER_WEIGHT"
-                  ? "El pago se confirma después del pesaje certificado."
-                  : `Pago confirmado: ${money(pricing.total)}.`}
+                {paymentResult?.kind === "paid"
+                  ? model === "PER_WEIGHT"
+                    ? `Pagaste el estimado: ${money(paymentResult.amount)}. Tras el pesaje se devuelve o se cobra la diferencia.`
+                    : `Pago confirmado: ${money(paymentResult.amount)}.`
+                  : paymentResult?.kind === "transfer"
+                    ? `Transfiere ${money(paymentResult.amount)}. La sede confirmará tu pago y entonces programaremos la recogida.`
+                    : paymentResult?.kind === "pending"
+                      ? `Tu solicitud quedó pendiente de pago: ${paymentResult.message} Puedes pagarla desde el detalle.`
+                      : model === "PER_WEIGHT"
+                        ? "El pago se confirma después del pesaje certificado."
+                        : `Pago confirmado: ${money(pricing.total)}.`}
               </Body>
             </ScheduledInfo>
           </View>
@@ -678,6 +806,8 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
             appearance="request"
             value={outbound}
             onChange={setOutbound}
+            facilityId={inbound.facilityId}
+            notBefore={pickupEnd}
           />
         )}
         {step === 3 && (
@@ -949,7 +1079,7 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
                 subtitle={
                   payment === "Billetera"
                     ? "Billetera Laundry · " + money(c.walletBalance)
-                    : "Tarjeta"
+                    : "Transferencia bancaria"
                 }
                 icon="card-outline"
                 onPress={() => setPanel("payment")}
@@ -959,8 +1089,11 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
                 visible={panel === "payment"}
                 onClose={() => setPanel(undefined)}
               >
-                <Body muted>Los pagos se registran solo en este dispositivo.</Body>
-                {["Billetera", "Tarjeta"].map((method) => (
+                <Body muted>
+                  Con billetera se cobra al confirmar. Con transferencia, la sede confirma tu pago
+                  y entonces la solicitud avanza.
+                </Body>
+                {["Billetera", "Transferencia"].map((method) => (
                   <Choice
                     key={method}
                     style={[
@@ -971,7 +1104,7 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
                     label={
                       method === "Billetera"
                         ? `Billetera Laundry · ${money(c.walletBalance)}`
-                        : "Tarjeta"
+                        : "Transferencia"
                     }
                     selected={payment === method}
                     onPress={() => {

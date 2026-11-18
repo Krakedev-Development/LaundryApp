@@ -27,9 +27,13 @@ export function formatSlotRange(slot: { startTime: string; endTime: string }): s
   return `${slot.startTime} - ${slot.endTime}`;
 }
 
+// El cliente solo recibe los cupos libres (`available`), no la capacidad interna: se
+// representan como capacidad = libres y reservados = 0, de modo que una franja completa
+// (available 0) queda sin cupo y la interfaz la muestra como "Completo".
 export function mapBackendSlotToTimeSlot(slot: BackendSlot): TimeSlot {
-  const capacity = slot.capacity ?? slot.available ?? 10;
-  const reservedCount = slot.reservedCount ?? 0;
+  const available = Math.max(Math.trunc(Number(slot.available) || 0), 0);
+  const capacity = slot.capacity ?? available;
+  const reservedCount = slot.reservedCount ?? capacity - available;
   return {
     id: slot.id,
     context: slot.context as TimeSlot["context"],
@@ -38,9 +42,25 @@ export function mapBackendSlotToTimeSlot(slot: BackendSlot): TimeSlot {
     endTime: slot.endTime,
     capacity,
     reservedCount,
-    active: slot.active !== false && slot.available > 0,
+    active: slot.active !== false,
   };
 }
+
+// Fecha y hora de término de una franja a partir de su texto "HH:mm - HH:mm".
+export function slotEnd(date: string, rangeText: string) {
+  const time = rangeText.split("-")[1]?.trim();
+  return date && time ? { date, time } : undefined;
+}
+
+// Los ids del servidor son UUID; los de la agenda guardada en el teléfono no se pueden reservar.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const isServerId = (id?: string): id is string => !!id && UUID.test(id);
+
+export const freeSeats =(slot: Pick<TimeSlot, "capacity" | "reservedCount">) =>
+  Math.max(slot.capacity - slot.reservedCount, 0);
+
+export const seatsLabel = (n: number) =>
+  n === 1 ? "1 cupo disponible" : `${n} cupos disponibles`;
 
 export const slotService = {
   async fetchSlots(

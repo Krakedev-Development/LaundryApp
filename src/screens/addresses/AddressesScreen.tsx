@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { orderService } from "../../services/orders/orderService";
+import { isUuid, orderService } from "../../services/orders/orderService";
+import { getStoredAuthSession } from "../../services/auth/authService";
 import { reverseGeocode } from "../../services/maps/geocodingService";
 import { ActivityIndicator, Text, View } from "react-native";
 import { Page } from "../../components/Page";
@@ -120,15 +121,51 @@ export function AddressesScreen() {
                 label="Guardar dirección"
                 style={addressStyles.save}
                 textStyle={addressStyles.saveText}
-                onPress={() => {
-                  if (
-                    a.run(() => {
-                      if (!lat.trim() || !lng.trim())
-                        throw Error("Ingresa las coordenadas.");
-                      const numLat = Number(lat);
-                      const numLng = Number(lng);
-                      if (!Number.isFinite(numLat) || !Number.isFinite(numLng))
-                        throw Error("Coordenadas inválidas.");
+                busy={a.busy}
+                onPress={async () => {
+                  const ok = await a.asyncRun(async () => {
+                    if (!draft.title.trim()) {
+                      throw Error("Ingresa un nombre para la dirección.");
+                    }
+                    if (!draft.fullAddress.trim()) {
+                      throw Error("Ingresa la dirección completa.");
+                    }
+                    if (!lat.trim() || !lng.trim()) {
+                      throw Error("Ingresa las coordenadas.");
+                    }
+                    const numLat = Number(lat);
+                    const numLng = Number(lng);
+                    if (!Number.isFinite(numLat) || !Number.isFinite(numLng)) {
+                      throw Error("Coordenadas inválidas.");
+                    }
+
+                    const session = await getStoredAuthSession();
+                    if (session.accessToken) {
+                      const created = await orderService.createAddress(
+                        {
+                          title: draft.title.trim(),
+                          fullAddress: draft.fullAddress.trim(),
+                          reference: draft.reference.trim() || undefined,
+                          latitude: numLat,
+                          longitude: numLng,
+                          isPrimary: draft.isPrimary,
+                        },
+                        session.accessToken,
+                      );
+                      const allAddresses = await orderService
+                        .getAddresses(session.accessToken)
+                        .catch(() => null);
+                      execute((r) => {
+                        if (allAddresses?.length) {
+                          r.syncAddressesFromApi(allAddresses);
+                        } else {
+                          const existingReal = c.addresses.filter(
+                            (addr) => addr.id !== draft.id && isUuid(addr.id),
+                          );
+                          r.syncAddressesFromApi([...existingReal, created]);
+                        }
+                      });
+                    } else {
                       execute((r) =>
                         r.saveAddress({
                           ...draft,
@@ -136,19 +173,13 @@ export function AddressesScreen() {
                           longitude: numLng,
                         }),
                       );
-                      void orderService
-                        .createAddress({
-                          title: draft.title,
-                          fullAddress: draft.fullAddress,
-                          reference: draft.reference,
-                          latitude: numLat,
-                          longitude: numLng,
-                          isPrimary: draft.isPrimary,
-                        })
-                        .catch(() => {});
-                    }, "Dirección guardada.")
-                  )
+                    }
+                  }, "Dirección guardada.");
+
+                  if (ok) {
+                    clearPendingGeocode();
                     setDraft(null);
+                  }
                 }}
               />
               <Button
