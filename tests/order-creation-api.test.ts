@@ -11,6 +11,7 @@ import {
 } from "./support/backendKyc";
 import { fetchGarments, fetchServices } from "../src/services/catalog/catalogService";
 import {
+  isUuid,
   orderService,
   formatOrderCode,
 } from "../src/services/orders/orderService";
@@ -106,4 +107,13 @@ test("slotService and orderService create and list real orders on backend with G
   const detailed = await orderService.getOrder(createdOrder.id);
   assert.equal(detailed.id, createdOrder.id);
   assert.equal(detailed.mode, "HOME_HOME");
+});
+
+test("isUuid distinguishes PostgreSQL UUIDs from temporary local addr- identifiers", () => {
+  assert.equal(isUuid("3ab2f9fd-2f25-4c12-9f50-03c5d25417d5"), true);
+  assert.equal(isUuid("  3AB2F9FD-2F25-4C12-9F50-03C5D25417D5 "), true);
+  assert.equal(isUuid("addr-1763460000000"), false);
+  assert.equal(isUuid(""), false);
+  assert.equal(isUuid(null), false);
+  assert.equal(isUuid(undefined), false);
 });

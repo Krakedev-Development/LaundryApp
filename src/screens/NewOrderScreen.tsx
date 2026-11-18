@@ -32,7 +32,7 @@ import {
   today,
 } from "../domain/repository";
 import { slotService } from "../services/slots/slotService";
-import { orderService } from "../services/orders/orderService";
+import { isUuid, orderService } from "../services/orders/orderService";
 import { getStoredAuthSession } from "../services/auth/authService";
 import { fetchFacilities } from "../services/catalog/catalogService";
 import {
@@ -401,21 +401,55 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
         (await fetchFacilities())[0]?.id ||
         "3ab2f9fd-2f25-4c12-9f50-03c5d25417d5";
 
-      let pickupAddressId = inbound.addressId;
-      if (!pickupAddressId) {
-        const ensured = await orderService.ensureGuayaquilAddress();
-        pickupAddressId = ensured.id;
-        execute((r) => r.syncAddressesFromApi([ensured]));
-      }
+      const session = await getStoredAuthSession();
 
-      let pickupSlotId = inbound.timeSlotId;
-      if (!pickupSlotId) {
-        const slots = await slotService.fetchPickupSlots(facilityId);
-        const future =
-          slots.find((s) => s.date >= today() && s.available > 0) ??
-          slots[0];
-        if (future) pickupSlotId = future.id;
-      }
+      const resolveBackendAddressId = async (leg: Leg): Promise<string> => {
+        if (isUuid(leg.addressId)) {
+          return leg.addressId;
+        }
+        const localAddr = c.addresses.find((addr) => addr.id === leg.addressId);
+        let resolved;
+        if (
+          leg.addressFull?.trim() &&
+          Number.isFinite(leg.latitude) &&
+          Number.isFinite(leg.longitude) &&
+          leg.latitude !== 0
+        ) {
+          resolved = await orderService.createAddress(
+            {
+              title: localAddr?.title || "Mi Domicilio",
+              fullAddress: leg.addressFull.trim(),
+              reference: localAddr?.reference || undefined,
+              latitude: Number(leg.latitude),
+              longitude: Number(leg.longitude),
+              isPrimary: localAddr?.isPrimary ?? false,
+            },
+            session.accessToken,
+          );
+        } else {
+          resolved = await orderService.ensureGuayaquilAddress(
+            session.accessToken,
+          );
+        }
+
+        const allAddresses = await orderService
+          .getAddresses(session.accessToken)
+          .catch(() => null);
+        execute((r) => {
+          if (allAddresses?.length) {
+            r.syncAddressesFromApi(allAddresses);
+          } else {
+            const existingReal = c.addresses.filter(
+              (addr) => addr.id !== leg.addressId && isUuid(addr.id),
+            );
+            r.syncAddressesFromApi([...existingReal, resolved]);
+          }
+        });
+        return resolved.id;
+      };
+
+      const orderMode: "HOME_HOME" | "HOME_STORE" =
+        outbound.method === "CUSTOMER" ? "HOME_STORE" : "HOME_HOME";
 
       const orderItemsPayload = items.map((it) => {
         const serviceObj =
@@ -430,16 +464,48 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
       });
 
       try {
+        if (!session.accessToken) {
+          throw Error("No hay sesión activa");
+        }
+
+        const pickupAddressId = await resolveBackendAddressId(inbound);
+        let outboundAddressId: string | undefined;
+        if (orderMode === "HOME_HOME") {
+          if (outbound.addressId && outbound.addressId === inbound.addressId) {
+            outboundAddressId = pickupAddressId;
+          } else {
+            outboundAddressId = await resolveBackendAddressId(outbound);
+          }
+        }
+
+        let pickupSlotId = inbound.timeSlotId;
+        if (!isUuid(pickupSlotId)) {
+          const slots = await slotService.fetchPickupSlots(facilityId);
+          const future =
+            slots.find((s) => s.date >= today() && s.available > 0) ??
+            slots[0];
+          if (future) pickupSlotId = future.id;
+        }
+
         const apiOrder = await orderService.createOrder({
           facilityId,
-          mode: "HOME_HOME",
-          pickupAddressId: pickupAddressId!,
+          mode: orderMode,
+          pickupAddressId,
           pickupSlotId: pickupSlotId!,
           items: orderItemsPayload,
           extraIds: extraIds.length > 0 ? extraIds : undefined,
           promotionCode: appliedPromo || undefined,
           notes: notes.trim() || undefined,
           paymentMethodKind: "WALLET",
+          outbound:
+            orderMode === "HOME_HOME" && outboundAddressId
+              ? {
+                  addressId: outboundAddressId,
+                  ...(isUuid(outbound.timeSlotId)
+                    ? { slotId: outbound.timeSlotId }
+                    : {}),
+                }
+              : undefined,
         });
 
         const registered = execute((r) =>
@@ -459,7 +525,6 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
 
         createdCode = registered.id;
       } catch (apiError) {
-        const session = await getStoredAuthSession();
         if (!session.accessToken) {
           const localOrder = execute((r) =>
             r.createOrder({
