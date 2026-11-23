@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Image,
@@ -15,13 +15,27 @@ import { theme } from "../design-system/tokens";
 import { tactile } from "../design-system/interaction";
 import { useReducedMotion } from "../design-system/MotionProvider";
 import {
-  GUAYAQUIL_BASE,
   MAP_MODE_STORAGE_KEY,
   OSM_TILE_URLS,
   normalizeGuayaquilCoords,
   type MapThemeMode,
 } from "./routeMapShared";
+import { buildRouteMapboxHtml } from "./mapboxRouteHtml";
+import { MAPBOX_ACCESS_TOKEN, USE_MAPBOX } from "../config/mapbox";
 import type { RouteMapProps } from "./RouteMap";
+
+interface MapboxFrameWindow extends Window {
+  updateDriverPosition?: (
+    lat: number,
+    lng: number,
+    searching: boolean,
+    label: string,
+    bearing: number | null,
+  ) => void;
+  updateRoutePolyline?: (latLngs: Array<[number, number]>) => void;
+  setTileMode?: (nextMode: MapThemeMode) => void;
+  recenterMap?: () => void;
+}
 
 const ZOOM = 14;
 const TILE_SIZE = 256;
@@ -44,15 +58,44 @@ export default function RouteMap({
   facility,
   driverInfo,
   isSearching = false,
+  driverBearing = null,
   routeCoordinates,
   height = theme.layout.map,
 }: RouteMapProps) {
-  const [mode, setMode] = useState<MapThemeMode>("tactical");
+  const [mode, setMode] = useState<MapThemeMode>("light");
   const [layout, setLayout] = useState({ width: 420, height });
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const dragStart = useRef<{ x: number; y: number } | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const pulseAnim = useRef(new Animated.Value(0)).current;
   const reduced = useReducedMotion();
+
+  const normalized = normalizeGuayaquilCoords(origin, destination);
+  const isTactical = mode === "tactical";
+  const driverLabel = isSearching
+    ? "Buscando..."
+    : driverInfo?.plate
+      ? driverInfo.plate
+      : "En camino";
+
+  const mapboxHtml = useMemo(() => {
+    if (!USE_MAPBOX) return null;
+    return buildRouteMapboxHtml({
+      accessToken: MAPBOX_ACCESS_TOKEN,
+      origin: normalized.origin,
+      destination: {
+        ...normalized.destination,
+        addressFull: destination.addressFull,
+      },
+      facility,
+      routeCoordinates,
+      mode: "light",
+      isSearching,
+      driverLabel,
+      driverBearing,
+    });
+    // Construir el HTML una sola vez al montar; las actualizaciones en vivo viajan por contentWindow.
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -60,6 +103,8 @@ export default function RouteMap({
       .then((saved) => {
         if (mounted && (saved === "tactical" || saved === "light")) {
           setMode(saved);
+          const win = iframeRef.current?.contentWindow as MapboxFrameWindow | null;
+          win?.setTileMode?.(saved);
         }
       })
       .catch(() => {});
@@ -69,7 +114,49 @@ export default function RouteMap({
   }, []);
 
   useEffect(() => {
-    if (reduced) {
+    if (!USE_MAPBOX) return;
+    const win = iframeRef.current?.contentWindow as MapboxFrameWindow | null;
+    const bearingArg =
+      typeof driverBearing === "number" && Number.isFinite(driverBearing)
+        ? Math.round(driverBearing)
+        : null;
+    win?.updateDriverPosition?.(
+      normalized.origin.latitude,
+      normalized.origin.longitude,
+      isSearching,
+      driverLabel,
+      bearingArg,
+    );
+  }, [
+    normalized.origin.latitude,
+    normalized.origin.longitude,
+    isSearching,
+    driverLabel,
+    driverBearing,
+  ]);
+
+  useEffect(() => {
+    if (!USE_MAPBOX) return;
+    const win = iframeRef.current?.contentWindow as MapboxFrameWindow | null;
+    const coords =
+      routeCoordinates && routeCoordinates.length >= 2
+        ? routeCoordinates
+        : [normalized.origin, normalized.destination];
+    const latLngPairs: Array<[number, number]> = coords.map((c) => [
+      c.latitude,
+      c.longitude,
+    ]);
+    win?.updateRoutePolyline?.(latLngPairs);
+  }, [
+    routeCoordinates,
+    normalized.origin.latitude,
+    normalized.origin.longitude,
+    normalized.destination.latitude,
+    normalized.destination.longitude,
+  ]);
+
+  useEffect(() => {
+    if (reduced || USE_MAPBOX) {
       pulseAnim.setValue(0.35);
       return;
     }
@@ -96,13 +183,124 @@ export default function RouteMap({
     const next: MapThemeMode = mode === "tactical" ? "light" : "tactical";
     setMode(next);
     void AsyncStorage.setItem(MAP_MODE_STORAGE_KEY, next).catch(() => {});
+    const win = iframeRef.current?.contentWindow as MapboxFrameWindow | null;
+    win?.setTileMode?.(next);
   };
 
-  const normalized = normalizeGuayaquilCoords(origin, destination);
-  const isTactical = mode === "tactical";
+  const recenter = () => {
+    tactile("selection");
+    if (USE_MAPBOX) {
+      const win = iframeRef.current?.contentWindow as MapboxFrameWindow | null;
+      win?.recenterMap?.();
+    } else {
+      setPan({ x: 0, y: 0 });
+    }
+  };
 
-  const centerTileX = lngToTileX(GUAYAQUIL_BASE.longitude, ZOOM);
-  const centerTileY = latToTileY(GUAYAQUIL_BASE.latitude, ZOOM);
+  if (USE_MAPBOX && mapboxHtml) {
+    return (
+      <View
+        accessibilityLabel={`Mapa en tiempo real de ruta hacia ${destination.addressFull}`}
+        style={[
+          styles.container,
+          {
+            height,
+            backgroundColor: isTactical ? "#0B1320" : "#E2E8F0",
+            borderColor: isTactical ? "#1E293B" : theme.colors.border,
+          },
+        ]}
+      >
+        <iframe
+          ref={iframeRef}
+          title="Mapa de seguimiento en tiempo real"
+          srcDoc={mapboxHtml}
+          style={{
+            width: "100%",
+            height: "100%",
+            border: "none",
+            display: "block",
+          }}
+        />
+
+        {/* Top Controls Overlay */}
+        <View style={styles.topOverlay} pointerEvents="box-none">
+          <View
+            style={[
+              styles.cityBadge,
+              isTactical ? styles.overlayDark : styles.overlayLight,
+            ]}
+          >
+            <Ionicons
+              name="compass-outline"
+              size={14}
+              color={isTactical ? "#38BDF8" : theme.colors.primary}
+            />
+            <Text
+              style={[
+                styles.cityBadgeText,
+                { color: isTactical ? "#F1F5F9" : "#0F172A" },
+              ]}
+            >
+              En vivo
+            </Text>
+          </View>
+
+          <View style={styles.controlsRight}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Recentrar mapa en la ruta"
+              onPress={recenter}
+              style={({ pressed }) => [
+                styles.recenterBtn,
+                isTactical ? styles.overlayDark : styles.overlayLight,
+                { opacity: pressed ? 0.8 : 1 },
+              ]}
+            >
+              <Ionicons
+                name="locate"
+                size={14}
+                color={isTactical ? "#38BDF8" : theme.colors.primary}
+              />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={
+                isTactical ? "Cambiar a modo claro" : "Cambiar a modo táctico"
+              }
+              onPress={toggleMode}
+              style={({ pressed }) => [
+                styles.modePill,
+                isTactical ? styles.overlayDark : styles.overlayLight,
+                {
+                  opacity: pressed ? 0.85 : 1,
+                  transform: [{ scale: pressed ? 0.96 : 1 }],
+                },
+              ]}
+            >
+              <Ionicons
+                name={isTactical ? "moon" : "sunny"}
+                size={14}
+                color={isTactical ? "#38BDF8" : "#D97706"}
+              />
+              <Text
+                style={[
+                  styles.modePillText,
+                  { color: isTactical ? "#F8FAFC" : "#0F172A" },
+                ]}
+              >
+                {isTactical ? "Modo Táctico" : "Modo Claro"}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  const centerLat = (normalized.origin.latitude + normalized.destination.latitude) / 2;
+  const centerLng = (normalized.origin.longitude + normalized.destination.longitude) / 2;
+  const centerTileX = lngToTileX(centerLng, ZOOM);
+  const centerTileY = latToTileY(centerLat, ZOOM);
   const baseTileX = Math.floor(centerTileX);
   const baseTileY = Math.floor(centerTileY);
 

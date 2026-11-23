@@ -49,27 +49,28 @@ export function buildRouteMapboxHtml(params: MapboxRouteHtmlParams): string {
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
   <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
   <style>
-    html, body, #map { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #0B1320; }
+    html, body, #map { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #F8FAFC; }
     .mapboxgl-ctrl-logo, .mapboxgl-ctrl-attrib { display: none !important; }
     .dest-pin {
       width: 18px; height: 18px; border-radius: 50%;
       background: #10B981; border: 3px solid #FFFFFF;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.45);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
     }
     .facility-pin {
       width: 14px; height: 14px; border-radius: 4px;
-      background: #6366F1; border: 2px solid #FFFFFF;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+      background: #4F46E5; border: 2px solid #FFFFFF;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
     }
     .driver-wrap {
       display: flex; flex-direction: column; align-items: center;
     }
     .driver-tag {
-      background: rgba(15, 23, 42, 0.92); color: #F8FAFC;
+      background: rgba(255, 255, 255, 0.95); color: #0F172A;
       font-family: -apple-system, BlinkMacSystemFont, sans-serif;
       font-size: 11px; font-weight: 700; padding: 2px 7px;
       border-radius: 10px; margin-bottom: 4px; white-space: nowrap;
-      border: 1px solid rgba(56, 189, 248, 0.45);
+      border: 1px solid rgba(20, 63, 115, 0.2);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     .driver-arrow {
       width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;

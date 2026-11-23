@@ -95,8 +95,18 @@ function destinationFor(order: Order) {
 export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
   const navigation = useLaundryNavigation();
   const { state } = useApp();
-  const orderId = route.params.orderId;
-  const o = visibleOrders(state).find((item) => item.id === orderId);
+  const routeOrderId = route.params.orderId;
+  const o = visibleOrders(state).find(
+    (item) => item.id === routeOrderId || item.backendId === routeOrderId,
+  );
+  // El backend exige UUID; en la store local `o.id` suele ser el código visible (ORD-0006)
+  // mientras el UUID real vive en `o.backendId`.
+  const apiOrderId = isUuid(routeOrderId)
+    ? routeOrderId
+    : isUuid(o?.backendId)
+      ? o.backendId
+      : routeOrderId;
+  const orderId = o?.id ?? routeOrderId;
   const focused = useIsFocused();
   const { height } = useWindowDimensions();
 
@@ -114,6 +124,8 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
   const [offRouteTick, setOffRouteTick] = useState(0);
 
   const mountedRef = useRef(true);
+  const hasLiveTrackingRef = useRef(false);
+  hasLiveTrackingRef.current = liveTracking !== null;
   const driverFixRef = useRef<LiveDriverFix | null>(null);
   driverFixRef.current = driverFix;
   const lastWsLocationAtRef = useRef(0);
@@ -163,8 +175,14 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
   }, [clearOffRouteTimer]);
 
   const refreshTrackingSnapshot = useCallback(async () => {
+    if (!isUuid(apiOrderId)) {
+      if (mountedRef.current && o && !hasLiveTrackingRef.current) {
+        setLiveTracking(buildSimulatedTracking(o));
+      }
+      return;
+    }
     try {
-      const result = await orderService.getOrderTracking(orderId);
+      const result = await orderService.getOrderTracking(apiOrderId);
       if (!mountedRef.current || !result) return;
       setLiveTracking(result);
 
@@ -197,11 +215,11 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
         });
       }
     } catch {
-      if (mountedRef.current && o && !liveTracking) {
+      if (mountedRef.current && o && !hasLiveTrackingRef.current) {
         setLiveTracking(buildSimulatedTracking(o));
       }
     }
-  }, [orderId, o, liveTracking, resetTrackingGeometry]);
+  }, [apiOrderId, o, resetTrackingGeometry]);
 
   const trackingData = liveTracking ?? (o ? buildSimulatedTracking(o) : null);
   const effectiveStatus = (trackingData?.status ?? o?.status ?? "CONFIRMED") as OrderStatus;
@@ -234,9 +252,9 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
       lastRouteFetchAtRef.current = now;
 
       let resolved: DrivingRouteResult | null = null;
-      if (isUuid(orderId)) {
+      if (isUuid(apiOrderId)) {
         try {
-          const response = await orderService.getOrderRoute(orderId, {
+          const response = await orderService.getOrderRoute(apiOrderId, {
             driverLat: fix.latitude,
             driverLng: fix.longitude,
             ...(isHeadingReliable(fix.heading, fix.speed)
@@ -279,7 +297,7 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
       lastRouteProgressAtRef.current = Date.now();
       setRouteAnchorVersion((v) => v + 1);
     },
-    [orderId, isLiveTracking, destination, effectiveStatus, clearOffRouteTimer],
+    [apiOrderId, isLiveTracking, destination, effectiveStatus, clearOffRouteTimer],
   );
 
   // Suscripción WebSocket en tiempo real mientras la pantalla está enfocada.
@@ -287,18 +305,18 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
     if (!focused) return;
 
     void clientSocketService.connect();
-    if (isUuid(orderId)) {
-      clientSocketService.subscribeOrder(orderId);
+    if (isUuid(apiOrderId)) {
+      clientSocketService.subscribeOrder(apiOrderId);
     }
 
     const handleAuthenticated = () => {
-      if (isUuid(orderId)) clientSocketService.subscribeOrder(orderId);
+      if (isUuid(apiOrderId)) clientSocketService.subscribeOrder(apiOrderId);
       void refreshTrackingSnapshot();
     };
 
     const handleDriverLocation = (raw: unknown) => {
       const payload = raw as { orderId?: string };
-      if (payload?.orderId && payload.orderId !== orderId) return;
+      if (payload?.orderId && payload.orderId !== apiOrderId) return;
       const parsed = parseDriverLocationFromSocketPayload(
         raw as Parameters<typeof parseDriverLocationFromSocketPayload>[0],
       );
@@ -309,7 +327,7 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
 
     const handleStatusChanged = (raw: unknown) => {
       const payload = raw as OrderStatusSocketEvent;
-      if (payload?.orderId !== orderId || !payload.status || !mountedRef.current) return;
+      if (payload?.orderId !== apiOrderId || !payload.status || !mountedRef.current) return;
       const nextStatus = payload.status;
       const nextLeg = liveTrackingLegForStatus(nextStatus);
       setLiveTracking((prev) =>
@@ -332,7 +350,7 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
 
     const handleEtaUpdated = (raw: unknown) => {
       const payload = raw as OrderEtaSocketEvent;
-      if (payload?.orderId !== orderId || !mountedRef.current) return;
+      if (payload?.orderId !== apiOrderId || !mountedRef.current) return;
       const observedAt = parseObservedAt(payload.updatedAt, Date.now());
       if (!isFresherObservation(observedAt, lastEtaObservedAtRef.current)) return;
       lastEtaObservedAtRef.current = observedAt;
@@ -359,11 +377,11 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
       clientSocketService.off("order:status:changed", handleStatusChanged);
       clientSocketService.off("order:driver_arrived", handleStatusChanged);
       clientSocketService.off("order:eta:updated", handleEtaUpdated);
-      if (isUuid(orderId)) {
-        clientSocketService.unsubscribeOrder(orderId);
+      if (isUuid(apiOrderId)) {
+        clientSocketService.unsubscribeOrder(apiOrderId);
       }
     };
-  }, [focused, orderId, refreshTrackingSnapshot, resetTrackingGeometry]);
+  }, [focused, apiOrderId, refreshTrackingSnapshot, resetTrackingGeometry]);
 
   // Carga inicial + polling de respaldo cada 30 s (ETA + fallback GPS si WS >= 15 s sin señal).
   useEffect(() => {
@@ -372,9 +390,9 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
 
     const pollFallback = async () => {
       await refreshTrackingSnapshot();
-      if (!isLiveTracking || !isUuid(orderId)) return;
+      if (!isLiveTracking || !isUuid(apiOrderId)) return;
       try {
-        const etaRes = await orderService.getOrderEta(orderId);
+        const etaRes = await orderService.getOrderEta(apiOrderId);
         const data = etaRes.data;
         if (!mountedRef.current || !etaRes.success || !data) return;
         const now = Date.now();
@@ -411,7 +429,7 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
     }, FALLBACK_POLL_MS);
 
     return () => clearInterval(interval);
-  }, [focused, orderId, isLiveTracking, refreshTrackingSnapshot]);
+  }, [focused, apiOrderId, isLiveTracking, refreshTrackingSnapshot]);
 
   // Snapping del chofer sobre la polilínea + recorte de ruta + detección de desvío.
   useEffect(() => {
@@ -498,7 +516,7 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
 
   const banner = trackingBannerForStatus(effectiveStatus);
   const handoffType = handoffTypeForTrackingStatus(effectiveStatus);
-  const canShowServerHandoff = Boolean(handoffType && isUuid(orderId));
+  const canShowServerHandoff = Boolean(handoffType && isUuid(apiOrderId));
   const facility = trackingData?.facility;
   const hasRealDriverCoords = driverFix !== null;
   const displayedDriverPoint =
@@ -524,7 +542,8 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
 
   return (
     <Page
-      scroll={false}
+      scroll={true}
+      contentContainerStyle={{ paddingBottom: 24 }}
       footer={
         <>
           {handoffType ? (
@@ -565,7 +584,7 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
       {isLiveTracking && destination ? (
         hasRealDriverCoords && displayedDriverPoint ? (
           <RouteMap
-            height={Math.max(220, Math.min(360, height * 0.36))}
+            height={Math.max(260, Math.min(380, height * 0.4))}
             origin={displayedDriverPoint}
             destination={destination}
             facility={facility}
@@ -585,7 +604,7 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
           />
         ) : (
           <View style={radarStyles.awaitingMapBox}>
-            <Ionicons name="navigate-outline" size={28} color="#38BDF8" />
+            <Ionicons name="navigate-outline" size={28} color="#0284C7" />
             <Text style={radarStyles.awaitingMapTitle}>{banner.title}</Text>
             <Text style={radarStyles.awaitingMapSubtitle}>
               {assignedDriver
@@ -603,7 +622,7 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
                 : "business-outline"
             }
             size={30}
-            color="#38BDF8"
+            color="#0284C7"
           />
           <Text style={radarStyles.awaitingMapTitle}>{banner.title}</Text>
           <Text style={radarStyles.awaitingMapSubtitle}>{banner.subtitle}</Text>
@@ -629,7 +648,7 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
           </View>
 
           <View style={radarStyles.etaBanner}>
-            <Ionicons name="time-outline" size={14} color="#38BDF8" />
+            <Ionicons name="time-outline" size={15} color="#0284C7" />
             <Text style={radarStyles.etaBannerText}>
               {arrivedAtDoor
                 ? `${banner.etaLabel} · Chofer esperando en puerta`
@@ -652,7 +671,7 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
             </View>
             {assignedDriver.phone ? (
               <View style={radarStyles.phoneChip}>
-                <Ionicons name="call-outline" size={12} color="#38BDF8" />
+                <Ionicons name="call-outline" size={12} color="#0284C7" />
                 <Text style={radarStyles.phoneText}>{assignedDriver.phone}</Text>
               </View>
             ) : null}
@@ -730,7 +749,7 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
           onClose={() => setShowHandoffSheet(false)}
         >
           <ServerHandoffCode
-            orderId={orderId}
+            orderId={apiOrderId}
             type={handoffType}
             title={
               handoffType === "CUSTOMER_TO_DRIVER"
@@ -857,10 +876,10 @@ export function ChatScreen({ route }: ScreenProps<"Chat">) {
 
 const radarStyles = StyleSheet.create({
   awaitingMapBox: {
-    backgroundColor: "#0F172A",
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#1E293B",
+    borderColor: "#E2E8F0",
     padding: 20,
     alignItems: "center",
     justifyContent: "center",
@@ -868,10 +887,10 @@ const radarStyles = StyleSheet.create({
     minHeight: 160,
   },
   pausedMapBox: {
-    backgroundColor: "#0F172A",
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: "#E2E8F0",
     padding: 22,
     alignItems: "center",
     justifyContent: "center",
@@ -881,32 +900,42 @@ const radarStyles = StyleSheet.create({
   awaitingMapTitle: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#F8FAFC",
+    color: "#0F172A",
     textAlign: "center",
   },
   awaitingMapSubtitle: {
     fontSize: 12,
     lineHeight: 18,
-    color: "#94A3B8",
+    color: "#64748B",
     textAlign: "center",
   },
   card: {
-    backgroundColor: "#0F172A",
-    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#1E293B",
-    padding: 12,
-    gap: 10,
+    borderColor: "#E2E8F0",
+    padding: 14,
+    gap: 12,
     marginVertical: 4,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   searchingCard: {
-    backgroundColor: "#0F172A",
-    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#334155",
-    padding: 12,
-    gap: 8,
+    borderColor: "#E2E8F0",
+    padding: 14,
+    gap: 10,
     marginVertical: 4,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   cardHeader: {
     flexDirection: "row",
@@ -917,8 +946,8 @@ const radarStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "rgba(14, 165, 233, 0.15)",
-    borderColor: "rgba(14, 165, 233, 0.35)",
+    backgroundColor: "#F0FDF4",
+    borderColor: "#BBF7D0",
     borderWidth: 1,
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -928,8 +957,8 @@ const radarStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "rgba(234, 179, 8, 0.15)",
-    borderColor: "rgba(234, 179, 8, 0.35)",
+    backgroundColor: "#FEFCE8",
+    borderColor: "#FEF08A",
     borderWidth: 1,
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -939,96 +968,96 @@ const radarStyles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 3.5,
-    backgroundColor: "#22C55E",
+    backgroundColor: "#16A34A",
   },
   yellowDot: {
     width: 7,
     height: 7,
     borderRadius: 3.5,
-    backgroundColor: "#EAB308",
+    backgroundColor: "#CA8A04",
   },
   statusPillText: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#38BDF8",
+    color: "#15803D",
     letterSpacing: 0.2,
   },
   searchingPillText: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#FACC15",
+    color: "#A16207",
     letterSpacing: 0.2,
   },
   signalText: {
-    fontSize: 10,
-    color: "#94A3B8",
+    fontSize: 11,
+    color: "#64748B",
     fontWeight: "500",
   },
   driverRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
   },
   driverAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: "#0284C7",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1.5,
-    borderColor: "#38BDF8",
+    borderWidth: 2,
+    borderColor: "#E0F2FE",
   },
   driverName: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "700",
-    color: "#F8FAFC",
+    color: "#0F172A",
   },
   driverVehicle: {
-    fontSize: 11,
-    color: "#94A3B8",
+    fontSize: 12,
+    color: "#64748B",
   },
   phoneChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(15, 23, 42, 0.8)",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    gap: 5,
+    backgroundColor: "#F0F9FF",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: "#BAE6FD",
   },
   phoneText: {
-    fontSize: 11,
-    color: "#38BDF8",
+    fontSize: 12,
+    color: "#0369A1",
     fontWeight: "600",
   },
   searchingTitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "700",
-    color: "#F1F5F9",
+    color: "#0F172A",
   },
   searchingSubtitle: {
-    fontSize: 11,
-    lineHeight: 16,
-    color: "#94A3B8",
+    fontSize: 12,
+    lineHeight: 18,
+    color: "#64748B",
   },
   etaBanner: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    backgroundColor: "rgba(56, 189, 248, 0.12)",
-    borderColor: "rgba(56, 189, 248, 0.28)",
+    gap: 8,
+    backgroundColor: "#F0F9FF",
+    borderColor: "#BAE6FD",
     borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   etaBannerText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
-    color: "#E0F2FE",
-    letterSpacing: 0.2,
+    color: "#0369A1",
+    letterSpacing: 0.1,
   },
 });

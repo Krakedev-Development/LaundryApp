@@ -227,6 +227,8 @@ export interface Order {
   legacyInbound?: Leg;
   pickupNeedsScheduling?: boolean;
   id: string;
+  /** UUID real de la solicitud en el backend (cuando fue sincronizada desde el servidor). */
+  backendId?: string;
   customerId: string;
   customerName: string;
   customerPhone: string;

@@ -50,7 +50,7 @@ export default function RouteMap({
   routeCoordinates,
   height = theme.layout.map,
 }: RouteMapProps) {
-  const [mode, setMode] = useState<MapThemeMode>("tactical");
+  const [mode, setMode] = useState<MapThemeMode>("light");
   const webViewRef = useRef<WebView>(null);
 
   const normalized = normalizeGuayaquilCoords(origin, destination);
@@ -72,7 +72,7 @@ export default function RouteMap({
             },
             facility,
             routeCoordinates,
-            mode: "tactical",
+            mode: "light",
             isSearching,
             driverLabel,
             driverBearing,
@@ -85,7 +85,7 @@ export default function RouteMap({
             },
             facility,
             routeCoordinates,
-            mode: "tactical",
+            mode: "light",
             isSearching,
             driverLabel,
           }),

@@ -15,6 +15,7 @@ import { facilities } from "../../domain/catalog";
 import { statusLabels } from "../../domain/models";
 import { apiClient } from "../api/apiClient";
 import { getStoredAuthSession } from "../auth/authService";
+import { withSession } from "../auth/withSession";
 
 export interface CustomerAddress {
   id: string;
@@ -617,9 +618,18 @@ export const orderService = {
     id: string,
     explicitToken?: string | null,
   ): Promise<OrderTrackingDto> {
-    const token = await resolveToken(explicitToken);
-    return await apiClient.get<OrderTrackingDto>(`/orders/${id}/tracking`, {
-      accessToken: token,
+    if (explicitToken !== undefined && explicitToken !== null) {
+      return await apiClient.get<OrderTrackingDto>(`/orders/${id}/tracking`, {
+        accessToken: explicitToken,
+      });
+    }
+    return await withSession(async (token) => {
+      if (!token) {
+        throw new Error("No hay una sesión activa con token de acceso.");
+      }
+      return await apiClient.get<OrderTrackingDto>(`/orders/${id}/tracking`, {
+        accessToken: token,
+      });
     });
   },
 
@@ -632,7 +642,6 @@ export const orderService = {
     },
     explicitToken?: string | null,
   ): Promise<OrderRouteApiResponse> {
-    const token = await resolveToken(explicitToken);
     const search = new URLSearchParams();
     if (params?.driverLat !== undefined && Number.isFinite(params.driverLat)) {
       search.set("driverLat", String(params.driverLat));
@@ -647,19 +656,38 @@ export const orderService = {
       search.set("driverHeading", String(Math.round(params.driverHeading)));
     }
     const qs = search.toString();
-    return await apiClient.get<OrderRouteApiResponse>(
-      `/orders/${id}/route${qs ? `?${qs}` : ""}`,
-      { accessToken: token },
-    );
+    const path = `/orders/${id}/route${qs ? `?${qs}` : ""}`;
+    if (explicitToken !== undefined && explicitToken !== null) {
+      return await apiClient.get<OrderRouteApiResponse>(path, {
+        accessToken: explicitToken,
+      });
+    }
+    return await withSession(async (token) => {
+      if (!token) {
+        throw new Error("No hay una sesión activa con token de acceso.");
+      }
+      return await apiClient.get<OrderRouteApiResponse>(path, {
+        accessToken: token,
+      });
+    });
   },
 
   async getOrderEta(
     id: string,
     explicitToken?: string | null,
   ): Promise<OrderEtaApiResponse> {
-    const token = await resolveToken(explicitToken);
-    return await apiClient.get<OrderEtaApiResponse>(`/orders/${id}/eta`, {
-      accessToken: token,
+    if (explicitToken !== undefined && explicitToken !== null) {
+      return await apiClient.get<OrderEtaApiResponse>(`/orders/${id}/eta`, {
+        accessToken: explicitToken,
+      });
+    }
+    return await withSession(async (token) => {
+      if (!token) {
+        throw new Error("No hay una sesión activa con token de acceso.");
+      }
+      return await apiClient.get<OrderEtaApiResponse>(`/orders/${id}/eta`, {
+        accessToken: token,
+      });
     });
   },
 };
