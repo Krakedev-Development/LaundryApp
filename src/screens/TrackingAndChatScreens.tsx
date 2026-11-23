@@ -22,11 +22,9 @@ import { HandoffCodeSheet } from "../components/HandoffCard";
 import { ServerHandoffCode } from "../components/ServerHandoffCode";
 import { useApp } from "../store/AppProvider";
 import { visibleOrders } from "../domain/repository";
-import { pickupStatuses, type Order, type OrderStatus } from "../domain/models";
-import { facilities } from "../domain/catalog";
+import type { OrderStatus } from "../domain/models";
 import {
   orderService,
-  buildSimulatedTracking,
   formatOrderCode,
   isUuid,
   type OrderTrackingDto,
@@ -77,21 +75,6 @@ interface OrderEtaSocketEvent {
   updatedAt?: string;
 }
 
-function destinationFor(order: Order) {
-  if (["PICKED_UP", "HEADING_TO_FACILITY"].includes(order.status)) {
-    const f =
-      facilities.find((fac) => fac.name === order.facilityName) ?? facilities[0];
-    return {
-      latitude: f.latitude,
-      longitude: f.longitude,
-      addressFull: f.address,
-    };
-  }
-  return pickupStatuses.includes(order.status)
-    ? order.fulfillmentPlan.inbound
-    : order.fulfillmentPlan.outbound;
-}
-
 export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
   const navigation = useLaundryNavigation();
   const { state } = useApp();
@@ -114,6 +97,10 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
   const [showHandoffSheet, setShowHandoffSheet] = useState(false);
   const [codeId, setCodeId] = useState<string>();
   const [liveTracking, setLiveTracking] = useState<OrderTrackingDto | null>(null);
+  // El seguimiento solo se muestra con datos del servidor: si no responden antes de la primera
+  // carga se muestra el error con la opción de reintentar (nunca un chofer ni una ruta inventados).
+  const [trackingError, setTrackingError] = useState<string | null>(null);
+  const [retryingTracking, setRetryingTracking] = useState(false);
   const [driverFix, setDriverFix] = useState<LiveDriverFix | null>(null);
   const [routePoints, setRoutePoints] = useState<MapRoutePoint[]>([]);
   const [routeMeta, setRouteMeta] = useState<{
@@ -176,8 +163,10 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
 
   const refreshTrackingSnapshot = useCallback(async () => {
     if (!isUuid(apiOrderId)) {
-      if (mountedRef.current && o && !hasLiveTrackingRef.current) {
-        setLiveTracking(buildSimulatedTracking(o));
+      if (mountedRef.current && !hasLiveTrackingRef.current) {
+        setTrackingError(
+          "Esta solicitud todavía no está registrada en el servidor. Vuelve a intentarlo en unos segundos.",
+        );
       }
       return;
     }
@@ -185,6 +174,7 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
       const result = await orderService.getOrderTracking(apiOrderId);
       if (!mountedRef.current || !result) return;
       setLiveTracking(result);
+      setTrackingError(null);
 
       const nextLeg = liveTrackingLegForStatus(result.status);
       if (lastLegRef.current && nextLeg !== lastLegRef.current) {
@@ -214,29 +204,41 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
           locationAt: d.locationAt,
         });
       }
-    } catch {
-      if (mountedRef.current && o && !hasLiveTrackingRef.current) {
-        setLiveTracking(buildSimulatedTracking(o));
+    } catch (error) {
+      // Con datos previos del servidor se conservan; el respaldo de 30 s volverá a consultar.
+      if (mountedRef.current && !hasLiveTrackingRef.current) {
+        setTrackingError(
+          error instanceof Error && error.message
+            ? error.message
+            : "No se pudo consultar el seguimiento.",
+        );
       }
     }
-  }, [apiOrderId, o, resetTrackingGeometry]);
+  }, [apiOrderId, resetTrackingGeometry]);
 
-  const trackingData = liveTracking ?? (o ? buildSimulatedTracking(o) : null);
+  const retryTracking = useCallback(async () => {
+    setRetryingTracking(true);
+    try {
+      await refreshTrackingSnapshot();
+    } finally {
+      if (mountedRef.current) setRetryingTracking(false);
+    }
+  }, [refreshTrackingSnapshot]);
+
+  const trackingData = liveTracking;
   const effectiveStatus = (trackingData?.status ?? o?.status ?? "CONFIRMED") as OrderStatus;
   const isLiveTracking = isCustomerLiveTrackingStatus(effectiveStatus);
   const activeLeg = liveTrackingLegForStatus(effectiveStatus);
   const assignedDriver = trackingData?.assignedDriver ?? null;
 
   const destination = useMemo(() => {
-    if (trackingData) {
-      return {
-        latitude: trackingData.customerAddress.latitude,
-        longitude: trackingData.customerAddress.longitude,
-        addressFull: trackingData.customerAddress.text,
-      };
-    }
-    return o ? destinationFor(o) : null;
-  }, [trackingData, o]);
+    if (!trackingData) return null;
+    return {
+      latitude: trackingData.customerAddress.latitude,
+      longitude: trackingData.customerAddress.longitude,
+      addressFull: trackingData.customerAddress.text,
+    };
+  }, [trackingData]);
 
   const fetchRouteFromServer = useCallback(
     async (force = false) => {
@@ -506,10 +508,32 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
     });
   }, [driverFix, isLiveTracking, effectiveStatus, routeAnchorVersion, offRouteTick]);
 
-  if (!trackingData && !o) {
+  if (!trackingData) {
     return (
       <Page>
-        <Empty text="Solicitud no disponible." />
+        {trackingError ? (
+          <Empty
+            title="No se pudo cargar el seguimiento"
+            text={trackingError}
+            action={
+              <>
+                <Button
+                  label={retryingTracking ? "Reintentando..." : "Reintentar"}
+                  icon="refresh-outline"
+                  disabled={retryingTracking}
+                  onPress={() => void retryTracking()}
+                />
+                <Button
+                  label="Volver al detalle"
+                  secondary
+                  onPress={() => navigation.navigate("ClientOrderDetail", { orderId })}
+                />
+              </>
+            }
+          />
+        ) : (
+          <Empty title="Cargando seguimiento" text="Consultando el estado de tu solicitud..." />
+        )}
       </Page>
     );
   }
@@ -534,7 +558,7 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
         id: trackingData.orderId,
         number: trackingData.orderNumber,
       })
-    : o!.id;
+    : orderId;
 
   const arrivedAtDoor =
     effectiveStatus === "ARRIVED_FOR_PICKUP" ||
@@ -711,17 +735,9 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
         visible={details}
         onClose={() => setDetails(false)}
       >
-        <Title>
-          {assignedDriver?.name ?? o?.assignedDriverName ?? "Chofer por asignar"}
-        </Title>
-        <Body>
-          {assignedDriver?.vehicle ??
-            o?.assignedDriverVehicle ??
-            "Vehículo de planta"}
-        </Body>
-        <Badge>
-          {assignedDriver?.plate ?? o?.assignedDriverPlate ?? "Sede Central"}
-        </Badge>
+        <Title>{assignedDriver?.name ?? "Chofer por asignar"}</Title>
+        {assignedDriver?.vehicle ? <Body>{assignedDriver.vehicle}</Body> : null}
+        {assignedDriver?.plate ? <Badge>{assignedDriver.plate}</Badge> : null}
         <Body>{banner.subtitle}</Body>
         {o?.handoffs
           .filter((h) => isCustomerHandoff(h) && h.status === "ACTIVE")

@@ -283,7 +283,7 @@ for (const viewport of [
   );
 }
 
-test("tracking code replaces the details sheet and regeneration remains available on the order", async ({
+test("tracking without server data shows the error, and the code stays available on the order", async ({
   page,
 }) => {
   await page
@@ -292,18 +292,18 @@ test("tracking code replaces the details sheet and regeneration remains availabl
   await page
     .getByRole("button", { name: "Seguir chofer en mapa", exact: true })
     .click();
-  await page.getByRole("button", { name: "SOL-4587", exact: true }).click();
-  await page
-    .getByRole("button", { name: /^Mostrar código ·/ })
-    .first()
-    .click();
+  // Un pedido que el servidor no conoce no muestra un chofer, una placa ni una ruta inventados.
   await expect(
-    page.getByRole("heading", { name: /^Código manual:/ }),
+    page.getByText("No se pudo cargar el seguimiento", { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Cerrar panel", exact: true }),
-  ).toHaveCount(1);
-  await page.getByRole("button", { name: "Cerrar panel", exact: true }).click();
+    page.getByRole("button", { name: "Reintentar", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Carlos Mendoza").filter({ visible: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Reintentar", exact: true }).click();
+  await expect(
+    page.getByText("No se pudo cargar el seguimiento", { exact: true }),
+  ).toBeVisible();
   await page
     .getByRole("button", { name: "Volver al detalle", exact: true })
     .click();
