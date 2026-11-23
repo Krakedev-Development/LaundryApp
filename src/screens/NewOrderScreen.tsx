@@ -40,6 +40,7 @@ import {
   extras,
   garments,
   services,
+  serviceTimeLabel,
   weightRestrictions,
   weightTiers,
   type CatalogGarment,
@@ -868,6 +869,11 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
                       <Choice
                         key={s.id}
                         label={`${s.name} · adicional ${money(s.extraPrice)}`}
+                        detail={
+                          [s.description, serviceTimeLabel(s.estimatedHours)]
+                            .filter(Boolean)
+                            .join(" · ") || undefined
+                        }
                         style={[
                           garmentStyles.choice,
                           service === s.name && garmentStyles.selectedChoice,
