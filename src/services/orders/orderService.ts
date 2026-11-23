@@ -170,6 +170,8 @@ export interface AssignedDriverDto {
   status: "AVAILABLE" | "ON_SERVICE";
   latitude: number | null;
   longitude: number | null;
+  heading?: number | null;
+  speed?: number | null;
   locationAt: string | null;
 }
 
@@ -179,6 +181,7 @@ export interface OrderTrackingDto {
   status: string;
   mode: string;
   activeLeg: "INBOUND" | "OUTBOUND" | null;
+  isLiveTrackingActive?: boolean;
   customerAddress: {
     text: string;
     latitude: number;
@@ -192,6 +195,43 @@ export interface OrderTrackingDto {
     longitude: number;
   };
   assignedDriver: AssignedDriverDto | null;
+}
+
+export interface OrderRouteApiResponse {
+  success: boolean;
+  data?: {
+    orderId: string;
+    activeLeg: "INBOUND" | "OUTBOUND";
+    distanceMeters: number;
+    durationSeconds: number;
+    etaMinutes: number;
+    provider?: "mapbox" | "osrm" | "fallback";
+    isFallback?: boolean;
+    geometry?: {
+      type: string;
+      coordinates: Array<[number, number]>;
+    };
+  };
+}
+
+export interface OrderEtaApiResponse {
+  success: boolean;
+  data?: {
+    orderId: string;
+    status: string;
+    activeLeg: "INBOUND" | "OUTBOUND" | null;
+    isLiveTrackingActive: boolean;
+    etaMinutes: number | null;
+    distanceMeters: number | null;
+    durationSeconds: number | null;
+    driverLocation: {
+      lat: number;
+      lng: number;
+      heading?: number;
+      speed?: number;
+      locationAt: string | null;
+    } | null;
+  };
 }
 
 export interface BackendOrderDetails extends BackendOrderSummary {
@@ -579,6 +619,46 @@ export const orderService = {
   ): Promise<OrderTrackingDto> {
     const token = await resolveToken(explicitToken);
     return await apiClient.get<OrderTrackingDto>(`/orders/${id}/tracking`, {
+      accessToken: token,
+    });
+  },
+
+  async getOrderRoute(
+    id: string,
+    params?: {
+      driverLat?: number;
+      driverLng?: number;
+      driverHeading?: number;
+    },
+    explicitToken?: string | null,
+  ): Promise<OrderRouteApiResponse> {
+    const token = await resolveToken(explicitToken);
+    const search = new URLSearchParams();
+    if (params?.driverLat !== undefined && Number.isFinite(params.driverLat)) {
+      search.set("driverLat", String(params.driverLat));
+    }
+    if (params?.driverLng !== undefined && Number.isFinite(params.driverLng)) {
+      search.set("driverLng", String(params.driverLng));
+    }
+    if (
+      params?.driverHeading !== undefined &&
+      Number.isFinite(params.driverHeading)
+    ) {
+      search.set("driverHeading", String(Math.round(params.driverHeading)));
+    }
+    const qs = search.toString();
+    return await apiClient.get<OrderRouteApiResponse>(
+      `/orders/${id}/route${qs ? `?${qs}` : ""}`,
+      { accessToken: token },
+    );
+  },
+
+  async getOrderEta(
+    id: string,
+    explicitToken?: string | null,
+  ): Promise<OrderEtaApiResponse> {
+    const token = await resolveToken(explicitToken);
+    return await apiClient.get<OrderEtaApiResponse>(`/orders/${id}/eta`, {
       accessToken: token,
     });
   },
