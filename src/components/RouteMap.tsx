@@ -13,6 +13,8 @@ import {
   type MapThemeMode,
 } from "./routeMapShared";
 import { buildRouteRadarLeafletHtml } from "./leafletHtml";
+import { buildRouteMapboxHtml } from "./mapboxRouteHtml";
+import { MAPBOX_ACCESS_TOKEN, USE_MAPBOX } from "../config/mapbox";
 
 export {
   GUAYAQUIL_BASE,
@@ -34,6 +36,7 @@ export interface RouteMapProps {
     status?: string;
   } | null;
   isSearching?: boolean;
+  driverBearing?: number | null;
   routeCoordinates?: Array<{ latitude: number; longitude: number }>;
 }
 
@@ -43,10 +46,11 @@ export default function RouteMap({
   facility,
   driverInfo,
   isSearching = false,
+  driverBearing = null,
   routeCoordinates,
   height = theme.layout.map,
 }: RouteMapProps) {
-  const [mode, setMode] = useState<MapThemeMode>("tactical");
+  const [mode, setMode] = useState<MapThemeMode>("light");
   const webViewRef = useRef<WebView>(null);
 
   const normalized = normalizeGuayaquilCoords(origin, destination);
@@ -58,18 +62,33 @@ export default function RouteMap({
 
   const initialHtml = useMemo(
     () =>
-      buildRouteRadarLeafletHtml({
-        origin: normalized.origin,
-        destination: {
-          ...normalized.destination,
-          addressFull: destination.addressFull,
-        },
-        facility,
-        routeCoordinates,
-        mode: "tactical",
-        isSearching,
-        driverLabel,
-      }),
+      USE_MAPBOX
+        ? buildRouteMapboxHtml({
+            accessToken: MAPBOX_ACCESS_TOKEN,
+            origin: normalized.origin,
+            destination: {
+              ...normalized.destination,
+              addressFull: destination.addressFull,
+            },
+            facility,
+            routeCoordinates,
+            mode: "light",
+            isSearching,
+            driverLabel,
+            driverBearing,
+          })
+        : buildRouteRadarLeafletHtml({
+            origin: normalized.origin,
+            destination: {
+              ...normalized.destination,
+              addressFull: destination.addressFull,
+            },
+            facility,
+            routeCoordinates,
+            mode: "light",
+            isSearching,
+            driverLabel,
+          }),
     // Only build initial HTML once on mount; live updates use injectJavaScript.
     [],
   );
@@ -92,14 +111,19 @@ export default function RouteMap({
   }, []);
 
   useEffect(() => {
+    const bearingArg =
+      typeof driverBearing === "number" && Number.isFinite(driverBearing)
+        ? Math.round(driverBearing)
+        : "null";
     webViewRef.current?.injectJavaScript(
-      `window.updateDriverPosition && window.updateDriverPosition(${normalized.origin.latitude}, ${normalized.origin.longitude}, ${isSearching}, ${JSON.stringify(driverLabel)}); true;`,
+      `window.updateDriverPosition && window.updateDriverPosition(${normalized.origin.latitude}, ${normalized.origin.longitude}, ${isSearching}, ${JSON.stringify(driverLabel)}, ${bearingArg}); true;`,
     );
   }, [
     normalized.origin.latitude,
     normalized.origin.longitude,
     isSearching,
     driverLabel,
+    driverBearing,
   ]);
 
   useEffect(() => {
@@ -236,7 +260,7 @@ export default function RouteMap({
             { color: isTactical ? "#94A3B8" : "#475569" },
           ]}
         >
-          Leaflet · OpenStreetMap
+          {USE_MAPBOX ? "Mapbox" : "Leaflet · OpenStreetMap"}
         </Text>
       </View>
     </View>

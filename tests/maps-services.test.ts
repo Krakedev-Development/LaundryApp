@@ -11,54 +11,8 @@ import {
   fetchDrivingRoute,
   formatRouteEta,
   haversineDistanceMeters,
-  parseOsrmRouteResponse,
+  ROAD_SINUOSITY_FACTOR,
 } from "../src/services/maps/routingService";
-
-test("parseOsrmRouteResponse converts GeoJSON [lng, lat] coordinates and totals", () => {
-  const parsed = parseOsrmRouteResponse({
-    code: "Ok",
-    routes: [
-      {
-        distance: 1420.6,
-        duration: 295.3,
-        geometry: {
-          type: "LineString",
-          coordinates: [
-            [-79.8891, -2.1894],
-            [-79.892, -2.175],
-            [-79.8962, -2.1585],
-          ],
-        },
-      },
-    ],
-  });
-
-  assert.ok(parsed);
-  assert.equal(parsed.isFallback, false);
-  assert.equal(parsed.distanceMeters, 1421);
-  assert.equal(parsed.durationSeconds, 295);
-  assert.equal(parsed.coordinates.length, 3);
-  assert.deepEqual(parsed.coordinates[0], {
-    latitude: -2.1894,
-    longitude: -79.8891,
-  });
-  assert.deepEqual(parsed.coordinates[2], {
-    latitude: -2.1585,
-    longitude: -79.8962,
-  });
-});
-
-test("parseOsrmRouteResponse returns null for invalid or empty OSRM payloads", () => {
-  assert.equal(parseOsrmRouteResponse(null), null);
-  assert.equal(parseOsrmRouteResponse({ code: "NoRoute", routes: [] }), null);
-  assert.equal(
-    parseOsrmRouteResponse({
-      code: "Ok",
-      routes: [{ distance: 100, duration: 20, geometry: { coordinates: [] } }],
-    }),
-    null,
-  );
-});
 
 test("haversineDistanceMeters and buildHaversineFallbackRoute compute realistic Guayaquil metrics", () => {
   const centro = { latitude: -2.1894, longitude: -79.8891 };
@@ -72,15 +26,19 @@ test("haversineDistanceMeters and buildHaversineFallbackRoute compute realistic 
 
   const fallback = buildHaversineFallbackRoute(centro, kennedy);
   assert.equal(fallback.isFallback, true);
-  assert.equal(fallback.distanceMeters, dist);
-  assert.ok(fallback.durationSeconds >= 400 && fallback.durationSeconds <= 700);
+  // Recorrido estimado por calles: 1.3 veces la línea recta, a 25 km/h.
+  assert.equal(ROAD_SINUOSITY_FACTOR, 1.3);
+  assert.equal(fallback.distanceMeters, Math.round(dist * 1.3));
+  assert.equal(fallback.durationSeconds, Math.round(fallback.distanceMeters / ((25 * 1000) / 3600)));
   assert.equal(fallback.coordinates.length, 2);
 });
 
-test("fetchDrivingRoute falls back to Haversine when OSRM request fails", async () => {
+test("fetchDrivingRoute estima la ruta localmente sin llamar a servicios de terceros", async () => {
   const originalFetch = globalThis.fetch;
+  let calls = 0;
   globalThis.fetch = (async () => {
-    throw new Error("Simulated offline error");
+    calls += 1;
+    throw new Error("No debe consultar la red");
   }) as typeof fetch;
 
   try {
@@ -88,8 +46,9 @@ test("fetchDrivingRoute falls back to Haversine when OSRM request fails", async 
     const dest = { latitude: -2.172, longitude: -79.911 };
     const route = await fetchDrivingRoute(origin, dest);
 
+    assert.equal(calls, 0);
     assert.equal(route.isFallback, true);
-    assert.ok(route.distanceMeters > 2000);
+    assert.equal(route.distanceMeters, Math.round(haversineDistanceMeters(origin, dest) * 1.3));
     assert.ok(route.durationSeconds >= 60);
     assert.equal(route.coordinates.length, 2);
   } finally {

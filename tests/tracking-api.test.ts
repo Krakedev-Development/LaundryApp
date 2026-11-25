@@ -2,7 +2,6 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import {
   orderService,
-  buildSimulatedTracking,
   type OrderTrackingDto,
 } from "../src/services/orders/orderService";
 import {
@@ -10,8 +9,7 @@ import {
   GUAYAQUIL_SECTORS,
   normalizeGuayaquilCoords,
 } from "../src/components/routeMapShared";
-import { initializeSeededState } from "./fixtures/seedState";
-import { visibleOrders } from "../src/domain/repository";
+import * as orderServiceModule from "../src/services/orders/orderService";
 
 test("Guayaquil coordinates and sectors are correctly positioned within Guayaquil polygon", () => {
   // Base coordinate check
@@ -58,63 +56,8 @@ test("normalizeGuayaquilCoords standardizes legacy placeholder coordinates aroun
   );
 });
 
-test("buildSimulatedTracking constructs a complete OrderTrackingDto contract from local domain Order", () => {
-  const state = initializeSeededState();
-  const orders = visibleOrders(state);
-  assert.ok(orders.length > 0, "Seeded state should contain sample orders");
-
-  const order = orders[0];
-  const tracking = buildSimulatedTracking(order);
-
-  // Check top-level tracking contract
-  assert.equal(tracking.orderId, order.id);
-  assert.ok(Number.isInteger(tracking.orderNumber));
-  assert.equal(tracking.status, order.status);
-  assert.ok(["HOME_HOME", "HOME_STORE"].includes(tracking.mode));
-
-  // Check customer address
-  assert.ok(tracking.customerAddress.text);
-  assert.ok(Number.isFinite(tracking.customerAddress.latitude));
-  assert.ok(Number.isFinite(tracking.customerAddress.longitude));
-
-  // Check facility
-  assert.ok(tracking.facility.id);
-  assert.ok(tracking.facility.name);
-  assert.ok(Number.isFinite(tracking.facility.latitude));
-  assert.ok(Number.isFinite(tracking.facility.longitude));
-
-  // Check driver logic
-  if (order.assignedDriverName || order.assignedDriverId) {
-    assert.ok(tracking.assignedDriver, "Assigned driver must be populated");
-    assert.equal(tracking.assignedDriver.name, order.assignedDriverName);
-    assert.ok(
-      tracking.assignedDriver.status === "AVAILABLE" ||
-        tracking.assignedDriver.status === "ON_SERVICE",
-    );
-  }
-});
-
-test("buildSimulatedTracking correctly maps activeLeg based on transit status", () => {
-  const state = initializeSeededState();
-  const order = { ...visibleOrders(state)[0] };
-
-  // Inbound transit statuses
-  order.status = "HEADING_TO_PICKUP";
-  assert.equal(buildSimulatedTracking(order).activeLeg, "INBOUND");
-
-  order.status = "PICKUP_ASSIGNED";
-  assert.equal(buildSimulatedTracking(order).activeLeg, "INBOUND");
-
-  // Outbound transit statuses
-  order.status = "OUT_FOR_DELIVERY";
-  assert.equal(buildSimulatedTracking(order).activeLeg, "OUTBOUND");
-
-  order.status = "DELIVERY_ASSIGNED";
-  assert.equal(buildSimulatedTracking(order).activeLeg, "OUTBOUND");
-
-  // Non-transit status
-  order.status = "DELIVERED";
-  assert.equal(buildSimulatedTracking(order).activeLeg, null);
+test("el seguimiento no tiene un respaldo simulado: solo usa datos del servidor", () => {
+  assert.equal("buildSimulatedTracking" in orderServiceModule, false);
 });
 
 test("orderService.getOrderTracking validates token and rejects unauthorized requests", async () => {

@@ -4,7 +4,7 @@ import { BottomSheet } from "../components/overlay/OverlayPortal";
 import { ListItem, StatusChip } from "../components/presentation";
 import { useReducedMotion } from "../design-system/MotionProvider";
 import { contentColors as colors } from "../components/ui";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Page } from "../components/Page";
@@ -19,14 +19,14 @@ import {
 } from "../components/ui";
 import RouteMap from "../components/RouteMap";
 import { HandoffCodeSheet } from "../components/HandoffCard";
+import { ServerHandoffCode } from "../components/ServerHandoffCode";
 import { useApp } from "../store/AppProvider";
 import { visibleOrders } from "../domain/repository";
-import { pickupStatuses, type Order, type OrderStatus } from "../domain/models";
-import { facilities } from "../domain/catalog";
+import type { OrderStatus } from "../domain/models";
 import {
   orderService,
-  buildSimulatedTracking,
   formatOrderCode,
+  isUuid,
   type OrderTrackingDto,
 } from "../services/orders/orderService";
 import {
@@ -34,173 +34,523 @@ import {
   formatRouteEta,
   type DrivingRouteResult,
 } from "../services/maps/routingService";
+import { clientSocketService } from "../services/realtime/clientSocketService";
+import {
+  evaluateRouteProgress,
+  isHeadingReliable,
+  OFF_ROUTE_CONFIRM_MS,
+  resolveRouteMarkerPlacement,
+  type MapRoutePoint,
+} from "../utils/routeDeviation";
+import {
+  handoffTypeForTrackingStatus,
+  isCustomerLiveTrackingStatus,
+  isFresherObservation,
+  liveTrackingLegForStatus,
+  parseDriverLocationFromSocketPayload,
+  parseObservedAt,
+  trackingBannerForStatus,
+  type LiveDriverFix,
+} from "../utils/orderTracking";
 import type { ScreenProps } from "../navigation/routes";
 import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
-function destinationFor(order: Order) {
-  if (["PICKED_UP", "HEADING_TO_FACILITY"].includes(order.status)) {
-    const f =
-      facilities.find((f) => f.name === order.facilityName) ?? facilities[0];
-    return {
-      latitude: f.latitude,
-      longitude: f.longitude,
-      addressFull: f.address,
-    };
-  }
-  return pickupStatuses.includes(order.status)
-    ? order.fulfillmentPlan.inbound
-    : order.fulfillmentPlan.outbound;
+
+const ROUTE_REFRESH_MIN_MS = 20_000;
+const DEVIATION_REFETCH_MIN_MS = 5_000;
+const FALLBACK_POLL_MS = 30_000;
+const DRIVER_LOCATION_STALE_MS = 15_000;
+
+interface OrderStatusSocketEvent {
+  orderId?: string;
+  status?: string;
+  activeLeg?: "INBOUND" | "OUTBOUND" | null;
+  updatedAt?: string;
 }
+
+interface OrderEtaSocketEvent {
+  orderId?: string;
+  etaMinutes?: number;
+  distanceMeters?: number;
+  durationSeconds?: number;
+  updatedAt?: string;
+}
+
 export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
   const navigation = useLaundryNavigation();
   const { state } = useApp();
-  const o = visibleOrders(state).find((o) => o.id === route.params.orderId);
-  const focused = useIsFocused(),
-    reduced = useReducedMotion(),
-    { height } = useWindowDimensions();
-  const [details, setDetails] = useState(false);
-  const [codeId, setCodeId] = useState<string>();
-  const [progress, setProgress] = useState(0.05);
-  const [liveTracking, setLiveTracking] = useState<OrderTrackingDto | null>(null);
-  const [drivingRoute, setDrivingRoute] = useState<DrivingRouteResult | null>(
-    null,
+  const routeOrderId = route.params.orderId;
+  const o = visibleOrders(state).find(
+    (item) => item.id === routeOrderId || item.backendId === routeOrderId,
   );
+  // El backend exige UUID; en la store local `o.id` suele ser el código visible (ORD-0006)
+  // mientras el UUID real vive en `o.backendId`.
+  const apiOrderId = isUuid(routeOrderId)
+    ? routeOrderId
+    : isUuid(o?.backendId)
+      ? o.backendId
+      : routeOrderId;
+  const orderId = o?.id ?? routeOrderId;
+  const focused = useIsFocused();
+  const { height } = useWindowDimensions();
+
+  const [details, setDetails] = useState(false);
+  const [showHandoffSheet, setShowHandoffSheet] = useState(false);
+  const [codeId, setCodeId] = useState<string>();
+  const [liveTracking, setLiveTracking] = useState<OrderTrackingDto | null>(null);
+  // El seguimiento solo se muestra con datos del servidor: si no responden antes de la primera
+  // carga se muestra el error con la opción de reintentar (nunca un chofer ni una ruta inventados).
+  const [trackingError, setTrackingError] = useState<string | null>(null);
+  const [retryingTracking, setRetryingTracking] = useState(false);
+  const [driverFix, setDriverFix] = useState<LiveDriverFix | null>(null);
+  const [routePoints, setRoutePoints] = useState<MapRoutePoint[]>([]);
+  const [routeMeta, setRouteMeta] = useState<{
+    distanceMeters: number;
+    durationSeconds: number;
+  } | null>(null);
+  const [routeAnchorVersion, setRouteAnchorVersion] = useState(0);
+  const [offRouteTick, setOffRouteTick] = useState(0);
+
+  const mountedRef = useRef(true);
+  const hasLiveTrackingRef = useRef(false);
+  hasLiveTrackingRef.current = liveTracking !== null;
+  const driverFixRef = useRef<LiveDriverFix | null>(null);
+  driverFixRef.current = driverFix;
+  const lastWsLocationAtRef = useRef(0);
+  const lastEtaObservedAtRef = useRef(0);
+  const lastRouteFetchAtRef = useRef(0);
+  const routePointsRef = useRef<MapRoutePoint[]>([]);
+  routePointsRef.current = routePoints;
+  const routeAnchoredRef = useRef<{ status: string; isRealRoute: boolean } | null>(null);
+  const offRouteStreakRef = useRef(0);
+  const offRouteSinceRef = useRef<number | null>(null);
+  const lastRouteProgressAtRef = useRef(Date.now());
+  const lastDeviationFetchAtRef = useRef(0);
+  const offRouteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastLegRef = useRef<"INBOUND" | "OUTBOUND" | null>(null);
 
   useEffect(() => {
-    let active = true;
-    const fetchTracking = async () => {
-      try {
-        const result = await orderService.getOrderTracking(route.params.orderId);
-        if (active && result) {
-          setLiveTracking(result);
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (offRouteTimerRef.current) clearTimeout(offRouteTimerRef.current);
+    };
+  }, []);
+
+  const clearOffRouteTimer = useCallback(() => {
+    offRouteSinceRef.current = null;
+    if (offRouteTimerRef.current) {
+      clearTimeout(offRouteTimerRef.current);
+      offRouteTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleOffRouteRecheck = useCallback((delayMs: number) => {
+    if (offRouteTimerRef.current) return;
+    offRouteTimerRef.current = setTimeout(() => {
+      offRouteTimerRef.current = null;
+      if (mountedRef.current) setOffRouteTick((t) => t + 1);
+    }, Math.max(0, delayMs));
+  }, []);
+
+  const resetTrackingGeometry = useCallback(() => {
+    setRoutePoints([]);
+    setRouteMeta(null);
+    routeAnchoredRef.current = null;
+    offRouteStreakRef.current = 0;
+    clearOffRouteTimer();
+    setRouteAnchorVersion((v) => v + 1);
+  }, [clearOffRouteTimer]);
+
+  const refreshTrackingSnapshot = useCallback(async () => {
+    if (!isUuid(apiOrderId)) {
+      if (mountedRef.current && !hasLiveTrackingRef.current) {
+        setTrackingError(
+          "Esta solicitud todavía no está registrada en el servidor. Vuelve a intentarlo en unos segundos.",
+        );
+      }
+      return;
+    }
+    try {
+      const result = await orderService.getOrderTracking(apiOrderId);
+      if (!mountedRef.current || !result) return;
+      setLiveTracking(result);
+      setTrackingError(null);
+
+      const nextLeg = liveTrackingLegForStatus(result.status);
+      if (lastLegRef.current && nextLeg !== lastLegRef.current) {
+        setDriverFix(null);
+        resetTrackingGeometry();
+      }
+      lastLegRef.current = nextLeg;
+
+      if (!isCustomerLiveTrackingStatus(result.status)) {
+        setDriverFix(null);
+        resetTrackingGeometry();
+        return;
+      }
+
+      const d = result.assignedDriver;
+      if (
+        d &&
+        d.latitude !== null &&
+        d.longitude !== null &&
+        Date.now() - lastWsLocationAtRef.current >= DRIVER_LOCATION_STALE_MS
+      ) {
+        setDriverFix({
+          latitude: d.latitude,
+          longitude: d.longitude,
+          heading: d.heading ?? null,
+          speed: d.speed ?? null,
+          locationAt: d.locationAt,
+        });
+      }
+    } catch (error) {
+      // Con datos previos del servidor se conservan; el respaldo de 30 s volverá a consultar.
+      if (mountedRef.current && !hasLiveTrackingRef.current) {
+        setTrackingError(
+          error instanceof Error && error.message
+            ? error.message
+            : "No se pudo consultar el seguimiento.",
+        );
+      }
+    }
+  }, [apiOrderId, resetTrackingGeometry]);
+
+  const retryTracking = useCallback(async () => {
+    setRetryingTracking(true);
+    try {
+      await refreshTrackingSnapshot();
+    } finally {
+      if (mountedRef.current) setRetryingTracking(false);
+    }
+  }, [refreshTrackingSnapshot]);
+
+  const trackingData = liveTracking;
+  const effectiveStatus = (trackingData?.status ?? o?.status ?? "CONFIRMED") as OrderStatus;
+  const isLiveTracking = isCustomerLiveTrackingStatus(effectiveStatus);
+  const activeLeg = liveTrackingLegForStatus(effectiveStatus);
+  const assignedDriver = trackingData?.assignedDriver ?? null;
+
+  const destination = useMemo(() => {
+    if (!trackingData) return null;
+    return {
+      latitude: trackingData.customerAddress.latitude,
+      longitude: trackingData.customerAddress.longitude,
+      addressFull: trackingData.customerAddress.text,
+    };
+  }, [trackingData]);
+
+  const fetchRouteFromServer = useCallback(
+    async (force = false) => {
+      if (!mountedRef.current || !isLiveTracking || !destination) return;
+      const fix = driverFixRef.current;
+      if (!fix) return;
+
+      const anchor = routeAnchoredRef.current;
+      if (!force && anchor?.isRealRoute && anchor.status === effectiveStatus) return;
+
+      const now = Date.now();
+      if (!force && now - lastRouteFetchAtRef.current < ROUTE_REFRESH_MIN_MS) return;
+      lastRouteFetchAtRef.current = now;
+
+      let resolved: DrivingRouteResult | null = null;
+      if (isUuid(apiOrderId)) {
+        try {
+          const response = await orderService.getOrderRoute(apiOrderId, {
+            driverLat: fix.latitude,
+            driverLng: fix.longitude,
+            ...(isHeadingReliable(fix.heading, fix.speed)
+              ? { driverHeading: fix.heading }
+              : {}),
+          });
+          const coords = response.data?.geometry?.coordinates;
+          if (response.success && response.data && Array.isArray(coords) && coords.length >= 2) {
+            resolved = {
+              distanceMeters: response.data.distanceMeters,
+              durationSeconds: response.data.durationSeconds,
+              coordinates: coords.map(([lng, lat]) => ({ latitude: lat, longitude: lng })),
+              isFallback: Boolean(response.data.isFallback),
+            };
+          }
+        } catch {
+          // Si falla el backend de ruta, usar fallback cliente OSRM/Haversine.
         }
-      } catch {
-        if (active && o && !liveTracking) {
-          setLiveTracking(buildSimulatedTracking(o));
-        }
+      }
+
+      if (!resolved) {
+        resolved = await fetchDrivingRoute(
+          { latitude: fix.latitude, longitude: fix.longitude },
+          { latitude: destination.latitude, longitude: destination.longitude },
+        );
+      }
+
+      if (!mountedRef.current || !resolved) return;
+      setRoutePoints(resolved.coordinates);
+      setRouteMeta({
+        distanceMeters: resolved.distanceMeters,
+        durationSeconds: resolved.durationSeconds,
+      });
+      routeAnchoredRef.current = {
+        status: effectiveStatus,
+        isRealRoute: !resolved.isFallback && resolved.coordinates.length >= 2,
+      };
+      offRouteStreakRef.current = 0;
+      clearOffRouteTimer();
+      lastRouteProgressAtRef.current = Date.now();
+      setRouteAnchorVersion((v) => v + 1);
+    },
+    [apiOrderId, isLiveTracking, destination, effectiveStatus, clearOffRouteTimer],
+  );
+
+  // Suscripción WebSocket en tiempo real mientras la pantalla está enfocada.
+  useEffect(() => {
+    if (!focused) return;
+
+    void clientSocketService.connect();
+    if (isUuid(apiOrderId)) {
+      clientSocketService.subscribeOrder(apiOrderId);
+    }
+
+    const handleAuthenticated = () => {
+      if (isUuid(apiOrderId)) clientSocketService.subscribeOrder(apiOrderId);
+      void refreshTrackingSnapshot();
+    };
+
+    const handleDriverLocation = (raw: unknown) => {
+      const payload = raw as { orderId?: string };
+      if (payload?.orderId && payload.orderId !== apiOrderId) return;
+      const parsed = parseDriverLocationFromSocketPayload(
+        raw as Parameters<typeof parseDriverLocationFromSocketPayload>[0],
+      );
+      if (!parsed || !mountedRef.current) return;
+      lastWsLocationAtRef.current = Date.now();
+      setDriverFix(parsed);
+    };
+
+    const handleStatusChanged = (raw: unknown) => {
+      const payload = raw as OrderStatusSocketEvent;
+      if (payload?.orderId !== apiOrderId || !payload.status || !mountedRef.current) return;
+      const nextStatus = payload.status;
+      const nextLeg = liveTrackingLegForStatus(nextStatus);
+      setLiveTracking((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: nextStatus,
+              activeLeg: nextLeg,
+              isLiveTrackingActive: isCustomerLiveTrackingStatus(nextStatus),
+            }
+          : prev,
+      );
+      if (!isCustomerLiveTrackingStatus(nextStatus) || nextLeg !== lastLegRef.current) {
+        setDriverFix(null);
+        resetTrackingGeometry();
+      }
+      lastLegRef.current = nextLeg;
+      void refreshTrackingSnapshot();
+    };
+
+    const handleEtaUpdated = (raw: unknown) => {
+      const payload = raw as OrderEtaSocketEvent;
+      if (payload?.orderId !== apiOrderId || !mountedRef.current) return;
+      const observedAt = parseObservedAt(payload.updatedAt, Date.now());
+      if (!isFresherObservation(observedAt, lastEtaObservedAtRef.current)) return;
+      lastEtaObservedAtRef.current = observedAt;
+      if (
+        typeof payload.distanceMeters === "number" &&
+        typeof payload.durationSeconds === "number"
+      ) {
+        setRouteMeta({
+          distanceMeters: payload.distanceMeters,
+          durationSeconds: payload.durationSeconds,
+        });
       }
     };
 
-    void fetchTracking();
-
-    if (!focused) return;
-    const interval = setInterval(() => {
-      void fetchTracking();
-    }, 7000);
+    clientSocketService.on("authenticated", handleAuthenticated);
+    clientSocketService.on("driver:location:updated", handleDriverLocation);
+    clientSocketService.on("order:status:changed", handleStatusChanged);
+    clientSocketService.on("order:driver_arrived", handleStatusChanged);
+    clientSocketService.on("order:eta:updated", handleEtaUpdated);
 
     return () => {
-      active = false;
-      clearInterval(interval);
+      clientSocketService.off("authenticated", handleAuthenticated);
+      clientSocketService.off("driver:location:updated", handleDriverLocation);
+      clientSocketService.off("order:status:changed", handleStatusChanged);
+      clientSocketService.off("order:driver_arrived", handleStatusChanged);
+      clientSocketService.off("order:eta:updated", handleEtaUpdated);
+      if (isUuid(apiOrderId)) {
+        clientSocketService.unsubscribeOrder(apiOrderId);
+      }
     };
-  }, [focused, route.params.orderId, o?.id]);
+  }, [focused, apiOrderId, refreshTrackingSnapshot, resetTrackingGeometry]);
 
+  // Carga inicial + polling de respaldo cada 30 s (ETA + fallback GPS si WS >= 15 s sin señal).
   useEffect(() => {
-    if (
-      !focused ||
-      reduced ||
-      !o ||
-      !["HEADING_TO_PICKUP", "OUT_FOR_DELIVERY"].includes(o.status)
-    )
-      return;
-    const interval = setInterval(
-      () => setProgress((p) => (p > 0.75 ? 0.05 : p + 0.01)),
-      1500,
-    );
+    void refreshTrackingSnapshot();
+    if (!focused) return;
+
+    const pollFallback = async () => {
+      await refreshTrackingSnapshot();
+      if (!isLiveTracking || !isUuid(apiOrderId)) return;
+      try {
+        const etaRes = await orderService.getOrderEta(apiOrderId);
+        const data = etaRes.data;
+        if (!mountedRef.current || !etaRes.success || !data) return;
+        const now = Date.now();
+        if (
+          typeof data.distanceMeters === "number" &&
+          typeof data.durationSeconds === "number" &&
+          isFresherObservation(now, lastEtaObservedAtRef.current)
+        ) {
+          lastEtaObservedAtRef.current = now;
+          setRouteMeta({
+            distanceMeters: data.distanceMeters,
+            durationSeconds: data.durationSeconds,
+          });
+        }
+        if (
+          data.driverLocation &&
+          Date.now() - lastWsLocationAtRef.current >= DRIVER_LOCATION_STALE_MS
+        ) {
+          setDriverFix({
+            latitude: data.driverLocation.lat,
+            longitude: data.driverLocation.lng,
+            heading: data.driverLocation.heading ?? null,
+            speed: data.driverLocation.speed ?? null,
+            locationAt: data.driverLocation.locationAt,
+          });
+        }
+      } catch {
+        // Silencioso: WebSocket cubre el flujo principal.
+      }
+    };
+
+    const interval = setInterval(() => {
+      void pollFallback();
+    }, FALLBACK_POLL_MS);
+
     return () => clearInterval(interval);
-  }, [focused, reduced, o?.status]);
+  }, [focused, apiOrderId, isLiveTracking, refreshTrackingSnapshot]);
 
-  const activeDriverLat =
-    liveTracking?.assignedDriver?.latitude ??
-    o?.trackingPosition?.latitude ??
-    null;
-  const activeDriverLng =
-    liveTracking?.assignedDriver?.longitude ??
-    o?.trackingPosition?.longitude ??
-    null;
-  const activeDestLat =
-    liveTracking?.customerAddress?.latitude ??
-    o?.fulfillmentPlan.inbound.latitude ??
-    null;
-  const activeDestLng =
-    liveTracking?.customerAddress?.longitude ??
-    o?.fulfillmentPlan.inbound.longitude ??
-    null;
-
+  // Snapping del chofer sobre la polilínea + recorte de ruta + detección de desvío.
   useEffect(() => {
-    if (
-      activeDriverLat === null ||
-      activeDriverLng === null ||
-      activeDestLat === null ||
-      activeDestLng === null
-    ) {
-      setDrivingRoute(null);
+    if (!isLiveTracking || !driverFix) return;
+    const anchor = routeAnchoredRef.current;
+    if (!anchor?.isRealRoute || anchor.status !== effectiveStatus) {
+      void fetchRouteFromServer(false);
       return;
     }
 
-    let alive = true;
-    void fetchDrivingRoute(
-      { latitude: activeDriverLat, longitude: activeDriverLng },
-      { latitude: activeDestLat, longitude: activeDestLng },
-    ).then((routeResult) => {
-      if (alive) {
-        setDrivingRoute(routeResult);
-      }
+    const now = Date.now();
+    const decision = evaluateRouteProgress({
+      route: routePointsRef.current,
+      location: driverFix,
+      offRouteStreak: offRouteStreakRef.current,
+      elapsedSinceProgressMs: now - lastRouteProgressAtRef.current,
+      offRouteElapsedMs:
+        offRouteSinceRef.current == null ? 0 : now - offRouteSinceRef.current,
     });
+    if (!decision) return;
+    offRouteStreakRef.current = decision.offRouteStreak;
 
-    return () => {
-      alive = false;
-    };
-  }, [activeDriverLat, activeDriverLng, activeDestLat, activeDestLng]);
+    if (decision.kind === "on_route") {
+      clearOffRouteTimer();
+      lastRouteProgressAtRef.current = now;
+      setRoutePoints(decision.trimmedRoute);
+      return;
+    }
 
-  const trackingData = liveTracking ?? (o ? buildSimulatedTracking(o) : null);
-  if (!trackingData && !o) {
+    if (decision.kind === "off_route_pending") {
+      offRouteSinceRef.current ??= now;
+      scheduleOffRouteRecheck(
+        OFF_ROUTE_CONFIRM_MS - (now - offRouteSinceRef.current),
+      );
+      return;
+    }
+
+    const sinceLastDeviation = now - lastDeviationFetchAtRef.current;
+    if (sinceLastDeviation < DEVIATION_REFETCH_MIN_MS) {
+      scheduleOffRouteRecheck(DEVIATION_REFETCH_MIN_MS - sinceLastDeviation);
+      return;
+    }
+    lastDeviationFetchAtRef.current = now;
+    void fetchRouteFromServer(true);
+  }, [
+    driverFix,
+    isLiveTracking,
+    effectiveStatus,
+    fetchRouteFromServer,
+    clearOffRouteTimer,
+    scheduleOffRouteRecheck,
+    offRouteTick,
+  ]);
+
+  const driverRouteMatch = useMemo(() => {
+    const anchor = routeAnchoredRef.current;
+    if (!driverFix || !isLiveTracking) return null;
+    if (
+      routeAnchorVersion === 0 ||
+      !anchor?.isRealRoute ||
+      anchor.status !== effectiveStatus
+    ) {
+      return null;
+    }
+    return resolveRouteMarkerPlacement({
+      route: routePointsRef.current,
+      location: driverFix,
+      offRouteStreak: offRouteStreakRef.current,
+      elapsedSinceProgressMs: Date.now() - lastRouteProgressAtRef.current,
+      offRouteElapsedMs:
+        offRouteSinceRef.current == null
+          ? 0
+          : Date.now() - offRouteSinceRef.current,
+    });
+  }, [driverFix, isLiveTracking, effectiveStatus, routeAnchorVersion, offRouteTick]);
+
+  if (!trackingData) {
     return (
       <Page>
-        <Empty text="Solicitud no disponible." />
+        {trackingError ? (
+          <Empty
+            title="No se pudo cargar el seguimiento"
+            text={trackingError}
+            action={
+              <>
+                <Button
+                  label={retryingTracking ? "Reintentando..." : "Reintentar"}
+                  icon="refresh-outline"
+                  disabled={retryingTracking}
+                  onPress={() => void retryTracking()}
+                />
+                <Button
+                  label="Volver al detalle"
+                  secondary
+                  onPress={() => navigation.navigate("ClientOrderDetail", { orderId })}
+                />
+              </>
+            }
+          />
+        ) : (
+          <Empty title="Cargando seguimiento" text="Consultando el estado de tu solicitud..." />
+        )}
       </Page>
     );
   }
 
-  const effectiveStatus = (trackingData?.status ?? o?.status ?? "CONFIRMED") as OrderStatus;
-  const isEnRoute = [
-    "HEADING_TO_PICKUP",
-    "OUT_FOR_DELIVERY",
-    "CONFIRMED",
-    "PICKUP_ASSIGNED",
-    "DELIVERY_ASSIGNED",
-  ].includes(effectiveStatus);
-
-  const assignedDriver = trackingData?.assignedDriver;
-  const hasDriverLocation = !!(
-    assignedDriver &&
-    assignedDriver.latitude !== null &&
-    assignedDriver.longitude !== null
-  );
-
-  const destination = trackingData
-    ? {
-        latitude: trackingData.customerAddress.latitude,
-        longitude: trackingData.customerAddress.longitude,
-        addressFull: trackingData.customerAddress.text,
-      }
-    : destinationFor(o!);
-
+  const banner = trackingBannerForStatus(effectiveStatus);
+  const handoffType = handoffTypeForTrackingStatus(effectiveStatus);
+  const canShowServerHandoff = Boolean(handoffType && isUuid(apiOrderId));
   const facility = trackingData?.facility;
-
-  const origin = hasDriverLocation
-    ? {
-        latitude: assignedDriver!.latitude!,
-        longitude: assignedDriver!.longitude!,
-      }
-    : {
-        latitude:
-          (facility?.latitude ?? destination.latitude) +
-          (destination.latitude - (facility?.latitude ?? destination.latitude)) *
-            (isEnRoute ? progress : 0),
-        longitude:
-          (facility?.longitude ?? destination.longitude) +
-          (destination.longitude - (facility?.longitude ?? destination.longitude)) *
-            (isEnRoute ? progress : 0),
-      };
+  const hasRealDriverCoords = driverFix !== null;
+  const displayedDriverPoint =
+    driverRouteMatch && driverRouteMatch.kind !== "off_route"
+      ? driverRouteMatch.point
+      : driverFix;
+  const displayedDriverBearing =
+    driverRouteMatch?.kind === "on_route"
+      ? driverRouteMatch.bearing
+      : (driverFix?.heading ?? null);
 
   const code = o?.handoffs.find((h) => h.id === codeId && h.status === "ACTIVE");
   const displayCode = trackingData
@@ -208,95 +558,129 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
         id: trackingData.orderId,
         number: trackingData.orderNumber,
       })
-    : o!.id;
+    : orderId;
+
+  const arrivedAtDoor =
+    effectiveStatus === "ARRIVED_FOR_PICKUP" ||
+    effectiveStatus === "ARRIVED_FOR_DELIVERY";
 
   return (
     <Page
-      scroll={false}
+      scroll={true}
+      contentContainerStyle={{ paddingBottom: 24 }}
       footer={
         <>
-          {/* Con el chofer en la puerta, el cliente necesita su código de custodia (en el detalle). */}
-          {effectiveStatus === "ARRIVED_FOR_PICKUP" ||
-          effectiveStatus === "ARRIVED_FOR_DELIVERY" ? (
+          {handoffType ? (
             <Button
-              label="Mostrar código para el chofer"
-              icon="qr-code-outline"
-              onPress={() =>
-                navigation.navigate("ClientOrderDetail", {
-                  orderId: route.params.orderId,
-                })
+              label={
+                effectiveStatus === "ARRIVED_FOR_PICKUP" ||
+                effectiveStatus === "HEADING_TO_PICKUP"
+                  ? "Mostrar código PIN / QR de recogida"
+                  : "Mostrar código PIN / QR de entrega"
               }
+              icon="qr-code-outline"
+              onPress={() => {
+                if (canShowServerHandoff) {
+                  setShowHandoffSheet(true);
+                } else {
+                  navigation.navigate("ClientOrderDetail", { orderId });
+                }
+              }}
             />
           ) : null}
           <Button
             label="Abrir chat con el chofer"
             icon="chatbubble-outline"
-            onPress={() =>
-              navigation.navigate("Chat", { orderId: route.params.orderId })
-            }
+            onPress={() => navigation.navigate("Chat", { orderId })}
           />
           <Button
             label="Volver al detalle"
             secondary
             onPress={() =>
-              navigation.navigate("ClientOrderDetail", {
-                orderId: route.params.orderId,
-              })
+              navigation.navigate("ClientOrderDetail", { orderId })
             }
           />
         </>
       }
     >
       <StatusChip status={effectiveStatus} />
-      <RouteMap
-        height={Math.max(220, Math.min(380, height * 0.38))}
-        origin={origin}
-        destination={destination}
-        facility={facility}
-        driverInfo={
-          assignedDriver
-            ? {
-                name: assignedDriver.name,
-                vehicle: assignedDriver.vehicle ?? undefined,
-                plate: assignedDriver.plate ?? undefined,
-                status: assignedDriver.status,
-              }
-            : null
-        }
-        isSearching={!assignedDriver}
-        routeCoordinates={drivingRoute?.coordinates}
-      />
 
-      {/* Real-time Driver Radar Card */}
-      {assignedDriver ? (
+      {isLiveTracking && destination ? (
+        hasRealDriverCoords && displayedDriverPoint ? (
+          <RouteMap
+            height={Math.max(260, Math.min(380, height * 0.4))}
+            origin={displayedDriverPoint}
+            destination={destination}
+            facility={facility}
+            driverInfo={
+              assignedDriver
+                ? {
+                    name: assignedDriver.name,
+                    vehicle: assignedDriver.vehicle ?? undefined,
+                    plate: assignedDriver.plate ?? undefined,
+                    status: assignedDriver.status,
+                  }
+                : null
+            }
+            driverBearing={displayedDriverBearing}
+            isSearching={!assignedDriver}
+            routeCoordinates={routePoints.length >= 2 ? routePoints : undefined}
+          />
+        ) : (
+          <View style={radarStyles.awaitingMapBox}>
+            <Ionicons name="navigate-outline" size={28} color="#0284C7" />
+            <Text style={radarStyles.awaitingMapTitle}>{banner.title}</Text>
+            <Text style={radarStyles.awaitingMapSubtitle}>
+              {assignedDriver
+                ? "Esperando señal GPS en tiempo real del chofer para trazar la ruta hacia tu domicilio."
+                : "En cuanto el chofer inicie su recorrido, verás su ubicación en tiempo real en el mapa."}
+            </Text>
+          </View>
+        )
+      ) : (
+        <View style={radarStyles.pausedMapBox}>
+          <Ionicons
+            name={
+              effectiveStatus === "DELIVERED" || effectiveStatus === "COMPLETED"
+                ? "checkmark-circle-outline"
+                : "business-outline"
+            }
+            size={30}
+            color="#0284C7"
+          />
+          <Text style={radarStyles.awaitingMapTitle}>{banner.title}</Text>
+          <Text style={radarStyles.awaitingMapSubtitle}>{banner.subtitle}</Text>
+        </View>
+      )}
+
+      {isLiveTracking && assignedDriver ? (
         <View style={radarStyles.card}>
           <View style={radarStyles.cardHeader}>
             <View style={radarStyles.statusPill}>
               <View style={radarStyles.greenDot} />
               <Text style={radarStyles.statusPillText}>
-                {assignedDriver.status === "ON_SERVICE"
-                  ? "Chofer en servicio activo"
-                  : "Chofer asignado"}
+                {activeLeg === "OUTBOUND"
+                  ? "Chofer en entrega"
+                  : "Chofer en recogida"}
               </Text>
             </View>
             <Text style={radarStyles.signalText}>
-              {assignedDriver.locationAt
-                ? `GPS: ${new Date(assignedDriver.locationAt).toLocaleTimeString()}`
-                : "Señal activa · Guayaquil"}
+              {driverFix?.locationAt
+                ? `GPS: ${new Date(driverFix.locationAt).toLocaleTimeString()}`
+                : "Esperando señal GPS"}
             </Text>
           </View>
 
-          {drivingRoute && (
-            <View style={radarStyles.etaBanner}>
-              <Ionicons name="time-outline" size={14} color="#38BDF8" />
-              <Text style={radarStyles.etaBannerText}>
-                {formatRouteEta(
-                  drivingRoute.distanceMeters,
-                  drivingRoute.durationSeconds,
-                )}
-              </Text>
-            </View>
-          )}
+          <View style={radarStyles.etaBanner}>
+            <Ionicons name="time-outline" size={15} color="#0284C7" />
+            <Text style={radarStyles.etaBannerText}>
+              {arrivedAtDoor
+                ? `${banner.etaLabel} · Chofer esperando en puerta`
+                : routeMeta
+                  ? `${banner.etaLabel}: ${formatRouteEta(routeMeta.distanceMeters, routeMeta.durationSeconds)}`
+                  : banner.title}
+            </Text>
+          </View>
 
           <View style={radarStyles.driverRow}>
             <View style={radarStyles.driverAvatar}>
@@ -306,61 +690,55 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
               <Text style={radarStyles.driverName}>{assignedDriver.name}</Text>
               <Text style={radarStyles.driverVehicle}>
                 {assignedDriver.vehicle ?? "Vehículo utilitario"} ·{" "}
-                {assignedDriver.plate ?? "GSE-1234"}
+                {assignedDriver.plate ?? "Sin placa"}
               </Text>
             </View>
             {assignedDriver.phone ? (
               <View style={radarStyles.phoneChip}>
-                <Ionicons name="call-outline" size={12} color="#38BDF8" />
+                <Ionicons name="call-outline" size={12} color="#0284C7" />
                 <Text style={radarStyles.phoneText}>{assignedDriver.phone}</Text>
               </View>
             ) : null}
           </View>
         </View>
-      ) : (
+      ) : isLiveTracking ? (
         <View style={radarStyles.searchingCard}>
           <View style={radarStyles.cardHeader}>
             <View style={radarStyles.searchingPill}>
               <View style={radarStyles.yellowDot} />
               <Text style={radarStyles.searchingPillText}>
-                Radar de asignación
+                Asignación en curso
               </Text>
             </View>
-            <Text style={radarStyles.signalText}>Guayaquil Central</Text>
+            <Text style={radarStyles.signalText}>
+              {facility?.name ?? "Sede asignada"}
+            </Text>
           </View>
           <View style={{ gap: 4, paddingVertical: 2 }}>
-            <Text style={radarStyles.searchingTitle}>
-              Buscando chofer en ruta...
-            </Text>
-            <Text style={radarStyles.searchingSubtitle}>
-              Tu orden está procesándose en {facility?.name ?? "Sede Central"}. En cuanto un chofer sea asignado, verás su avance en el radar táctico.
-            </Text>
+            <Text style={radarStyles.searchingTitle}>{banner.title}</Text>
+            <Text style={radarStyles.searchingSubtitle}>{banner.subtitle}</Text>
           </View>
         </View>
-      )}
+      ) : null}
 
-      <ListItem
-        title={displayCode}
-        subtitle={destination.addressFull}
-        icon="car-outline"
-        onPress={() => setDetails(true)}
-      />
+      {destination ? (
+        <ListItem
+          title={displayCode}
+          subtitle={destination.addressFull}
+          icon="car-outline"
+          onPress={() => setDetails(true)}
+        />
+      ) : null}
+
       <BottomSheet
         title="Tu seguimiento"
         visible={details}
         onClose={() => setDetails(false)}
       >
-        <Title>{assignedDriver?.name ?? o?.assignedDriverName ?? "Chofer por asignar"}</Title>
-        <Body>{assignedDriver?.vehicle ?? o?.assignedDriverVehicle ?? "Vehículo de planta"}</Body>
-        <Badge>{assignedDriver?.plate ?? o?.assignedDriverPlate ?? "Sede Central"}</Badge>
-        <Body>
-          {isEnRoute
-            ? "Tu servicio está en curso sobre la ruta de Guayaquil."
-            : "El tramo de seguimiento aún no está en camino."}
-        </Body>
-        <Body muted>
-          El radar táctico muestra la posición sincronizada con el backend y la sede de operaciones.
-        </Body>
+        <Title>{assignedDriver?.name ?? "Chofer por asignar"}</Title>
+        {assignedDriver?.vehicle ? <Body>{assignedDriver.vehicle}</Body> : null}
+        {assignedDriver?.plate ? <Badge>{assignedDriver.plate}</Badge> : null}
+        <Body>{banner.subtitle}</Body>
         {o?.handoffs
           .filter((h) => isCustomerHandoff(h) && h.status === "ACTIVE")
           .map((h) => (
@@ -375,6 +753,34 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
             />
           ))}
       </BottomSheet>
+
+      {canShowServerHandoff && handoffType ? (
+        <BottomSheet
+          title={
+            handoffType === "CUSTOMER_TO_DRIVER"
+              ? "Código de recogida (PIN / QR)"
+              : "Código de entrega (PIN / QR)"
+          }
+          visible={showHandoffSheet}
+          onClose={() => setShowHandoffSheet(false)}
+        >
+          <ServerHandoffCode
+            orderId={apiOrderId}
+            type={handoffType}
+            title={
+              handoffType === "CUSTOMER_TO_DRIVER"
+                ? "Entrega de prendas al chofer"
+                : "Recepción de prendas limpias"
+            }
+            description={
+              handoffType === "CUSTOMER_TO_DRIVER"
+                ? "Muestra el QR o dicta el código de 6 dígitos al chofer al retirar tus prendas."
+                : "Muestra el QR o dicta el código de 6 dígitos al chofer al recibir tus prendas."
+            }
+          />
+        </BottomSheet>
+      ) : null}
+
       {code && (
         <HandoffCodeSheet
           handoff={code}
@@ -385,13 +791,14 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
     </Page>
   );
 }
+
 export function ChatScreen({ route }: ScreenProps<"Chat">) {
   const { state, execute } = useApp();
-  const o = visibleOrders(state).find((o) => o.id === route.params.orderId);
+  const o = visibleOrders(state).find((item) => item.id === route.params.orderId);
   const a = useAction();
   const [text, setText] = useState("");
-  const list = useRef<FlatList>(null),
-    reduced = useReducedMotion();
+  const list = useRef<FlatList>(null);
+  const reduced = useReducedMotion();
   if (!o)
     return (
       <Page>
@@ -484,23 +891,67 @@ export function ChatScreen({ route }: ScreenProps<"Chat">) {
 }
 
 const radarStyles = StyleSheet.create({
-  card: {
-    backgroundColor: "#0F172A",
-    borderRadius: 14,
+  awaitingMapBox: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#1E293B",
-    padding: 12,
-    gap: 10,
+    borderColor: "#E2E8F0",
+    padding: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    minHeight: 160,
+  },
+  pausedMapBox: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    padding: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    minHeight: 170,
+  },
+  awaitingMapTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#0F172A",
+    textAlign: "center",
+  },
+  awaitingMapSubtitle: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: "#64748B",
+    textAlign: "center",
+  },
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    padding: 14,
+    gap: 12,
     marginVertical: 4,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   searchingCard: {
-    backgroundColor: "#0F172A",
-    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#334155",
-    padding: 12,
-    gap: 8,
+    borderColor: "#E2E8F0",
+    padding: 14,
+    gap: 10,
     marginVertical: 4,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   cardHeader: {
     flexDirection: "row",
@@ -511,8 +962,8 @@ const radarStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "rgba(14, 165, 233, 0.15)",
-    borderColor: "rgba(14, 165, 233, 0.35)",
+    backgroundColor: "#F0FDF4",
+    borderColor: "#BBF7D0",
     borderWidth: 1,
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -522,8 +973,8 @@ const radarStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "rgba(234, 179, 8, 0.15)",
-    borderColor: "rgba(234, 179, 8, 0.35)",
+    backgroundColor: "#FEFCE8",
+    borderColor: "#FEF08A",
     borderWidth: 1,
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -533,96 +984,96 @@ const radarStyles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 3.5,
-    backgroundColor: "#22C55E",
+    backgroundColor: "#16A34A",
   },
   yellowDot: {
     width: 7,
     height: 7,
     borderRadius: 3.5,
-    backgroundColor: "#EAB308",
+    backgroundColor: "#CA8A04",
   },
   statusPillText: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#38BDF8",
+    color: "#15803D",
     letterSpacing: 0.2,
   },
   searchingPillText: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#FACC15",
+    color: "#A16207",
     letterSpacing: 0.2,
   },
   signalText: {
-    fontSize: 10,
-    color: "#94A3B8",
+    fontSize: 11,
+    color: "#64748B",
     fontWeight: "500",
   },
   driverRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
   },
   driverAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: "#0284C7",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1.5,
-    borderColor: "#38BDF8",
+    borderWidth: 2,
+    borderColor: "#E0F2FE",
   },
   driverName: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "700",
-    color: "#F8FAFC",
+    color: "#0F172A",
   },
   driverVehicle: {
-    fontSize: 11,
-    color: "#94A3B8",
+    fontSize: 12,
+    color: "#64748B",
   },
   phoneChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(15, 23, 42, 0.8)",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    gap: 5,
+    backgroundColor: "#F0F9FF",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: "#BAE6FD",
   },
   phoneText: {
-    fontSize: 11,
-    color: "#38BDF8",
+    fontSize: 12,
+    color: "#0369A1",
     fontWeight: "600",
   },
   searchingTitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "700",
-    color: "#F1F5F9",
+    color: "#0F172A",
   },
   searchingSubtitle: {
-    fontSize: 11,
-    lineHeight: 16,
-    color: "#94A3B8",
+    fontSize: 12,
+    lineHeight: 18,
+    color: "#64748B",
   },
   etaBanner: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    backgroundColor: "rgba(56, 189, 248, 0.12)",
-    borderColor: "rgba(56, 189, 248, 0.28)",
+    gap: 8,
+    backgroundColor: "#F0F9FF",
+    borderColor: "#BAE6FD",
     borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   etaBannerText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
-    color: "#E0F2FE",
-    letterSpacing: 0.2,
+    color: "#0369A1",
+    letterSpacing: 0.1,
   },
 });

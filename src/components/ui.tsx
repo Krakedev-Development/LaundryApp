@@ -390,6 +390,7 @@ export function Field({
 }
 export function Choice({
   label,
+  detail,
   selected,
   onPress,
   disabled = false,
@@ -397,6 +398,8 @@ export function Choice({
   textStyle,
 }: {
   label: string;
+  /** Segunda línea opcional (p. ej. descripción y tiempo estimado). */
+  detail?: string;
   selected: boolean;
   onPress(): void;
   disabled?: boolean;
@@ -406,7 +409,7 @@ export function Choice({
   return (
     <Pressable
       accessibilityRole="radio"
-      accessibilityLabel={label}
+      accessibilityLabel={detail ? `${label}. ${detail}` : label}
       accessibilityState={{ checked: selected, disabled }}
       aria-checked={selected}
       disabled={disabled}
@@ -436,7 +439,14 @@ export function Choice({
         name={selected ? "radio-button-on" : "radio-button-off"}
         size={20}
       />
-      <Text style={[ui.text, { flexShrink: 1 }, textStyle]}>{label}</Text>
+      {detail ? (
+        <View style={{ flexShrink: 1 }}>
+          <Text style={[ui.text, textStyle]}>{label}</Text>
+          <Text style={[ui.muted, { marginTop: 2 }]}>{detail}</Text>
+        </View>
+      ) : (
+        <Text style={[ui.text, { flexShrink: 1 }, textStyle]}>{label}</Text>
+      )}
     </Pressable>
   );
 }

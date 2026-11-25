@@ -40,8 +40,9 @@ interface BackendGarment {
 interface BackendService {
   id: string;
   name: string;
-  description?: string;
+  description?: string | null;
   extraPrice: string | number;
+  estimatedHours?: number | null;
   active?: boolean;
 }
 
@@ -193,19 +194,6 @@ function resolveGarmentCategory(
   return "Prendas superiores";
 }
 
-function resolveServiceDescription(
-  description: string | undefined,
-  name: string,
-): string {
-  if (description?.trim()) return description.trim();
-  const label = name.toLowerCase();
-  if (label.includes("seco") || label.includes("dry"))
-    return "Cuidado especializado en seco para fibras delicadas y trajes.";
-  if (label.includes("planchado"))
-    return "Lavado profundo y planchado profesional a vapor.";
-  return "Lavado suave a temperatura controlada y doblado compacto.";
-}
-
 function mapGarment(raw: BackendGarment): CatalogGarment {
   const name = raw.name.trim();
   const isHeavy = /edredón|plumón|traje|terno|vestido|chaqueta|cuero/i.test(name);
@@ -224,8 +212,10 @@ function mapService(raw: BackendService): CatalogService {
   return {
     id: raw.id,
     name,
-    description: resolveServiceDescription(raw.description, name),
+    // Solo lo que definió el administrador: la app no inventa descripciones ni tiempos.
+    description: raw.description?.trim() ?? "",
     extraPrice: Number(raw.extraPrice) || 0,
+    estimatedHours: raw.estimatedHours ?? undefined,
   };
 }
 

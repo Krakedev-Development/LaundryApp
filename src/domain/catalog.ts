@@ -19,8 +19,21 @@ export interface CatalogGarment {
 export interface CatalogService {
   id: string;
   name: string;
+  /** Descripción definida por el administrador; vacía si no la cargó. */
   description: string;
   extraPrice: number;
+  /** Tiempo estimado de entrega en horas, si el administrador lo definió. */
+  estimatedHours?: number;
+}
+
+/** "Listo en aprox. 2 días" / "Listo en aprox. 6 h". */
+export function serviceTimeLabel(hours?: number): string {
+  if (!hours) return "";
+  if (hours % 24 === 0) {
+    const days = hours / 24;
+    return `Listo en aprox. ${days} ${days === 1 ? "día" : "días"}`;
+  }
+  return `Listo en aprox. ${hours} h`;
 }
 
 // Servicio por peso: el cliente elige una bolsa; cada una tiene su propio precio por libra.
