@@ -572,6 +572,42 @@ export const orderService = {
     );
   },
 
+  // Cancela la solicitud en el servidor: libera cupos, cierra los tramos del chofer, reembolsa a
+  // la billetera lo pagado y, pasado el corte, genera el cargo por cancelación tardía.
+  async cancelOrder(
+    orderId: string,
+    reason: string,
+    expectedVersion: number,
+    explicitToken?: string | null,
+  ): Promise<BackendOrderDetails> {
+    const token = await resolveToken(explicitToken);
+    return await apiClient.post<BackendOrderDetails>(
+      `/orders/${orderId}/cancel`,
+      { reason, expectedVersion },
+      { accessToken: token },
+    );
+  },
+
+  // Cambia la franja (y opcionalmente la dirección) de la recogida o la entrega. Si el tramo
+  // tenía chofer y cambia el horario, el servidor lo libera para que la sede reasigne.
+  async rescheduleOrder(
+    orderId: string,
+    input: {
+      leg: "INBOUND" | "OUTBOUND";
+      slotId: string;
+      addressId?: string;
+      expectedVersion: number;
+    },
+    explicitToken?: string | null,
+  ): Promise<BackendOrderDetails> {
+    const token = await resolveToken(explicitToken);
+    return await apiClient.put<BackendOrderDetails>(
+      `/orders/${orderId}/reschedule`,
+      input,
+      { accessToken: token },
+    );
+  },
+
   // Ajustes de precio que la sede registró (peso real, prenda extra...). El cliente aprueba o
   // rechaza los que suben el precio; lo rechazado no se cobra.
   async listAdjustments(orderId: string, explicitToken?: string | null): Promise<PriceAdjustment[]> {
