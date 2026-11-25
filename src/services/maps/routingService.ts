@@ -10,20 +10,11 @@ export interface DrivingRouteResult {
   isFallback?: boolean;
 }
 
-export interface OsrmRouteResponse {
-  code?: string;
-  routes?: Array<{
-    distance?: number;
-    duration?: number;
-    geometry?: {
-      type?: string;
-      coordinates?: Array<[number, number]>;
-    };
-  }>;
-}
-
 const EARTH_RADIUS_METERS = 6_371_000;
-const FALLBACK_SPEED_METERS_PER_SECOND = (25 * 1000) / 3600; // 25 km/h
+const FALLBACK_SPEED_METERS_PER_SECOND = (25 * 1000) / 3600; // 25 km/h, promedio urbano
+// Las calles no siguen la línea recta: se estima el recorrido real como 1.3 veces la distancia
+// directa para que el tiempo estimado no sea demasiado optimista.
+export const ROAD_SINUOSITY_FACTOR = 1.3;
 
 function toRadians(deg: number): number {
   return (deg * Math.PI) / 180;
@@ -47,7 +38,9 @@ export function buildHaversineFallbackRoute(
   origin: LatLng,
   destination: LatLng,
 ): DrivingRouteResult {
-  const distanceMeters = haversineDistanceMeters(origin, destination);
+  const distanceMeters = Math.round(
+    haversineDistanceMeters(origin, destination) * ROAD_SINUOSITY_FACTOR,
+  );
   const durationSeconds = Math.max(
     60,
     Math.round(distanceMeters / FALLBACK_SPEED_METERS_PER_SECOND),
@@ -63,45 +56,6 @@ export function buildHaversineFallbackRoute(
   };
 }
 
-export function parseOsrmRouteResponse(
-  data: OsrmRouteResponse | null | undefined,
-): DrivingRouteResult | null {
-  if (!data || data.code !== "Ok" || !Array.isArray(data.routes)) {
-    return null;
-  }
-  const route = data.routes[0];
-  if (!route) return null;
-
-  const rawCoords = route.geometry?.coordinates;
-  if (!Array.isArray(rawCoords) || rawCoords.length === 0) {
-    return null;
-  }
-
-  const coordinates: LatLng[] = [];
-  for (const pair of rawCoords) {
-    if (!Array.isArray(pair) || pair.length < 2) continue;
-    const lng = Number(pair[0]);
-    const lat = Number(pair[1]);
-    if (Number.isFinite(lat) && Number.isFinite(lng)) {
-      coordinates.push({ latitude: lat, longitude: lng });
-    }
-  }
-
-  if (coordinates.length === 0) return null;
-
-  const distanceMeters = Number(route.distance);
-  const durationSeconds = Number(route.duration);
-  if (!Number.isFinite(distanceMeters) || !Number.isFinite(durationSeconds)) {
-    return null;
-  }
-
-  return {
-    distanceMeters: Math.round(distanceMeters),
-    durationSeconds: Math.round(durationSeconds),
-    coordinates,
-    isFallback: false,
-  };
-}
 
 export function formatRouteEta(
   distanceMeters: number,
@@ -115,29 +69,11 @@ export function formatRouteEta(
   return `A ${distText} · Llega en ~${mins} min`;
 }
 
+// Respaldo cuando el backend no entrega la ruta: estimación local en línea recta, sin llamar a
+// servicios de terceros desde el teléfono (la ruta real con tráfico la calcula el backend).
 export async function fetchDrivingRoute(
   origin: LatLng,
   destination: LatLng,
 ): Promise<DrivingRouteResult> {
-  if (
-    !Number.isFinite(origin.latitude) ||
-    !Number.isFinite(origin.longitude) ||
-    !Number.isFinite(destination.latitude) ||
-    !Number.isFinite(destination.longitude)
-  ) {
-    return buildHaversineFallbackRoute(origin, destination);
-  }
-
-  try {
-    const url = `https://router.project-osrm.org/route/v1/driving/${origin.longitude},${origin.latitude};${destination.longitude},${destination.latitude}?overview=full&geometries=geojson`;
-    const response = await fetch(url);
-    if (!response.ok) {
-      return buildHaversineFallbackRoute(origin, destination);
-    }
-    const data = (await response.json()) as OsrmRouteResponse;
-    const parsed = parseOsrmRouteResponse(data);
-    return parsed ?? buildHaversineFallbackRoute(origin, destination);
-  } catch {
-    return buildHaversineFallbackRoute(origin, destination);
-  }
+  return buildHaversineFallbackRoute(origin, destination);
 }
