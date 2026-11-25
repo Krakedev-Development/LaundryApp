@@ -34,6 +34,7 @@ export function FulfillmentPicker({
   appearance = "default",
   facilityId: lockedFacilityId,
   notBefore,
+  lockMethod = false,
 }: {
   leg: "INBOUND" | "OUTBOUND";
   value: Leg;
@@ -43,6 +44,8 @@ export function FulfillmentPicker({
   facilityId?: string;
   /** Fecha y hora en que termina la recogida: la entrega no puede empezar antes. */
   notBefore?: { date: string; time: string };
+  /** Solicitud ya creada en el servidor: la modalidad no cambia, solo lugar y horario. */
+  lockMethod?: boolean;
 }) {
   const facilityFilter = value.facilityId || lockedFacilityId;
   const { state } = useApp(),
@@ -151,10 +154,14 @@ export function FulfillmentPicker({
         <Title style={appearance === "request" && requestStyles.sectionTitle}>
           {leg === "INBOUND" ? "Recogida a domicilio" : "Cómo recibes tu ropa"}
         </Title>
-        {leg === "INBOUND" ? (
+        {leg === "INBOUND" || lockMethod ? (
           <FulfillmentHint active={appearance === "request"}>
             <Body style={appearance === "request" && requestStyles.hintText}>
-              Chofer recoge en domicilio
+              {leg === "INBOUND"
+                ? "Chofer recoge en domicilio"
+                : value.method === "DRIVER"
+                  ? driverLabel
+                  : customerLabel}
             </Body>
           </FulfillmentHint>
         ) : (

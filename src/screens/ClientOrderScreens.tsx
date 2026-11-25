@@ -11,7 +11,8 @@ import {
   ConfirmDialog,
 } from "../components/overlay/OverlayPortal";
 import { useEffect, useState } from "react";
-import { orderService } from "../services/orders/orderService";
+import { isUuid, orderService } from "../services/orders/orderService";
+import { slotEnd } from "../services/slots/slotService";
 import { Text, View } from "react-native";
 import { Page } from "../components/Page";
 import {
@@ -19,6 +20,7 @@ import {
   Body,
   Button,
   Card,
+  Choice,
   Empty,
   Icon,
   Title,
@@ -58,6 +60,13 @@ import {
   DetailMeta,
   detailStyles,
 } from "../components/OrderDetailPresentation";
+// Motivos de cancelación: el servidor exige uno y queda en el historial del pedido.
+const CANCEL_REASONS = [
+  "Ya no necesito el servicio",
+  "No estaré disponible en el horario",
+  "Me equivoqué al crear la solicitud",
+  "Otro motivo",
+];
 export function ClientHomeScreen() {
   const navigation = useLaundryNavigation();
   const { state, execute } = useApp();
@@ -196,9 +205,54 @@ export function ClientScheduleScreen({ route }: ScreenProps<"ClientSchedule">) {
     </Page>
   );
 }
+// Id del servidor (UUID) de la solicitud, o undefined si solo existe en el teléfono.
+function serverIdOf(order: Order): string | undefined {
+  const backendId =
+    (order as unknown as { backendId?: string }).backendId ?? order.id;
+  return isUuid(backendId) ? backendId : undefined;
+}
+
 function ScheduleEditor({ order, onClose }: { order: Order; onClose(): void }) {
   const { execute } = useApp(),
     a = useAction();
+  const serverId = serverIdOf(order);
+  // Sede de la solicitud: las franjas nuevas deben ser de la misma sede.
+  const [facilityId, setFacilityId] = useState<string>();
+  useEffect(() => {
+    if (!serverId) return;
+    let active = true;
+    void orderService
+      .getOrder(serverId)
+      .then((raw) => {
+        if (active && raw?.facilityId) setFacilityId(raw.facilityId);
+      })
+      .catch(() => {
+        // Sin conexión: el servidor valida la sede al guardar.
+      });
+    return () => {
+      active = false;
+    };
+  }, [serverId]);
+  const saveOnServer = (id: string) =>
+    a.asyncRun(async () => {
+      if (!isUuid(leg.timeSlotId))
+        throw new Error("Elige un horario disponible para continuar.");
+      // Versión al día: evita pisar un cambio que la sede o el chofer hicieron mientras tanto.
+      const fresh = await orderService.getOrder(id);
+      const original =
+        legName === "INBOUND"
+          ? order.fulfillmentPlan.inbound
+          : order.fulfillmentPlan.outbound;
+      const addressChanged =
+        isUuid(leg.addressId) && leg.addressFull !== original.addressFull;
+      const updated = await orderService.rescheduleOrder(id, {
+        leg: legName,
+        slotId: leg.timeSlotId,
+        ...(addressChanged ? { addressId: leg.addressId } : {}),
+        expectedVersion: fresh.version,
+      });
+      execute((repo) => repo.syncOrdersFromApi([updated]));
+    }, "Agenda actualizada.");
   const [legName, setLegName] = useState<"INBOUND" | "OUTBOUND">(
       order.pickupNeedsScheduling ? "INBOUND" : "OUTBOUND",
     ),
@@ -215,8 +269,15 @@ function ScheduleEditor({ order, onClose }: { order: Order; onClose(): void }) {
         <>
           <Button
             label="Guardar nueva agenda"
+            busy={a.busy}
             disabled={!leg.addressFull || !leg.timeSlotId}
             onPress={() => {
+              if (serverId) {
+                void saveOnServer(serverId).then((ok) => {
+                  if (ok) onClose();
+                });
+                return;
+              }
               if (
                 a.run(
                   () => execute((r) => r.changeLeg(order.id, legName, leg)),
@@ -255,9 +316,27 @@ function ScheduleEditor({ order, onClose }: { order: Order; onClose(): void }) {
         }}
       />
       <Body muted>
-        Se requiere 60 minutos de anticipación y que el tramo no haya iniciado.
+        {serverId
+          ? "Puedes cambiar la dirección y el horario mientras el tramo no haya iniciado y falte más del tiempo de corte. Si ya tenías chofer y cambias el horario, la sede asignará uno nuevo."
+          : "Se requiere 60 minutos de anticipación y que el tramo no haya iniciado."}
       </Body>
-      <FulfillmentPicker leg={legName} value={leg} onChange={setLeg} />
+      <FulfillmentPicker
+        leg={legName}
+        value={leg}
+        onChange={setLeg}
+        lockMethod={!!serverId}
+        facilityId={facilityId}
+        notBefore={
+          serverId &&
+          legName === "OUTBOUND" &&
+          order.fulfillmentPlan.inbound.timeSlotId
+            ? slotEnd(
+                order.fulfillmentPlan.inbound.scheduledDate,
+                order.fulfillmentPlan.inbound.timeSlotText,
+              )
+            : undefined
+        }
+      />
       {a.feedback}
     </Page>
   );
@@ -275,6 +354,7 @@ export function ClientOrderDetailScreen({
   );
   const a = useAction();
   const [cancel, setCancel] = useState(false),
+    [cancelReason, setCancelReason] = useState(""),
     [options, setOptions] = useState(false);
   // Historial y estado al día con el servidor mientras el detalle está abierto.
   useServerOrderRefresh(
@@ -615,7 +695,7 @@ export function ClientOrderDetailScreen({
             onClose={() => setOptions(false)}
           >
             <ListItem
-              title="Cambiar modalidad o reprogramar"
+              title={serverId ? "Reprogramar recogida o entrega" : "Cambiar modalidad o reprogramar"}
               icon="calendar-outline"
               onPress={() => {
                 setOptions(false);
@@ -642,8 +722,23 @@ export function ClientOrderDetailScreen({
             <Button
               label="Confirmar cancelación"
               variant="danger"
+              busy={a.busy}
+              disabled={!!serverId && !cancelReason}
               onPress={() => {
                 setCancel(false);
+                if (serverId) {
+                  void a.asyncRun(async () => {
+                    // Versión al día: la sede o el chofer pudieron cambiar el pedido.
+                    const fresh = await orderService.getOrder(serverId);
+                    const updated = await orderService.cancelOrder(
+                      serverId,
+                      cancelReason,
+                      fresh.version,
+                    );
+                    execute((repo) => repo.syncOrdersFromApi([updated]));
+                  }, "Solicitud cancelada.");
+                  return;
+                }
                 a.run(
                   () => execute((r) => r.cancelOrder(order.id)),
                   "Solicitud cancelada.",
@@ -658,11 +753,29 @@ export function ClientOrderDetailScreen({
           </>
         }
       >
-        <Body>
-          {isLateCancellation(order)
-            ? "La recogida inició o faltan menos de 60 minutos. Se generará un cargo de $5.00, que bloqueará nuevas solicitudes hasta regularizarlo."
-            : "Cancelación sin cargo. Se liberarán tus franjas y códigos. Los reembolsos se revisan con operaciones."}
-        </Body>
+        {serverId ? (
+          <>
+            <Body>
+              Lo que pagaste vuelve a tu billetera. Si ya pasó el tiempo de corte de la recogida, se
+              generará un cargo por cancelación tardía.
+            </Body>
+            <Body muted>Cuéntanos el motivo:</Body>
+            {CANCEL_REASONS.map((reason) => (
+              <Choice
+                key={reason}
+                label={reason}
+                selected={cancelReason === reason}
+                onPress={() => setCancelReason(reason)}
+              />
+            ))}
+          </>
+        ) : (
+          <Body>
+            {isLateCancellation(order)
+              ? "La recogida inició o faltan menos de 60 minutos. Se generará un cargo de $5.00, que bloqueará nuevas solicitudes hasta regularizarlo."
+              : "Cancelación sin cargo. Se liberarán tus franjas y códigos. Los reembolsos se revisan con operaciones."}
+          </Body>
+        )}
       </ConfirmDialog>
     </Page>
   );
