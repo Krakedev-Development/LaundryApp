@@ -1,9 +1,6 @@
 import { io, type Socket } from "socket.io-client";
-import { API_BASE_URL } from "../api/apiClient";
-import {
-  authService,
-  getStoredAuthSession,
-} from "../auth/authService";
+import { API_BASE_URL, renewSession } from "../api/apiClient";
+import { getStoredAuthSession } from "../auth/authService";
 
 export const SOCKET_BASE_URL = (() => {
   const configured = process.env.EXPO_PUBLIC_SOCKET_URL?.trim().replace(
@@ -21,7 +18,9 @@ class ClientSocketService {
   private isAuthenticated = false;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectAttempts = 0;
-  private readonly maxReconnectAttempts = 10;
+  // Sin tope: tras un corte largo (reinicio del backend, sin señal) sigue intentando con espera
+  // creciente hasta 20 s, en lugar de rendirse y dejar la app sin avisos hasta reabrirla.
+  private readonly maxReconnectAttempts = Number.POSITIVE_INFINITY;
   private suppressReconnect = false;
   private readonly listeners = new Map<string, Set<SocketListener>>();
   private readonly subscribedOrders = new Set<string>();
@@ -65,8 +64,17 @@ class ClientSocketService {
       this.isAuthenticated = false;
       this.teardownSocket();
       if (!retriedRefresh) {
-        const refreshed = await authService.refresh().catch(() => null);
-        if (refreshed?.accessToken) {
+        // Renovación compartida con las peticiones HTTP: dos renovaciones en paralelo harían que
+        // el servidor detecte reuso del token y cierre la sesión.
+        let token: string | null;
+        try {
+          token = await renewSession();
+        } catch {
+          // Sin conexión durante la renovación: se reintenta más tarde con espera creciente.
+          this.scheduleReconnect();
+          return;
+        }
+        if (token) {
           void this.connect(true);
           return;
         }
