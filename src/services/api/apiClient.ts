@@ -17,9 +17,70 @@ export interface ApiRequestOptions extends Omit<RequestInit, "body"> {
   accessToken?: string | null;
 }
 
+// ---------------------------------------------------------------- Sesión
+// La sesión de acceso dura poco (15 min). Cuando el servidor la rechaza, se renueva una vez con
+// el token de renovación y se repite el pedido (igual que en la app del chofer). Sin esto, pasados
+// 15 minutos todas las lecturas en segundo plano fallaban en silencio y la app parecía congelada
+// hasta reiniciarla. El renovador devuelve el token nuevo, null si el servidor rechazó la
+// renovación, o lanza un error si no hubo conexión.
+type Refresher = () => Promise<string | null>;
+let refresher: Refresher | null = null;
+let refreshing: Promise<string | null> | null = null;
+const expiredListeners = new Set<() => void>();
+
+export function setSessionRefresher(fn: Refresher | null) {
+  refresher = fn;
+}
+
+/** Se llama cuando la sesión ya no se puede renovar; devuelve la función para dejar de escuchar. */
+export function onSessionExpired(listener: () => void) {
+  expiredListeners.add(listener);
+  return () => {
+    expiredListeners.delete(listener);
+  };
+}
+
+// Varios pedidos que fallan a la vez (y el socket) comparten una sola renovación: el servidor
+// rota el token de renovación y detecta su reuso, así que dos renovaciones paralelas cerrarían
+// la sesión.
+export function renewSession(): Promise<string | null> {
+  if (!refresher) return Promise.resolve(null);
+  refreshing ??= refresher().finally(() => {
+    refreshing = null;
+  });
+  return refreshing;
+}
+
+const isAuthEndpoint = (endpoint: string) => /^\/auth\//.test(endpoint);
+
 export async function apiRequest<T>(
   endpoint: string,
   options: ApiRequestOptions = {},
+): Promise<T> {
+  try {
+    return await sendRequest<T>(endpoint, options);
+  } catch (error) {
+    const normalized = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+    if (
+      !(error instanceof ApiError) ||
+      error.statusCode !== 401 ||
+      !options.accessToken ||
+      isAuthEndpoint(normalized)
+    )
+      throw error;
+    // Si no hay conexión durante la renovación, se propaga ese error sin cerrar la sesión.
+    const renewed = await renewSession();
+    if (!renewed) {
+      expiredListeners.forEach((listener) => listener());
+      throw error;
+    }
+    return await sendRequest<T>(endpoint, { ...options, accessToken: renewed });
+  }
+}
+
+async function sendRequest<T>(
+  endpoint: string,
+  options: ApiRequestOptions,
 ): Promise<T> {
   const { body, accessToken, headers, ...rest } = options;
   const normalizedEndpoint = endpoint.startsWith("/")

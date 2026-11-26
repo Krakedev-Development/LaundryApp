@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { ApiError, apiClient } from "../api/apiClient";
+import { ApiError, apiClient, setSessionRefresher } from "../api/apiClient";
 
 export const AUTH_STORAGE_KEYS = {
   ACCESS_TOKEN: "laundry.auth.accessToken",
@@ -234,25 +234,15 @@ export const authService = {
     }
   },
 
-  async refresh(refreshToken?: string): Promise<AuthTokens> {
-    const token =
-      refreshToken ?? (await safeGetItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN));
-    if (!token) {
-      throw new Error("No hay una sesión activa para renovar.");
-    }
-    const response = await apiClient.post<
-      AuthTokens | { tokens: AuthTokens; user?: AuthUser }
-    >("/auth/refresh", {
-      refreshToken: token,
+  // Una sola renovación a la vez: el servidor rota el token de renovación y, si recibe el mismo
+  // dos veces, lo trata como robado y cierra la sesión. Todas las llamadas simultáneas (pedidos,
+  // socket, perfil) comparten la misma promesa.
+  refresh(refreshToken?: string): Promise<AuthTokens> {
+    if (refreshToken) return renewTokens(refreshToken);
+    inflightRefresh ??= renewTokens().finally(() => {
+      inflightRefresh = null;
     });
-    const tokens = "tokens" in response ? response.tokens : response;
-    if ("user" in response && response.user) {
-      assertClientAudience(response.user);
-      await saveAuthSession(response.user, tokens);
-    } else {
-      await saveAuthTokens(tokens);
-    }
-    return tokens;
+    return inflightRefresh;
   },
 
   async logout(refreshToken?: string): Promise<void> {
@@ -269,3 +259,39 @@ export const authService = {
     }
   },
 };
+
+let inflightRefresh: Promise<AuthTokens> | null = null;
+
+async function renewTokens(refreshToken?: string): Promise<AuthTokens> {
+  const token =
+    refreshToken ?? (await safeGetItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN));
+  if (!token) {
+    throw new Error("No hay una sesión activa para renovar.");
+  }
+  const response = await apiClient.post<
+    AuthTokens | { tokens: AuthTokens; user?: AuthUser }
+  >("/auth/refresh", {
+    refreshToken: token,
+  });
+  const tokens = "tokens" in response ? response.tokens : response;
+  if ("user" in response && response.user) {
+    assertClientAudience(response.user);
+    await saveAuthSession(response.user, tokens);
+  } else {
+    await saveAuthTokens(tokens);
+  }
+  return tokens;
+}
+
+// El cliente de API renueva la sesión con este servicio cuando el servidor la rechaza. Sin
+// conexión se propaga el error (la sesión se conserva); si el servidor rechaza la renovación,
+// devuelve null y la app vuelve al ingreso.
+setSessionRefresher(async () => {
+  try {
+    return (await authService.refresh()).accessToken;
+  } catch (error) {
+    if (error instanceof ApiError && error.statusCode !== 0) return null;
+    if (error instanceof Error && /No hay una sesión activa/.test(error.message)) return null;
+    throw error;
+  }
+});

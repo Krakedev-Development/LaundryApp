@@ -22,6 +22,7 @@ import {
   getStoredAuthSession,
 } from "../services/auth/authService";
 import { syncFullCatalog } from "../services/catalog/catalogService";
+import { onSessionExpired } from "../services/api/apiClient";
 import { PersistenceQueue } from "./persistence";
 
 interface Context {
@@ -110,6 +111,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     save(next.state);
     return next.result;
   };
+  // Si la sesión venció y no se pudo renovar, se vuelve al ingreso en lugar de seguir mostrando
+  // datos que el servidor ya no deja actualizar.
+  useEffect(
+    () =>
+      onSessionExpired(() => {
+        if (!mounted.current || !latest.current.session) return;
+        execute((repo) => repo.logout());
+      }),
+    [],
+  );
   return (
     <AppContext.Provider
       value={{

@@ -8,9 +8,16 @@ import { BootstrapState } from "../components/BootstrapState";
 import { clientScreens } from "./ClientScreens";
 import { authScreens, kycScreens } from "./AuthScreens";
 import { findCustomer } from "../domain/repository";
+import { useClientOrderSync } from "../features/orders/model/useClientOrderSync";
 export function AppNavigation() {
   const { state, ready, error, reset, retry } = useApp();
   const reduced = useReducedMotion();
+  // Pedidos al día en vivo mientras hay un cliente con sesión y verificación aprobada.
+  useClientOrderSync(
+    ready &&
+      Boolean(state.session) &&
+      findCustomer(state)?.kycStatus === "APPROVED",
+  );
   if (!ready)
     return <BootstrapState error={error} reset={reset} retry={retry} />;
   const session = state.session;
