@@ -355,7 +355,7 @@ export interface ChatMessage {
   orderId: string;
   senderId: string;
   senderName: string;
-  senderRole: "CLIENT" | "DRIVER";
+  senderRole: "CLIENT" | "DRIVER" | "SUPERVISOR" | "ADMIN";
   text: string;
   timestamp: string;
 }

@@ -10,6 +10,27 @@ const notificationTones: Record<
 > = {
   CHOFER: { icon: "car-outline", color: "#10B981", background: "#D1FAE5" },
   PEDIDO: { icon: "receipt-outline", color: "#3B82F6", background: "#DBEAFE" },
+  ORDER_STATUS: {
+    icon: "receipt-outline",
+    color: "#3B82F6",
+    background: "#DBEAFE",
+  },
+  CHAT: {
+    icon: "chatbubble-ellipses-outline",
+    color: "#0284C7",
+    background: "#E0F2FE",
+  },
+  POINTS: { icon: "star-outline", color: "#F59E0B", background: "#FEF3C7" },
+  INCIDENT: {
+    icon: "warning-outline",
+    color: "#DC2626",
+    background: "#FEE2E2",
+  },
+  KYC: {
+    icon: "shield-checkmark-outline",
+    color: "#10B981",
+    background: "#D1FAE5",
+  },
   PROMO: { icon: "pricetag-outline", color: "#F59E0B", background: "#FEF3C7" },
   PROMOCION: {
     icon: "pricetag-outline",

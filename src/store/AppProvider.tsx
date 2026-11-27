@@ -22,6 +22,13 @@ import {
   getStoredAuthSession,
 } from "../services/auth/authService";
 import { syncFullCatalog } from "../services/catalog/catalogService";
+import {
+  listNotifications,
+  mapServerNotificationToItem,
+  type ServerNotification,
+} from "../services/notifications/notificationsService";
+import { registerForPushNotificationsAsync } from "../services/notifications/pushRegistration";
+import { clientSocketService } from "../services/realtime/clientSocketService";
 import { PersistenceQueue } from "./persistence";
 
 interface Context {
@@ -55,6 +62,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           );
       });
   };
+
+  const syncClientNotifications = async (customerId: string) => {
+    try {
+      const res = await listNotifications({ pageSize: 40 });
+      if (!mounted.current || !latest.current.session) return;
+      const items = res.data.map((n) =>
+        mapServerNotificationToItem(n, customerId),
+      );
+      const next = transact(latest.current, (repo) => {
+        repo.syncNotificationsFromApi(items);
+      }).state;
+      save(next);
+    } catch {
+      // Offline or unauthenticated
+    }
+  };
+
   const load = () => {
     setReady(false);
     setError(null);
@@ -95,6 +119,37 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       mounted.current = false;
     };
   }, []);
+
+  const sessionId = state.session?.id ?? null;
+  useEffect(() => {
+    if (!ready || !sessionId) {
+      clientSocketService.disconnect();
+      return;
+    }
+
+    void clientSocketService.connect();
+    void registerForPushNotificationsAsync();
+    void syncClientNotifications(sessionId);
+
+    const handleNotificationNew = (raw: unknown) => {
+      const payload = raw as ServerNotification | null;
+      if (!mounted.current || !payload?.id || !latest.current.session) return;
+      const item = mapServerNotificationToItem(
+        payload,
+        latest.current.session.id,
+      );
+      const next = transact(latest.current, (repo) => {
+        repo.upsertNotificationFromApi(item);
+      }).state;
+      save(next);
+    };
+
+    clientSocketService.on("notification:new", handleNotificationNew);
+    return () => {
+      clientSocketService.off("notification:new", handleNotificationNew);
+    };
+  }, [ready, sessionId]);
+
   useEffect(() => {
     const listener = Lifecycle.addEventListener("change", (status) => {
       if (status === "active" && ready) {
@@ -102,10 +157,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         refreshSchedule(next);
         save(next);
         void syncFullCatalog();
+        if (latest.current.session?.id) {
+          void clientSocketService.connect();
+          void syncClientNotifications(latest.current.session.id);
+        }
       }
     });
     return () => listener.remove();
   }, [ready]);
+
   const execute = <T,>(action: (repo: LaundryRepository) => T): T => {
     const next = transact(latest.current, action);
     save(next.state);
@@ -119,6 +179,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         error,
         execute,
         reset: () => {
+          clientSocketService.disconnect();
           void clearAuthSession();
           resetCatalogToFallback();
           save(initializeState());

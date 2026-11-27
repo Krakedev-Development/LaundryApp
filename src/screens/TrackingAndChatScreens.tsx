@@ -15,7 +15,6 @@ import {
   Empty,
   Field,
   Title,
-  useAction,
 } from "../components/ui";
 import RouteMap from "../components/RouteMap";
 import { HandoffCodeSheet } from "../components/HandoffCard";
@@ -29,6 +28,11 @@ import {
   isUuid,
   type OrderTrackingDto,
 } from "../services/orders/orderService";
+import {
+  chatRoleLabel,
+  chatService,
+  type ServerChatMessage,
+} from "../services/chat/chatService";
 import {
   fetchDrivingRoute,
   formatRouteEta,
@@ -793,26 +797,126 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
 }
 
 export function ChatScreen({ route }: ScreenProps<"Chat">) {
-  const { state, execute } = useApp();
-  const o = visibleOrders(state).find((item) => item.id === route.params.orderId);
-  const a = useAction();
+  const { state } = useApp();
+  const routeOrderId = route.params.orderId;
+  const o = visibleOrders(state).find(
+    (item) => item.id === routeOrderId || item.backendId === routeOrderId,
+  );
+  const apiOrderId = isUuid(routeOrderId)
+    ? routeOrderId
+    : isUuid(o?.backendId)
+      ? o.backendId
+      : null;
+
+  const [messages, setMessages] = useState<ServerChatMessage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
   const [text, setText] = useState("");
   const list = useRef<FlatList>(null);
   const reduced = useReducedMotion();
-  if (!o)
+
+  const isClosed = o?.status === "COMPLETED" || o?.status === "CANCELLED";
+
+  const loadHistory = useCallback(async () => {
+    if (!apiOrderId) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const rows = await chatService.listOrderMessages(apiOrderId);
+      setMessages((prev) => chatService.mergeChatMessages(prev, rows));
+    } catch (err) {
+      setError(
+        err instanceof Error && err.message
+          ? err.message
+          : "No se pudieron cargar los mensajes.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [apiOrderId]);
+
+  useEffect(() => {
+    void loadHistory();
+  }, [loadHistory]);
+
+  useEffect(() => {
+    if (!apiOrderId) return;
+    void clientSocketService.connect();
+    clientSocketService.subscribeOrder(apiOrderId);
+
+    const onAuthenticated = () => {
+      clientSocketService.subscribeOrder(apiOrderId);
+      void loadHistory();
+    };
+    const onNewMessage = (raw: unknown) => {
+      const incoming = raw as ServerChatMessage | null;
+      if (!incoming || incoming.orderId !== apiOrderId) return;
+      setMessages((prev) => chatService.mergeChatMessages(prev, [incoming]));
+    };
+
+    clientSocketService.on("authenticated", onAuthenticated);
+    clientSocketService.on("chat:message:new", onNewMessage);
+    return () => {
+      clientSocketService.off("authenticated", onAuthenticated);
+      clientSocketService.off("chat:message:new", onNewMessage);
+      clientSocketService.unsubscribeOrder(apiOrderId);
+    };
+  }, [apiOrderId, loadHistory]);
+
+  if (!apiOrderId) {
     return (
       <Page>
-        <Empty text="Chat no disponible para esta solicitud." />
+        <Empty text="Chat disponible cuando la solicitud se registre en el servidor." />
       </Page>
     );
-  const messages = state.chatMessages[o.id] ?? [];
-  const recipient = o.assignedDriverName;
+  }
+
+  const recipient = o?.assignedDriverName
+    ? `${o.assignedDriverName} · Soporte y Chofer`
+    : "Chat del pedido (Soporte y Chofer)";
+  const displayOrderCode = o?.id ?? apiOrderId.slice(0, 8);
+
+  const handleSend = async () => {
+    const clean = text.trim();
+    if (!clean || sending || isClosed) return;
+    setSending(true);
+    setError(null);
+    try {
+      const created = await chatService.sendOrderMessage(apiOrderId, clean);
+      setMessages((prev) => chatService.mergeChatMessages(prev, [created]));
+      setText("");
+    } catch (err) {
+      setError(
+        err instanceof Error && err.message
+          ? err.message
+          : "No se pudo enviar el mensaje.",
+      );
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <Page scroll={false}>
       <View>
-        <Title>{recipient ?? "Chat de solicitud"}</Title>
-        <Body muted>{o.id} · Mensajes locales</Body>
+        <Title>{recipient}</Title>
+        <Body muted>{displayOrderCode} · En tiempo real</Body>
       </View>
+      {error ? (
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <Body style={{ color: "#B91C1C", flex: 1, fontSize: 12 }}>{error}</Body>
+          <Button
+            label="Reintentar"
+            secondary
+            variant="ghost"
+            onPress={() => void loadHistory()}
+          />
+        </View>
+      ) : null}
       <FlatList
         ref={list}
         style={{ flex: 1 }}
@@ -825,6 +929,10 @@ export function ChatScreen({ route }: ScreenProps<"Chat">) {
         }
         renderItem={({ item: msg }) => {
           const mine = msg.senderId === state.session?.id;
+          const timeLabel = new Date(msg.createdAt).toLocaleTimeString("es-EC", {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
           return (
             <View
               key={msg.id}
@@ -843,7 +951,9 @@ export function ChatScreen({ route }: ScreenProps<"Chat">) {
                   color: mine ? colors.soft : colors.muted,
                 }}
               >
-                {mine ? "Tú" : msg.senderName}
+                {mine
+                  ? "Tú"
+                  : `${msg.senderName} (${chatRoleLabel(msg.senderRole)})`}
               </Text>
               <Text
                 style={{
@@ -860,32 +970,40 @@ export function ChatScreen({ route }: ScreenProps<"Chat">) {
                   color: mine ? colors.soft : colors.muted,
                 }}
               >
-                {msg.timestamp}
+                {timeLabel}
               </Text>
             </View>
           );
         }}
         ListEmptyComponent={
-          <Body muted>Inicia una conversación sobre este pedido.</Body>
+          <Body muted>
+            {loading
+              ? "Cargando mensajes del servidor..."
+              : "Inicia una conversación sobre este pedido."}
+          </Body>
         }
       />
-      {a.feedback}
-      <Field
-        label="Escribe un mensaje"
-        value={text}
-        onChangeText={setText}
-        multiline
-        maxLength={2000}
-      />
-      <Button
-        label="Enviar mensaje"
-        icon="send-outline"
-        disabled={!text.trim()}
-        onPress={() => {
-          if (a.run(() => execute((r) => r.sendChatMessage(o.id, text))))
-            setText("");
-        }}
-      />
+      {isClosed ? (
+        <Body muted>
+          Este pedido está cerrado; ya no admite nuevos mensajes.
+        </Body>
+      ) : (
+        <>
+          <Field
+            label="Escribe un mensaje"
+            value={text}
+            onChangeText={setText}
+            multiline
+            maxLength={1000}
+          />
+          <Button
+            label={sending ? "Enviando..." : "Enviar mensaje"}
+            icon="send-outline"
+            disabled={sending || !text.trim()}
+            onPress={() => void handleSend()}
+          />
+        </>
+      )}
     </Page>
   );
 }

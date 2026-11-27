@@ -46,6 +46,7 @@ import {
   type Customer,
   type Leg,
   type Method,
+  type NotificationItem,
   type Order,
   type OrderItem,
   type OrderPricing,
@@ -1198,6 +1199,28 @@ export class LaundryRepository {
       (n) => n.id === id && n.customerId === c.id,
     );
     if (n) n.isRead = true;
+  }
+  syncNotificationsFromApi(items: NotificationItem[]): void {
+    const c = this.client();
+    const others = this.state.notifications.filter(
+      (n) => n.customerId !== c.id,
+    );
+    this.state.notifications = [
+      ...items.map((item) => ({ ...item, customerId: c.id })),
+      ...others,
+    ];
+  }
+  upsertNotificationFromApi(item: NotificationItem): void {
+    const c = this.client();
+    const normalized = { ...item, customerId: c.id };
+    const index = this.state.notifications.findIndex(
+      (n) => n.id === normalized.id && n.customerId === c.id,
+    );
+    if (index >= 0) {
+      this.state.notifications[index] = normalized;
+    } else {
+      this.state.notifications.unshift(normalized);
+    }
   }
 }
 export function transact<T>(

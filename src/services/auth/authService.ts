@@ -260,9 +260,22 @@ export const authService = {
   },
 
   async logout(refreshToken?: string): Promise<void> {
+    const stored = await getStoredAuthSession();
     const token =
       refreshToken ?? (await safeGetItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN));
     try {
+      const pushToken = await safeGetItem("laundry.client.expoPushToken");
+      if (pushToken && stored.accessToken) {
+        await apiClient
+          .delete(
+            `/notifications/devices?token=${encodeURIComponent(pushToken)}`,
+            { accessToken: stored.accessToken },
+          )
+          .catch(() => {});
+        await AsyncStorage.removeItem("laundry.client.expoPushToken").catch(
+          () => {},
+        );
+      }
       if (token) {
         await apiClient.post("/auth/logout", { refreshToken: token });
       }
