@@ -242,7 +242,6 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
   );
   const [extraIds, setExtraIds] = useState<string[]>(() => {
       const preferred =
-        catalogExtras.find((e) => e.id === "ext-2") ??
         catalogExtras.find((e) => /perfum/i.test(e.name)) ??
         catalogExtras[0];
       return preferred ? [preferred.id] : [];
@@ -391,13 +390,14 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
   const blocked = state.customerCharges.some(
     (ch) => ch.customerId === c.id && ch.status === "PENDING",
   );
-  let pricing = calculatePricing(items, extraIds, model, c.membershipTier);
+  const membershipKey = c.membershipPlanId || c.membershipTier;
+  let pricing = calculatePricing(items, extraIds, model, membershipKey);
   try {
     pricing = calculatePricing(
       items,
       extraIds,
       model,
-      c.membershipTier,
+      membershipKey,
       appliedPromo,
     );
   } catch {
@@ -468,8 +468,10 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
       const facilityId =
         inbound.facilityId ||
         outbound.facilityId ||
-        (await fetchFacilities())[0]?.id ||
-        "3ab2f9fd-2f25-4c12-9f50-03c5d25417d5";
+        (await fetchFacilities())[0]?.id;
+      if (!facilityId) {
+        throw Error("No hay sedes disponibles en el servidor.");
+      }
 
       const session = await getStoredAuthSession();
 
@@ -522,9 +524,12 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
         const serviceObj =
           catalogServices.find((s) => s.name === it.serviceType) ??
           catalogServices[0];
+        if (!serviceObj) {
+          throw Error("Selecciona un servicio válido del catálogo.");
+        }
         return {
           garmentId: it.id,
-          serviceId: serviceObj?.id ?? "4db170b3-944b-442b-8542-bf771476b4a6",
+          serviceId: serviceObj.id,
           quantity: it.quantity,
           notes: it.notes?.trim() || undefined,
         };
@@ -1055,7 +1060,7 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
                         items,
                         extraIds,
                         model,
-                        c.membershipTier,
+                        membershipKey,
                         promoInput,
                       );
                       setAppliedPromo(

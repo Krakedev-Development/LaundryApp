@@ -22,6 +22,9 @@ export interface AuthUser {
   kycStatus?: "NOT_SUBMITTED" | "PENDING" | "APPROVED" | "REJECTED" | null;
   // Plan elegido por el cliente; null mientras no haya elegido ninguno.
   membershipPlan?: { id: string; name: string } | null;
+  membershipStatus?: "ACTIVE" | "CANCELLED" | "EXPIRED" | null;
+  membershipStartedAt?: string | null;
+  membershipExpiresAt?: string | null;
 }
 
 export interface AuthTokens {

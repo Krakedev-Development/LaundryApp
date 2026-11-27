@@ -29,10 +29,11 @@ export const CATALOG_CACHE_KEY = "laundry.catalog.cache.v1";
 interface BackendGarment {
   id: string;
   name: string;
-  category?: string;
+  description?: string | null;
+  category?: string | null;
   basePrice: string | number;
-  estimatedHours?: number;
-  icon?: string;
+  estimatedHours?: number | null;
+  icon?: string | null;
   iconKey?: string;
   active?: boolean;
 }
@@ -57,9 +58,14 @@ interface BackendExtra {
 interface BackendMembership {
   id: string;
   name: string;
+  description?: string | null;
   priceMonthly: string | number;
+  interval?: "MONTHLY" | "QUARTERLY" | "YEARLY" | null;
+  includedWeight?: string | number | null;
+  weightUnit?: "KG" | "LB" | null;
   weeklyPickups?: number | null;
   garmentDiscountPercent: string | number;
+  priorityService?: boolean;
   benefits?: string[];
   active?: boolean;
 }
@@ -200,10 +206,15 @@ function mapGarment(raw: BackendGarment): CatalogGarment {
   return {
     id: raw.id,
     name,
-    category: resolveGarmentCategory(raw.category, raw.icon, name),
+    description: raw.description?.trim() ?? undefined,
+    category: resolveGarmentCategory(
+      raw.category ?? undefined,
+      raw.icon ?? undefined,
+      name,
+    ),
     basePrice: Number(raw.basePrice) || 0,
     estimatedHours: raw.estimatedHours ?? (isHeavy ? 48 : 24),
-    iconKey: raw.iconKey ?? resolveGarmentIcon(raw.icon, name),
+    iconKey: raw.iconKey ?? resolveGarmentIcon(raw.icon ?? undefined, name),
   };
 }
 
@@ -233,10 +244,16 @@ function mapMembership(raw: BackendMembership): MembershipPlan {
   return {
     id: raw.id,
     name: raw.name.trim(),
+    description: raw.description?.trim() || undefined,
     priceMonthly: Number(raw.priceMonthly) || 0,
+    interval: raw.interval ?? "MONTHLY",
+    includedWeight:
+      raw.includedWeight != null ? Number(raw.includedWeight) || 0 : undefined,
+    weightUnit: raw.weightUnit === "LB" ? "LB" : "KG",
     weeklyPickups:
-      typeof raw.weeklyPickups === "number" ? raw.weeklyPickups : 4,
+      typeof raw.weeklyPickups === "number" ? raw.weeklyPickups : null,
     garmentDiscountPercent: Number(raw.garmentDiscountPercent) || 0,
+    priorityService: Boolean(raw.priorityService),
     benefits: Array.isArray(raw.benefits) ? raw.benefits : [],
   };
 }

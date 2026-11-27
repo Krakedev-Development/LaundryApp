@@ -91,6 +91,9 @@ export interface Customer {
   walletBalance: number;
   loyaltyPoints: number;
   membershipTier: string;
+  membershipPlanId?: string | null;
+  membershipStatus?: "ACTIVE" | "CANCELLED" | "EXPIRED" | null;
+  membershipExpiresAt?: string | null;
   billingName: string;
   billingTaxId: string;
   billingEmail: string;
@@ -325,9 +328,14 @@ export interface Promo {
 export interface MembershipPlan {
   id: string;
   name: string;
+  description?: string;
   priceMonthly: number;
-  weeklyPickups: number;
+  interval?: "MONTHLY" | "QUARTERLY" | "YEARLY";
+  includedWeight?: number;
+  weightUnit?: "KG" | "LB";
+  weeklyPickups: number | null;
   garmentDiscountPercent: number;
+  priorityService?: boolean;
   benefits: string[];
 }
 export interface ChatMessage {

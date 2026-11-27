@@ -190,7 +190,9 @@ export function calculatePricing(
             : promo.fixedDiscount,
         )
       : 0;
-  const plan = plans.find((p) => p.name === tier);
+  const plan = plans.find(
+    (p) => p.id === tier || p.name === tier,
+  );
   const membershipBenefitDiscount =
     model === "FIXED"
       ? round((itemsSubtotal * (plan?.garmentDiscountPercent ?? 0)) / 100)
@@ -347,8 +349,14 @@ export class LaundryRepository {
       customer.billingEmail = normalizedEmail;
       const serverKyc = kycStatusOverride ?? user.kycStatus;
       if (serverKyc) customer.kycStatus = serverKyc;
-      if (user.membershipPlan !== undefined)
+      if (user.membershipPlan !== undefined) {
+        customer.membershipPlanId = user.membershipPlan?.id ?? null;
         customer.membershipTier = user.membershipPlan?.name ?? "";
+      }
+      if (user.membershipStatus !== undefined)
+        customer.membershipStatus = user.membershipStatus;
+      if (user.membershipExpiresAt !== undefined)
+        customer.membershipExpiresAt = user.membershipExpiresAt;
       if (previousId && previousId !== user.id) {
         this.state.orders.forEach((o) => {
           if (o.customerId === previousId) o.customerId = user.id;
@@ -382,6 +390,9 @@ export class LaundryRepository {
         loyaltyPoints: 0,
         // Sin plan elegido no hay membresía (cadena vacía); el servidor lo informa.
         membershipTier: user.membershipPlan?.name ?? "",
+        membershipPlanId: user.membershipPlan?.id ?? null,
+        membershipStatus: user.membershipStatus ?? null,
+        membershipExpiresAt: user.membershipExpiresAt ?? null,
         billingName: cleanName,
         billingTaxId: "",
         billingEmail: normalizedEmail,
@@ -671,7 +682,7 @@ export class LaundryRepository {
       input.items,
       input.extraIds,
       input.pricingModel,
-      c.membershipTier,
+      c.membershipPlanId || c.membershipTier,
       input.promoCode,
       this.now,
     );
@@ -1082,10 +1093,36 @@ export class LaundryRepository {
       status: "Pendiente de aprobación",
     });
   }
-  changeMembershipPlan(name: string): void {
+  changeMembershipPlan(
+    planIdOrName: string | null,
+    meta?: {
+      expiresAt?: string | null;
+      status?: Customer["membershipStatus"];
+      walletBalance?: number;
+    },
+  ): void {
     const c = this.client();
-    if (!plans.some((p) => p.name === name)) throw Error("Plan inválido.");
-    c.membershipTier = name;
+    if (!planIdOrName) {
+      c.membershipPlanId = null;
+      c.membershipTier = "";
+      c.membershipStatus = meta?.status ?? "CANCELLED";
+      c.membershipExpiresAt = null;
+      return;
+    }
+    const plan = plans.find(
+      (p) => p.id === planIdOrName || p.name === planIdOrName,
+    );
+    if (!plan) throw Error("Plan inválido.");
+    c.membershipPlanId = plan.id;
+    c.membershipTier = plan.name;
+    c.membershipStatus = meta?.status ?? "ACTIVE";
+    c.membershipExpiresAt = meta?.expiresAt ?? null;
+    if (
+      meta?.walletBalance !== undefined &&
+      Number.isFinite(meta.walletBalance)
+    ) {
+      c.walletBalance = round(meta.walletBalance);
+    }
   }
   saveAddress(address: Address): void {
     const c = this.client();

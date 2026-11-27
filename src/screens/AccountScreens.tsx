@@ -42,7 +42,10 @@ import {
   type Promo,
 } from "../domain/models";
 import { useLaundryNavigation } from "../navigation/useLaundryNavigation";
-import { membershipService } from "../services/customer/membershipService";
+import {
+  membershipService,
+  type CurrentMembershipResponse,
+} from "../services/customer/membershipService";
 export function ClientProfileScreen() {
   const navigation = useLaundryNavigation();
   const { state, execute } = useApp();
@@ -141,7 +144,9 @@ export function BenefitsScreen() {
     ]),
     [catalogPlans, setCatalogPlans] = useState<MembershipPlan[]>(() => [
       ...plans,
-    ]);
+    ]),
+    [membershipInfo, setMembershipInfo] =
+      useState<CurrentMembershipResponse | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -149,11 +154,23 @@ export function BenefitsScreen() {
       fetchPromotions(),
       fetchRewards(),
       fetchMemberships(),
-    ]).then(([loadedPromos, loadedRewards, loadedPlans]) => {
+      membershipService.getCurrent().catch(() => null),
+    ]).then(([loadedPromos, loadedRewards, loadedPlans, currentMembership]) => {
       if (!active) return;
       setCatalogPromos([...loadedPromos]);
       setCatalogRewards([...loadedRewards]);
       setCatalogPlans([...loadedPlans]);
+      if (currentMembership) {
+        setMembershipInfo(currentMembership);
+        const bal = Number(currentMembership.walletBalance);
+        execute((r) =>
+          r.changeMembershipPlan(currentMembership.membershipPlan?.id ?? null, {
+            expiresAt: currentMembership.expiresAt,
+            status: currentMembership.status,
+            walletBalance: Number.isFinite(bal) ? bal : undefined,
+          }),
+        );
+      }
     });
     return () => {
       active = false;
@@ -283,18 +300,27 @@ export function BenefitsScreen() {
       {tab === "Membresía" && (
         <>
           <Title style={benefitStyles.sectionTitle}>Membresía</Title>
-          {catalogPlans.map((plan) => {
-            const tone = membershipTone(plan.id, plan.name);
+          {catalogPlans.map((plan, index) => {
+            const tone = membershipTone(plan.id, plan.name, index);
+            const isCurrent = c.membershipPlanId
+              ? c.membershipPlanId === plan.id
+              : c.membershipTier === plan.name;
+            const periodLabel =
+              plan.interval === "YEARLY"
+                ? "/ año"
+                : plan.interval === "QUARTERLY"
+                  ? "/ trimestre"
+                  : "/ mes";
             return (
               <Card
                 key={plan.id}
                 style={[
                   benefitStyles.planCard,
                   { borderColor: tone.ink },
-                  c.membershipTier === plan.name && benefitStyles.currentPlan,
+                  isCurrent && benefitStyles.currentPlan,
                 ]}
               >
-                {c.membershipTier === plan.name && (
+                {isCurrent && (
                   <View
                     style={[
                       benefitStyles.planBadge,
@@ -330,11 +356,52 @@ export function BenefitsScreen() {
                       {money(plan.priceMonthly)}
                     </Text>
                     <Body muted style={benefitStyles.planPeriod}>
-                      / mes
+                      {periodLabel}
                     </Body>
                   </View>
                 </View>
+                {!!plan.description && (
+                  <Body muted>{plan.description}</Body>
+                )}
                 <View style={benefitStyles.features}>
+                  <View style={benefitStyles.feature}>
+                    <Icon
+                      name="checkmark-circle"
+                      size={15}
+                      color={tone.ink}
+                    />
+                    <Body style={benefitStyles.featureText}>
+                      {plan.weeklyPickups === null
+                        ? "Envíos gratis ilimitados"
+                        : plan.weeklyPickups > 0
+                          ? `${plan.weeklyPickups} envíos gratis por semana`
+                          : "Sin envíos gratis incluidos"}
+                    </Body>
+                  </View>
+                  {!!plan.includedWeight && plan.includedWeight > 0 && (
+                    <View style={benefitStyles.feature}>
+                      <Icon
+                        name="checkmark-circle"
+                        size={15}
+                        color={tone.ink}
+                      />
+                      <Body style={benefitStyles.featureText}>
+                        {plan.includedWeight} {plan.weightUnit ?? "KG"} incluidos
+                      </Body>
+                    </View>
+                  )}
+                  {plan.priorityService && (
+                    <View style={benefitStyles.feature}>
+                      <Icon
+                        name="checkmark-circle"
+                        size={15}
+                        color={tone.ink}
+                      />
+                      <Body style={benefitStyles.featureText}>
+                        Atención prioritaria en planta y ruta
+                      </Body>
+                    </View>
+                  )}
                   {plan.benefits.map((b) => (
                     <View key={b} style={benefitStyles.feature}>
                       <Icon
@@ -346,21 +413,67 @@ export function BenefitsScreen() {
                     </View>
                   ))}
                 </View>
-                <Button
-                  label={`Elegir plan ${plan.name}`}
-                  style={[
-                    benefitStyles.planButton,
-                    { backgroundColor: tone.ink },
-                  ]}
-                  disabled={c.membershipTier === plan.name}
-                  busy={a.busy}
-                  onPress={() =>
-                    void a.asyncRun(async () => {
-                      await membershipService.choose(plan.id);
-                      execute((r) => r.changeMembershipPlan(plan.name));
-                    }, `Membresía ${plan.name} seleccionada.`)
-                  }
-                />
+                {isCurrent ? (
+                  <>
+                    {c.membershipExpiresAt && (
+                      <Body muted>
+                        Vigente hasta {c.membershipExpiresAt.slice(0, 10)}
+                        {membershipInfo &&
+                        membershipInfo.weeklyPickupsLimit !== null
+                          ? ` · Envíos usados esta semana: ${membershipInfo.weeklyPickupsUsed}/${membershipInfo.weeklyPickupsLimit}`
+                          : ""}
+                      </Body>
+                    )}
+                    <Button
+                      label="Cancelar membresía"
+                      secondary
+                      busy={a.busy}
+                      onPress={() =>
+                        void a.asyncRun(async () => {
+                          await membershipService.cancel();
+                          execute((r) => r.changeMembershipPlan(null));
+                          const updated = await membershipService
+                            .getCurrent()
+                            .catch(() => null);
+                          if (updated) setMembershipInfo(updated);
+                        }, "Membresía cancelada.")
+                      }
+                    />
+                  </>
+                ) : (
+                  <>
+                    {plan.priceMonthly > 0 && (
+                      <Body muted>
+                        Se descontará {money(plan.priceMonthly)} de tu Billetera
+                        Laundry al activar.
+                      </Body>
+                    )}
+                    <Button
+                      label={`Elegir plan ${plan.name}`}
+                      style={[
+                        benefitStyles.planButton,
+                        { backgroundColor: tone.ink },
+                      ]}
+                      busy={a.busy}
+                      onPress={() =>
+                        void a.asyncRun(async () => {
+                          const res = await membershipService.choose(plan.id);
+                          execute((r) =>
+                            r.changeMembershipPlan(plan.id, {
+                              expiresAt: res.expiresAt,
+                              status: res.status,
+                              walletBalance: Number(res.walletBalance),
+                            }),
+                          );
+                          const updated = await membershipService
+                            .getCurrent()
+                            .catch(() => null);
+                          if (updated) setMembershipInfo(updated);
+                        }, `Membresía ${plan.name} activada.`)
+                      }
+                    />
+                  </>
+                )}
               </Card>
             );
           })}

@@ -10,6 +10,7 @@ import type {
 export interface CatalogGarment {
   id: string;
   name: string;
+  description?: string;
   category: string;
   basePrice: number;
   estimatedHours: number;

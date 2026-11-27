@@ -101,6 +101,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const next = clone(latest.current);
         refreshSchedule(next);
         save(next);
+        void syncFullCatalog();
       }
     });
     return () => listener.remove();

@@ -18,12 +18,23 @@ const planTones: Record<string, { ink: string; soft: string }> = {
   "plan-standard": { ink: theme.colors.primary, soft: theme.colors.soft },
   "plan-premium": { ink: "#7C3AED", soft: "#EDE9FE" },
 };
-export const membershipTone = (idOrName: string, name = "") => {
+const dynamicPlanPalette: { ink: string; soft: string }[] = [
+  { ink: theme.colors.primary, soft: theme.colors.soft },
+  { ink: "#0F766E", soft: "#CCFBF1" },
+  { ink: "#7C3AED", soft: "#EDE9FE" },
+  { ink: "#B45309", soft: "#FEF3C7" },
+];
+export const membershipTone = (idOrName: string, name = "", index?: number) => {
   if (planTones[idOrName]) return planTones[idOrName];
   const label = `${idOrName} ${name}`.toLowerCase();
   if (label.includes("premium")) return planTones["plan-premium"];
   if (label.includes("estándar") || label.includes("estandar"))
     return planTones["plan-standard"];
+  if (label.includes("básico") || label.includes("basico"))
+    return planTones["plan-basic"];
+  if (typeof index === "number") {
+    return dynamicPlanPalette[index % dynamicPlanPalette.length];
+  }
   return planTones["plan-basic"];
 };
 

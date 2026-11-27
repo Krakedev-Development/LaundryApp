@@ -4,6 +4,7 @@ import type {
   FulfillmentPlan,
   Leg,
   Order,
+  OrderExtra,
   OrderItem,
   OrderPricing,
   OrderStatus,
@@ -11,6 +12,12 @@ import type {
   PricingStatus,
   TimelineEvent,
 } from "../../domain/models";
+import {
+  extras as catalogExtras,
+  facilities as catalogFacilities,
+  garments as catalogGarments,
+  services as catalogServices,
+} from "../../domain/catalog";
 import { statusLabels } from "../../domain/models";
 import { apiClient } from "../api/apiClient";
 import { getStoredAuthSession } from "../auth/authService";
@@ -118,12 +125,15 @@ export interface BackendOrderItem {
   quantity: number;
   unitPrice: string | number;
   notes?: string | null;
+  garment?: { id: string; name: string; icon?: string | null } | null;
+  service?: { id: string; name: string } | null;
 }
 
 export interface BackendOrderExtra {
   id: string;
   extraId: string;
   price: string | number;
+  extra?: { id: string; name: string } | null;
 }
 
 export interface PriceAdjustment {
@@ -245,6 +255,7 @@ export interface BackendOrderDetails extends BackendOrderSummary {
   estimatedWeightLb?: string | number | null;
   pricePerPound?: string | number | null;
   weightTier?: { id: string; name: string } | null;
+  facility?: { id: string; name: string } | null;
   itemsSubtotal?: string | number;
   extrasTotal?: string | number;
   discount?: string | number;
@@ -394,15 +405,38 @@ export function mapBackendOrderToDomain(
 
   const domainItems: OrderItem[] =
     "items" in raw && raw.items
-      ? raw.items.map((it) => ({
-          id: it.garmentId,
-          garmentType: "Prenda de lavandería",
-          quantity: it.quantity,
-          serviceType: "Servicio estándar",
-          unitPrice: typeof it.unitPrice === "string" ? parseFloat(it.unitPrice) : it.unitPrice,
-          notes: it.notes ?? "",
-          iconName: "shirt-outline",
-        }))
+      ? raw.items.map((it) => {
+          const catGarment = catalogGarments.find((g) => g.id === it.garmentId);
+          const catService = catalogServices.find((s) => s.id === it.serviceId);
+          return {
+            id: it.garmentId,
+            garmentType:
+              it.garment?.name || catGarment?.name || "Prenda de lavandería",
+            quantity: it.quantity,
+            serviceType:
+              it.service?.name || catService?.name || "Servicio estándar",
+            unitPrice:
+              typeof it.unitPrice === "string"
+                ? parseFloat(it.unitPrice)
+                : it.unitPrice,
+            notes: it.notes ?? "",
+            iconName: catGarment?.iconKey || "shirt-outline",
+          };
+        })
+      : [];
+
+  const domainExtras: OrderExtra[] =
+    "extras" in raw && raw.extras
+      ? raw.extras.map((ex) => {
+          const catExtra = catalogExtras.find((e) => e.id === ex.extraId);
+          return {
+            id: ex.extraId,
+            name: ex.extra?.name || catExtra?.name || "Extra",
+            description: catExtra?.description ?? "",
+            price:
+              typeof ex.price === "string" ? parseFloat(ex.price) : ex.price,
+          };
+        })
       : [];
 
   const timeline: TimelineEvent[] =
@@ -433,11 +467,14 @@ export function mapBackendOrderToDomain(
     status: (raw.status as OrderStatus) ?? "PAYMENT_PENDING",
     priority: false,
     items: domainItems,
-    extras: [],
+    extras: domainExtras,
     pricing,
     pickup,
     delivery,
-    facilityName: "Sede Central Guayaquil",
+    facilityName:
+      ("facility" in raw && raw.facility?.name) ||
+      catalogFacilities.find((f) => f.id === raw.facilityId)?.name ||
+      "Sede asignada",
     trackingPosition: {
       latitude: GUAYAQUIL_DEFAULT_COORDINATES.latitude,
       longitude: GUAYAQUIL_DEFAULT_COORDINATES.longitude,
