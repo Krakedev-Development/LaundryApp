@@ -5,9 +5,18 @@ import { ListItem, StatusChip } from "../components/presentation";
 import { useReducedMotion } from "../design-system/MotionProvider";
 import { contentColors as colors } from "../components/ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import {
+  FlatList,
+  Linking,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Page } from "../components/Page";
+import { tactile } from "../design-system/interaction";
 import {
   Badge,
   Body,
@@ -589,11 +598,6 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
             />
           ) : null}
           <Button
-            label="Abrir chat con el chofer"
-            icon="chatbubble-outline"
-            onPress={() => navigation.navigate("Chat", { orderId })}
-          />
-          <Button
             label="Volver al detalle"
             secondary
             onPress={() =>
@@ -693,12 +697,42 @@ export function TrackingScreen({ route }: ScreenProps<"ClientTracking">) {
                 {assignedDriver.plate ?? "Sin placa"}
               </Text>
             </View>
-            {assignedDriver.phone ? (
-              <View style={radarStyles.phoneChip}>
-                <Ionicons name="call-outline" size={12} color="#0284C7" />
-                <Text style={radarStyles.phoneText}>{assignedDriver.phone}</Text>
-              </View>
-            ) : null}
+            <View style={radarStyles.driverActions}>
+              {assignedDriver.phone ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Llamar al chofer"
+                  onPress={() => {
+                    tactile("light");
+                    void Linking.openURL(`tel:${assignedDriver.phone}`).catch(() => {});
+                  }}
+                  style={({ pressed }) => [
+                    radarStyles.actionIconBtn,
+                    { transform: [{ scale: pressed ? 0.94 : 1 }] },
+                  ]}
+                >
+                  <Ionicons name="call-outline" size={18} color="#0284C7" />
+                </Pressable>
+              ) : null}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Abrir chat con el chofer"
+                onPress={() => {
+                  tactile("light");
+                  navigation.navigate("Chat", { orderId });
+                }}
+                style={({ pressed }) => [
+                  radarStyles.actionIconBtn,
+                  { transform: [{ scale: pressed ? 0.94 : 1 }] },
+                ]}
+              >
+                <Ionicons
+                  name="chatbubble-ellipses-outline"
+                  size={18}
+                  color="#0284C7"
+                />
+              </Pressable>
+            </View>
           </View>
         </View>
       ) : isLiveTracking ? (
@@ -1033,21 +1067,20 @@ const radarStyles = StyleSheet.create({
     fontSize: 12,
     color: "#64748B",
   },
-  phoneChip: {
+  driverActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 8,
+  },
+  actionIconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
     backgroundColor: "#F0F9FF",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
     borderWidth: 1,
     borderColor: "#BAE6FD",
-  },
-  phoneText: {
-    fontSize: 12,
-    color: "#0369A1",
-    fontWeight: "600",
+    alignItems: "center",
+    justifyContent: "center",
   },
   searchingTitle: {
     fontSize: 14,
