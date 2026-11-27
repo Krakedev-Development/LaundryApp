@@ -25,6 +25,7 @@ export interface AuthUser {
   membershipStatus?: "ACTIVE" | "CANCELLED" | "EXPIRED" | null;
   membershipStartedAt?: string | null;
   membershipExpiresAt?: string | null;
+  pointsBalance?: number | null;
 }
 
 export interface AuthTokens {

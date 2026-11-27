@@ -357,6 +357,8 @@ export class LaundryRepository {
         customer.membershipStatus = user.membershipStatus;
       if (user.membershipExpiresAt !== undefined)
         customer.membershipExpiresAt = user.membershipExpiresAt;
+      if (user.pointsBalance !== undefined && user.pointsBalance !== null)
+        customer.loyaltyPoints = user.pointsBalance;
       if (previousId && previousId !== user.id) {
         this.state.orders.forEach((o) => {
           if (o.customerId === previousId) o.customerId = user.id;
@@ -387,7 +389,7 @@ export class LaundryRepository {
         kycDocumentType: "Cédula de Identidad",
         addresses: [],
         walletBalance: 0,
-        loyaltyPoints: 0,
+        loyaltyPoints: user.pointsBalance ?? 0,
         // Sin plan elegido no hay membresía (cadena vacía); el servidor lo informa.
         membershipTier: user.membershipPlan?.name ?? "",
         membershipPlanId: user.membershipPlan?.id ?? null,
@@ -1092,6 +1094,19 @@ export class LaundryRepository {
       date: this.stamp(),
       status: "Pendiente de aprobación",
     });
+  }
+  syncPointsFromApi(
+    balance: number,
+    redemptions?: import("./models").LoyaltyRedemption[],
+  ): void {
+    const c = this.client();
+    c.loyaltyPoints = Math.max(0, Math.floor(balance));
+    if (redemptions) {
+      const others = this.state.loyaltyRedemptions.filter(
+        (r) => r.customerId !== c.id,
+      );
+      this.state.loyaltyRedemptions = [...redemptions, ...others];
+    }
   }
   changeMembershipPlan(
     planIdOrName: string | null,

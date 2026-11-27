@@ -54,6 +54,7 @@ import {
   fetchServices,
   fetchWeightRestrictions,
   fetchWeightTiers,
+  validatePromotion,
 } from "../services/catalog/catalogService";
 import { WeightServiceCard, perPound } from "../components/WeightServiceCard";
 import {
@@ -248,9 +249,13 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
     }),
     [notes, setNotes] = useState(""),
     [promoInput, setPromoInput] = useState(
-      route.params?.promoCode ?? "FRESH10",
+      route.params?.promoCode ?? "",
     ),
     [appliedPromo, setAppliedPromo] = useState<string>(),
+    [validatedPromo, setValidatedPromo] = useState<{
+      code: string;
+      estimatedDiscount: number;
+    } | null>(null),
     [payment, setPayment] = useState("Billetera"),
     [confirmedId, setConfirmedId] = useState<string>(),
     // Resultado del pago en el servidor (solo para solicitudes creadas en el servidor).
@@ -403,6 +408,33 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
   } catch {
     /* Submission shows the promotion validation error. */
   }
+  if (validatedPromo && validatedPromo.code === appliedPromo) {
+    pricing = {
+      ...pricing,
+      discount: validatedPromo.estimatedDiscount,
+      total: round(
+        Math.max(
+          0,
+          pricing.itemsSubtotal +
+            pricing.extrasTotal -
+            pricing.membershipBenefitDiscount -
+            validatedPromo.estimatedDiscount,
+        ),
+      ),
+    };
+  }
+  const promoBaseSubtotal =
+    model === "PER_WEIGHT" && selectedTier
+      ? round(selectedTier.estimatedWeightLb * selectedTier.pricePerPound) +
+        pricing.extrasTotal
+      : round(
+          Math.max(
+            0,
+            pricing.itemsSubtotal +
+              pricing.extrasTotal -
+              pricing.membershipBenefitDiscount,
+          ),
+        );
   const activeServiceObj =
     catalogServices.find((s) => s.name === service) ?? catalogServices[0];
 
@@ -431,6 +463,7 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
         },
       ]);
     setAppliedPromo(undefined);
+    setValidatedPromo(null);
   };
   const next = () => {
     if (step === 1 && (!inbound.addressFull || !inbound.timeSlotId)) {
@@ -1052,20 +1085,39 @@ export function NewOrderScreen({ route }: ScreenProps<"ClientNewOrderWizard">) {
                   label="Aplicar promoción"
                   secondary
                   variant="primary"
+                  busy={a.busy}
                   style={confirmationStyles.apply}
                   textStyle={confirmationStyles.applyText}
                   onPress={() =>
-                    a.run(() => {
-                      calculatePricing(
-                        items,
-                        extraIds,
-                        model,
-                        membershipKey,
-                        promoInput,
-                      );
-                      setAppliedPromo(
-                        promoInput.trim().toUpperCase() || undefined,
-                      );
+                    void a.asyncRun(async () => {
+                      const code = promoInput.trim().toUpperCase();
+                      if (!code) {
+                        setAppliedPromo(undefined);
+                        setValidatedPromo(null);
+                        return;
+                      }
+                      const session = await getStoredAuthSession();
+                      if (session.accessToken) {
+                        const res = await validatePromotion(
+                          code,
+                          promoBaseSubtotal,
+                        );
+                        setAppliedPromo(res.promotion.code);
+                        setValidatedPromo({
+                          code: res.promotion.code,
+                          estimatedDiscount: res.estimatedDiscount ?? 0,
+                        });
+                      } else {
+                        calculatePricing(
+                          items,
+                          extraIds,
+                          model,
+                          membershipKey,
+                          code,
+                        );
+                        setAppliedPromo(code);
+                        setValidatedPromo(null);
+                      }
                     }, "Promoción aplicada.")
                   }
                 />

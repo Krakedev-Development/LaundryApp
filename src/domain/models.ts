@@ -308,6 +308,11 @@ export interface LoyaltyReward {
   pointsCost: number;
   description: string;
   category: string;
+  fulfillmentType?: "NONE" | "WALLET_CREDIT" | "PROMO_COUPON";
+  walletCreditAmount?: number | null;
+  couponDiscountType?: "PERCENTAGE" | "FIXED" | null;
+  couponDiscountValue?: number | null;
+  couponValidityDays?: number | null;
 }
 export interface LoyaltyRedemption {
   id: string;
@@ -316,14 +321,21 @@ export interface LoyaltyRedemption {
   pointsCost: number;
   date: string;
   status: string;
+  generatedPromoCode?: string | null;
+  walletCreditAmount?: number | null;
+  reviewReason?: string | null;
 }
 export interface Promo {
   code: string;
+  name?: string;
   discountPercent: number;
   fixedDiscount: number;
   minOrderAmount: number;
   description: string;
   validUntil: string;
+  firstOrderOnly?: boolean;
+  maxUsesPerCustomer?: number | null;
+  isPersonal?: boolean;
 }
 export interface MembershipPlan {
   id: string;

@@ -46,6 +46,7 @@ import {
   membershipService,
   type CurrentMembershipResponse,
 } from "../services/customer/membershipService";
+import { pointsService } from "../services/points/pointsService";
 export function ClientProfileScreen() {
   const navigation = useLaundryNavigation();
   const { state, execute } = useApp();
@@ -155,23 +156,42 @@ export function BenefitsScreen() {
       fetchRewards(),
       fetchMemberships(),
       membershipService.getCurrent().catch(() => null),
-    ]).then(([loadedPromos, loadedRewards, loadedPlans, currentMembership]) => {
-      if (!active) return;
-      setCatalogPromos([...loadedPromos]);
-      setCatalogRewards([...loadedRewards]);
-      setCatalogPlans([...loadedPlans]);
-      if (currentMembership) {
-        setMembershipInfo(currentMembership);
-        const bal = Number(currentMembership.walletBalance);
-        execute((r) =>
-          r.changeMembershipPlan(currentMembership.membershipPlan?.id ?? null, {
-            expiresAt: currentMembership.expiresAt,
-            status: currentMembership.status,
-            walletBalance: Number.isFinite(bal) ? bal : undefined,
-          }),
-        );
-      }
-    });
+      pointsService.getMyPoints().catch(() => null),
+      pointsService.listRedemptions().catch(() => null),
+    ]).then(
+      ([
+        loadedPromos,
+        loadedRewards,
+        loadedPlans,
+        currentMembership,
+        myPoints,
+        myRedemptions,
+      ]) => {
+        if (!active) return;
+        setCatalogPromos([...loadedPromos]);
+        setCatalogRewards([...loadedRewards]);
+        setCatalogPlans([...loadedPlans]);
+        if (currentMembership) {
+          setMembershipInfo(currentMembership);
+          const bal = Number(currentMembership.walletBalance);
+          execute((r) =>
+            r.changeMembershipPlan(currentMembership.membershipPlan?.id ?? null, {
+              expiresAt: currentMembership.expiresAt,
+              status: currentMembership.status,
+              walletBalance: Number.isFinite(bal) ? bal : undefined,
+            }),
+          );
+        }
+        if (myPoints || myRedemptions) {
+          execute((r) =>
+            r.syncPointsFromApi(
+              myPoints?.balance ?? c.loyaltyPoints,
+              myRedemptions ?? undefined,
+            ),
+          );
+        }
+      },
+    );
     return () => {
       active = false;
     };
@@ -227,7 +247,9 @@ export function BenefitsScreen() {
                   <View style={benefitStyles.conditions}>
                     <Icon name="information-circle-outline" size={18} />
                     <Body muted style={benefitStyles.conditionText}>
-                      Mínimo en prendas {money(p.minOrderAmount)} · Válido hasta{" "}
+                      {p.isPersonal ? "Cupón personal · " : ""}
+                      {p.firstOrderOnly ? "Solo primera orden · " : ""}
+                      Mínimo {money(p.minOrderAmount)} · Válido hasta{" "}
                       {p.validUntil}
                     </Body>
                   </View>
@@ -252,37 +274,61 @@ export function BenefitsScreen() {
           <Title style={benefitStyles.sectionTitle}>Recompensas</Title>
           <PointsSummary points={c.loyaltyPoints}>
             <Body muted style={benefitStyles.pointsExplanation}>
-              Ganas 10 puntos por dólar al confirmar un servicio. Los canjes
-              requieren aprobación.
+              Acumulas puntos al completar tus órdenes según la política vigente.
+              Los canjes se aprueban desde administración.
             </Body>
           </PointsSummary>
-          {catalogRewards.map((r) => (
-            <Card key={r.id} style={benefitStyles.rewardCard}>
-              <View style={benefitStyles.rewardHeading}>
-                <BenefitIcon name="gift-outline" />
-                <View style={benefitStyles.rewardInfo}>
-                  <Title style={benefitStyles.rewardTitle}>{r.title}</Title>
-                  <Text style={benefitStyles.rewardCost}>
-                    {r.pointsCost} puntos
-                  </Text>
+          {catalogRewards.map((r) => {
+            const rewardBenefit =
+              r.fulfillmentType === "WALLET_CREDIT" && r.walletCreditAmount
+                ? `Acredita ${money(r.walletCreditAmount)} en tu billetera al aprobar.`
+                : r.fulfillmentType === "PROMO_COUPON" && r.couponDiscountValue
+                  ? `Genera cupón personal de ${
+                      r.couponDiscountType === "PERCENTAGE"
+                        ? `${r.couponDiscountValue}%`
+                        : money(r.couponDiscountValue)
+                    } (${r.couponValidityDays ?? 30} días).`
+                  : null;
+            return (
+              <Card key={r.id} style={benefitStyles.rewardCard}>
+                <View style={benefitStyles.rewardHeading}>
+                  <BenefitIcon name="gift-outline" />
+                  <View style={benefitStyles.rewardInfo}>
+                    <Title style={benefitStyles.rewardTitle}>{r.title}</Title>
+                    <Text style={benefitStyles.rewardCost}>
+                      {r.pointsCost} puntos
+                    </Text>
+                  </View>
                 </View>
-              </View>
-              <Body style={benefitStyles.rewardDescription}>
-                {r.description}
-              </Body>
-              <Button
-                label={`Canjear ${r.title}`}
-                style={benefitStyles.rewardButton}
-                disabled={c.loyaltyPoints < r.pointsCost}
-                onPress={() =>
-                  a.run(
-                    () => execute((repo) => repo.redeemReward(r.id)),
-                    "Canje solicitado. Pendiente de aprobación.",
-                  )
-                }
-              />
-            </Card>
-          ))}
+                <Body style={benefitStyles.rewardDescription}>
+                  {r.description}
+                </Body>
+                {!!rewardBenefit && (
+                  <Body muted style={benefitStyles.conditionText}>
+                    {rewardBenefit}
+                  </Body>
+                )}
+                <Button
+                  label={`Canjear ${r.title}`}
+                  style={benefitStyles.rewardButton}
+                  disabled={c.loyaltyPoints < r.pointsCost}
+                  busy={a.busy}
+                  onPress={() =>
+                    void a.asyncRun(async () => {
+                      await pointsService.redeem(r.id);
+                      const [myPoints, myRedemptions] = await Promise.all([
+                        pointsService.getMyPoints(),
+                        pointsService.listRedemptions(),
+                      ]);
+                      execute((repo) =>
+                        repo.syncPointsFromApi(myPoints.balance, myRedemptions),
+                      );
+                    }, "Canje solicitado. Pendiente de aprobación.")
+                  }
+                />
+              </Card>
+            );
+          })}
           <Title style={benefitStyles.sectionTitle}>Mis canjes</Title>
           {state.loyaltyRedemptions
             .filter((r) => r.customerId === c.id)
@@ -292,6 +338,28 @@ export function BenefitsScreen() {
                 <Body muted>
                   {r.pointsCost} puntos · {r.date}
                 </Body>
+                {!!r.walletCreditAmount && r.walletCreditAmount > 0 && (
+                  <Body>
+                    Crédito abonado a billetera: {money(r.walletCreditAmount)}
+                  </Body>
+                )}
+                {!!r.generatedPromoCode && (
+                  <>
+                    <Body>Cupón personal: {r.generatedPromoCode}</Body>
+                    <Button
+                      label={`Usar ${r.generatedPromoCode}`}
+                      secondary
+                      onPress={() =>
+                        navigation.navigate("ClientNewOrderWizard", {
+                          promoCode: r.generatedPromoCode!,
+                        })
+                      }
+                    />
+                  </>
+                )}
+                {!!r.reviewReason && (
+                  <Body muted>Motivo: {r.reviewReason}</Body>
+                )}
                 <Badge>{r.status}</Badge>
               </Card>
             ))}

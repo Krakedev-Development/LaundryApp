@@ -23,6 +23,7 @@ import type {
 } from "../../domain/models";
 import { apiClient } from "../api/apiClient";
 import { getStoredAuthSession } from "../auth/authService";
+import { withSession } from "../auth/withSession";
 
 export const CATALOG_CACHE_KEY = "laundry.catalog.cache.v1";
 
@@ -95,6 +96,7 @@ interface BackendFacility {
 interface BackendPromo {
   id?: string;
   code: string;
+  name?: string | null;
   discountType?: "PERCENTAGE" | "FIXED" | string;
   discountValue?: string | number;
   discountPercent?: string | number;
@@ -102,6 +104,9 @@ interface BackendPromo {
   minOrderAmount?: string | number;
   description?: string;
   validUntil?: string | null;
+  firstOrderOnly?: boolean;
+  maxUsesPerCustomer?: number | null;
+  isPersonal?: boolean;
   active?: boolean;
 }
 
@@ -112,6 +117,11 @@ interface BackendReward {
   pointsCost: string | number;
   description?: string;
   category?: string;
+  fulfillmentType?: "NONE" | "WALLET_CREDIT" | "PROMO_COUPON" | null;
+  walletCreditAmount?: string | number | null;
+  couponDiscountType?: "PERCENTAGE" | "FIXED" | null;
+  couponDiscountValue?: string | number | null;
+  couponValidityDays?: number | null;
   active?: boolean;
 }
 
@@ -316,11 +326,15 @@ function mapPromo(raw: BackendPromo): Promo {
     : 0;
   return {
     code: raw.code.trim().toUpperCase(),
+    name: raw.name?.trim() || undefined,
     discountPercent,
     fixedDiscount,
     minOrderAmount: Number(raw.minOrderAmount) || 0,
     description: raw.description?.trim() || "Promoción especial Laundry",
     validUntil: raw.validUntil ? raw.validUntil.slice(0, 10) : "2026-12-31",
+    firstOrderOnly: Boolean(raw.firstOrderOnly),
+    maxUsesPerCustomer: raw.maxUsesPerCustomer ?? null,
+    isPersonal: Boolean(raw.isPersonal),
   };
 }
 
@@ -510,6 +524,13 @@ export async function fetchRewards(
         description:
           item.description?.trim() || "Canjeable con tus puntos disponibles.",
         category: item.category?.trim() || "Beneficios",
+        fulfillmentType: item.fulfillmentType ?? "NONE",
+        walletCreditAmount:
+          item.walletCreditAmount != null ? Number(item.walletCreditAmount) : null,
+        couponDiscountType: item.couponDiscountType ?? null,
+        couponDiscountValue:
+          item.couponDiscountValue != null ? Number(item.couponDiscountValue) : null,
+        couponValidityDays: item.couponValidityDays ?? null,
       }));
     // El servidor respondió: su lista manda, aunque venga vacía (todo desactivado).
     syncCatalogState({ rewards: mapped });
@@ -645,6 +666,36 @@ export async function syncFullCatalog(
   };
 }
 
+export interface ValidatePromotionResponse {
+  valid: true;
+  promotion: {
+    id: string;
+    code: string;
+    name?: string | null;
+    description?: string | null;
+    discountType: "PERCENTAGE" | "FIXED";
+    discountValue: string | number;
+    minOrderAmount?: string | number | null;
+    firstOrderOnly?: boolean;
+    maxUsesPerCustomer?: number | null;
+    isPersonal?: boolean;
+  };
+  estimatedDiscount: number | null;
+}
+
+export function validatePromotion(
+  code: string,
+  subtotal?: number,
+): Promise<ValidatePromotionResponse> {
+  return withSession((accessToken) =>
+    apiClient.post<ValidatePromotionResponse>(
+      "/catalog/promotions/validate",
+      { code: code.trim().toUpperCase(), ...(subtotal !== undefined ? { subtotal } : {}) },
+      { accessToken },
+    ),
+  );
+}
+
 export const catalogService = {
   fetchGarments,
   fetchServices,
@@ -656,4 +707,5 @@ export const catalogService = {
   fetchWeightTiers,
   fetchWeightRestrictions,
   syncFullCatalog,
+  validatePromotion,
 };
